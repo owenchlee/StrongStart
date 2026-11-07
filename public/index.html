@@ -40,9 +40,12 @@ async function logout() { await fetch('/auth/logout', { method: 'POST' }); locat
 const date = (s) => (s ? String(s).slice(0, 10) : '–');
 const num = (n, d = 2) => (n == null ? '–' : +Number(n).toFixed(d));
 const enc = encodeURIComponent;
-const TABS = ['partners', 'orders', 'programs', 'outstanding', 'review', 'trends', 'rollup', 'emails', 'staff', 'userforms'];
-let tab = 'orders';
-document.querySelectorAll('nav button').forEach((b) => (b.onclick = () => { tab = b.dataset.t; refresh(); }));
+const TABS = ['partners', 'training', 'orders', 'programs', 'outstanding', 'review', 'trends', 'rollup', 'emails', 'staff', 'userforms'];
+let tab = (function() {
+  const stored = localStorage.getItem('activeTab');
+  return stored && TABS.includes(stored) ? stored : TABS[0];
+})();
+document.querySelectorAll('nav button').forEach((b) => (b.onclick = () => { tab = b.dataset.t; localStorage.setItem('activeTab', tab); refresh(); }));
 
 // Presentation only: label cells so tables can stack into readable rows on narrow screens.
 function enhanceTables() {
@@ -86,15 +89,7 @@ const STAGE_LABELS = {
   active: 'Active Partner',
   inactive: 'Inactive'
 };
-const STAGE_COLORS = {
-  expression_of_interest: '#6c9',
-  initial_contact: '#9c6',
-  discovery: '#69c',
-  pdsa_review: '#c96',
-  pdsa_signed: '#c69',
-  active: '#6c9',
-  inactive: '#999'
-};
+
 
 async function renderPartners() {
   const [pipeline, partnerList] = await Promise.all([
@@ -114,7 +109,7 @@ async function renderPartners() {
 
     <div class="stats" style="margin-bottom:var(--s4);grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
       ${stages.map((st) => `
-        <div class="stat${partnerFilterStage === st ? ' attn' : ''}" style="cursor:pointer;color:#fff;background:${STAGE_COLORS[st] || '#777'};" onclick="setPartnerFilter('${st}')">
+        <div class="stat${partnerFilterStage === st ? ' attn' : ''}" style="cursor:pointer" onclick="setPartnerFilter('${st}')">
           <b>${pipeline.counts[st] || 0}</b>
           <span class="muted">${STAGE_LABELS[st] || st}</span>
         </div>
@@ -235,7 +230,7 @@ async function viewPartner(id) {
 
       <div class="row" style="margin-top:var(--s3)">
         <div><b>Contact:</b> ${esc(p.contact_name || '–')} &bull; <a href="mailto:${esc(p.contact_email)}">${esc(p.contact_email || '–')}</a> &bull; ${esc(p.contact_phone || '–')}</div>
-        <div><b>Current Stage:</b> <span class="pill" style="background:${STAGE_COLORS[p.stage] || '#777'};color:#fff;">${esc(p.stage)}</span></div>
+        <div><b>Current Stage:</b> <span class="pill st-ordered">${esc(p.stage)}</span></div>
       </div>
 
       <!-- PDSA Agreement Section -->
