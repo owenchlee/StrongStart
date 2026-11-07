@@ -1,0 +1,101 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/style.css"><title>Write to a facilitator</title>
+</head><body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head simple"><div class="in"><p class="brand"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle class="a" cx="12" cy="17" r="9"/><circle class="b" cx="21" cy="17" r="9"/></svg><span>Baby Connections <small>Strong Start staff</small></span></p></div></header>
+<main id="main" tabindex="-1"><div class="card"><p class="muted"><a href="/">&larr; Back to dashboard</a></p><h1>Write to a facilitator</h1>
+<p class="muted">Dictate or type your message. Nothing is sent until you press Send.</p>
+<form id="f" novalidate>
+<label for="to">To</label><select id="to" required><option value="">Loading…</option></select>
+<label for="subject">Subject</label><input id="subject" maxlength="200" required>
+<label for="body">Message</label><textarea id="body" rows="10" maxlength="10000" required></textarea>
+<div class="actions">
+<button type="button" id="mic" class="sec" aria-pressed="false">Start dictating</button>
+<button type="button" id="tidy" class="sec">Tidy with AI</button>
+<span id="st" class="muted" role="status" aria-live="polite"></span>
+</div>
+<p class="err" id="err" role="alert"></p>
+<p id="done" class="ok" role="status"></p>
+<button id="send">Send email</button>
+</form></div></main>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+async function api(url, init) {
+  const r = await fetch(url, init);
+  if (r.status === 401) { location.href = '/login.html'; throw new Error('Signing you in…'); }
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || 'Something went wrong.');
+  return d;
+}
+const say = (m) => { $('#st').textContent = m; };
+
+api('/api/compose/facilitators').then((list) => {
+  $('#to').innerHTML = '<option value="">Choose a facilitator…</option>' +
+    list.map((x) => `<option value="${esc(x.id)}">${esc(x.name ? x.name + ' (' + x.email + ')' : x.email)}</option>`).join('');
+}).catch((e) => ($('#err').textContent = e.message));
+
+let rec = null, chunks = [], stream = null;
+const pickMime = () => ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((m) => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || '';
+if (!navigator.mediaDevices || !window.MediaRecorder) { $('#mic').disabled = true; say('Dictation is not supported in this browser. You can still type.'); }
+
+$('#mic').onclick = async () => {
+  $('#err').textContent = '';
+  if (rec && rec.state === 'recording') { rec.stop(); return; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch { $('#err').textContent = 'Microphone access was blocked. Allow it in your browser, or type instead.'; return; }
+  const mime = pickMime();
+  rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  chunks = [];
+  rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  rec.onstop = async () => {
+    stream.getTracks().forEach((t) => t.stop());
+    $('#mic').classList.remove('rec'); $('#mic').setAttribute('aria-pressed', 'false'); $('#mic').textContent = 'Start dictating';
+    const blob = new Blob(chunks, { type: rec.mimeType || mime || 'audio/webm' });
+    if (!blob.size) return say('');
+    $('#mic').disabled = true; say('Transcribing…');
+    try {
+      const fd = new FormData(); fd.append('audio', blob, 'dictation');
+      const d = await api('/api/compose/transcribe', { method: 'POST', body: fd });
+      if (!d.transcript) say('Nothing was heard. Try again.');
+      else {
+        const b = $('#body');
+        b.value = (b.value ? b.value.replace(/\s+$/, '') + '\n\n' : '') + d.transcript;
+        say('Added to your message. Please review and edit it.'); b.focus();
+      }
+    } catch (e) { $('#err').textContent = e.message; say(''); }
+    $('#mic').disabled = false;
+  };
+  rec.start();
+  $('#mic').classList.add('rec'); $('#mic').setAttribute('aria-pressed', 'true'); $('#mic').textContent = 'Stop dictating'; say('Recording…');
+};
+
+$('#tidy').onclick = async () => {
+  const text = $('#body').value.trim();
+  if (!text) return say('Write or dictate something first.');
+  $('#tidy').disabled = true; say('Tidying…'); $('#err').textContent = '';
+  try {
+    const d = await api('/api/compose/polish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, facilitator_id: $('#to').value }) });
+    $('#body').value = d.text; say('Tidied. Please review it before sending.');
+  } catch (e) { $('#err').textContent = e.message; say(''); }
+  $('#tidy').disabled = false;
+};
+
+$('#f').onsubmit = async (e) => {
+  e.preventDefault(); $('#err').textContent = ''; $('#done').textContent = '';
+  if (!$('#to').value) return ($('#err').textContent = 'Choose who to send this to.');
+  if (!$('#subject').value.trim()) return ($('#err').textContent = 'Add a subject.');
+  if (!$('#body').value.trim()) return ($('#err').textContent = 'Write a message first.');
+  const name = $('#to').selectedOptions[0].textContent;
+  if (!confirm('Send this email to ' + name + '?')) return;
+  const b = $('#send'); b.disabled = true; b.textContent = 'Sending…';
+  try {
+    await api('/api/compose/send', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ facilitator_id: Number($('#to').value), subject: $('#subject').value, body: $('#body').value }) });
+    $('#done').textContent = 'Sent to ' + name + '.';
+    $('#subject').value = ''; $('#body').value = ''; say('');
+  } catch (er) { $('#err').textContent = er.message; }
+  b.disabled = false; b.textContent = 'Send email';
+};
+</script></body></html>

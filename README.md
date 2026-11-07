@@ -1,26 +1,48 @@
 # StrongStart: Baby Connections dashboard
 
-Connects Baby Connections facilitators with the Strong Start team: kit orders by email, order/delivery emails, parent feedback by QR code or photo (AI reads handwriting), and automatic program feedback reports.
+Connects Baby Connections facilitators with the Strong Start team: kit orders by email, order/delivery emails, parent feedback by QR code, photo or voice (AI reads handwriting and translates), and program reports, trends and rollups for staff.
+
+## Run it locally (zero setup)
 
 ```bash
 npm install
-cp .env.example .env   # optional: add ANTHROPIC_API_KEY, SMTP settings
-npm run dev            # http://localhost:3000
-npm test               # end-to-end smoke test
+AUTH_DEV_LOGIN=1 STAFF_ADMIN_EMAILS=you@example.org npm run dev   # http://localhost:3000
+npm test                                                          # all tests
 ```
 
-## The workflow
-1. A facilitator emails in → `POST /api/inbound-email` (connect your email provider's inbound webhook here).
-2. They get an emailed link to a personal **kit order form** (`/order/:token`).
-3. Submitting it sends an **order confirmation**; staff click "Mark shipped" on the dashboard, the facilitator gets a **"confirm you received it"** link, and clicking it sends the **kits received** emails.
-4. Parents give feedback by **scanning the program's QR code** (`/feedback/:programId`) or the facilitator **uploads photos of paper forms** (`/upload/:programId`); Claude transcribes the handwriting and anything unclear goes to the **Review queue**.
-5. Everything is stored in SQLite (`data/`) and rolled into a **program report** on the dashboard.
+With no database setting the app uses **PGlite**, an in-process Postgres, in memory (data resets on restart). Set `PGLITE_DIR=data/pglite` to keep it on disk. Sign in at `/login.html` with the dev login (any email in `STAFF_ADMIN_EMAILS`). Nothing else is needed: email is logged to the Emails tab, and AI, audio and photo hosting switch on when their keys are present.
 
-## Staff login
-The dashboard and all staff API routes require **Sign in with Google**, and the Google email must be an active row in the `staff` table. Everything else (order form, feedback form, photo upload, QR, webhook) stays public via links.
-1. Create a Google OAuth client (Web application) with redirect URI `BASE_URL/auth/google/callback`, put the id/secret in `.env`.
-2. Add staff: set `STAFF_ADMIN_EMAILS=you@org.org` (added on startup), or `npm run staff -- add jo@org.org "Jo" `, `-- remove jo@org.org`, `-- list`.
-3. Local dev without Google: `AUTH_DEV_LOGIN=1` shows an email-only login (never in production).
-New `/api/*` routes are protected by default; public ones are listed in `src/auth.js`.
+## Use Tiger Data (Postgres / TimescaleDB)
 
-Without SMTP configured, emails are logged to the dashboard's Emails tab instead of being sent. See [WORKLOAD.md](WORKLOAD.md) for how the work is split between three people.
+Create a service at Tiger Data, then set `TIGER_DATABASE_URL` to its connection string (SSL is used automatically for non-local hosts). Tables are created on startup and existing databases are upgraded in place. When the `timescaledb` extension is available, `feedback` becomes a hypertable (primary key `(id, created_at)`) and a daily continuous aggregate feeds the Trends tab; on plain Postgres or PGlite the same charts use ordinary SQL.
+
+## Environment variables
+
+| Variable | Purpose |
+|---|---|
+| `PORT`, `BASE_URL` | Port, and public URL used in emailed links and QR codes |
+| `TIGER_DATABASE_URL` | Tiger Data / Postgres URL (otherwise local PGlite) |
+| `PGLITE_DIR` | Persist the local PGlite database in this folder |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Gemini: handwriting, translation, summaries (default model `gemini-2.5-flash`) |
+| `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | Read-aloud, voice feedback, email dictation |
+| `CLOUDINARY_URL` | Photo storage |
+| `INBOUND_EMAIL_SECRET` | Shared secret for the inbound-email webhook |
+| `ENABLE_JOBS` | `1` runs background jobs such as order reminders |
+| `TRUST_PROXY` | Reverse-proxy hops to trust (e.g. `1`) so rate limits see real client IPs; defaults to 1 when `BASE_URL` is https |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Staff "Sign in with Google" |
+| `STAFF_ADMIN_EMAILS` | Comma-separated admins added on startup |
+| `REQUIRE_AUTH` | Staff login is **off** unless this is `1`. Turn it on before exposing the server publicly |
+| `AUTH_DEV_LOGIN` | `1` enables email-only login for local use (never in production) |
+| `STAFF_EMAIL`, `MAIL_FROM`, `SMTP_*` | Outgoing email (without `SMTP_HOST` emails are only logged) |
+
+## Public pages vs staff pages
+
+Parents and facilitators never log in; they use links. **Public** (no login): `/order/:token`, `/feedback/:programToken`, `/upload/:programToken`, `/sheet/:programToken` (printable QR sheet), the matching `/api/feedback/:token...`, `/api/programs/:token/public`, `/api/programs/:token/qr.png`, `/api/order-form/:token`, `/api/tts`, `/api/inbound-email` (webhook), and `/login.html`. Program links use a random token, never the numeric id.
+
+**Staff only** (Google sign-in, and the email must be an active row in the `staff` table): the dashboard at `/`, `/compose.html`, and every other `/api/*` route (default-deny; the public list is in `src/auth.js`). The dashboard has Orders, Programs and feedback (date/facilitator filters, CSV export), Outstanding surveys, Review queue (photo, transcription and English translation), Trends, Rollup, Emails, Compose email and, for admins, Staff management.
+
+## Staff accounts
+1. Create a Google OAuth client (Web application) with redirect URI `BASE_URL/auth/google/callback` and put the id and secret in `.env`.
+2. Add staff: `STAFF_ADMIN_EMAILS=you@org.org` (on startup), the Staff tab (admins), or `npm run staff -- add jo@org.org "Jo" [admin]`, `-- remove jo@org.org`, `-- list`. Deactivating someone ends their sessions at once.
+
+See [WORKLOAD.md](WORKLOAD.md) for how the work is split.

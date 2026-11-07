@@ -1,31 +1,102 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/style.css"><title>Parent Feedback</title></head><body>
-<main><div class="card" id="box"><h1>Baby Connections feedback</h1><p class="muted" id="sub">Loading…</p>
-<form id="f" hidden>
-<label>How helpful was the program?</label>
-<div class="stars" role="radiogroup">
- <label><input type="radio" name="rating" value="1" required><span>1</span></label><label><input type="radio" name="rating" value="2"><span>2</span></label>
+<link rel="stylesheet" href="/style.css"><title>Parent Feedback</title>
+</head><body class="public">
+<header class="site-head simple"><div class="in"><p class="brand"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle class="a" cx="12" cy="17" r="9"/><circle class="b" cx="21" cy="17" r="9"/></svg><span>Baby Connections <small>Strong Start</small></span></p></div></header>
+<main id="main"><div class="card" id="box"><h1 id="title">Baby Connections feedback</h1><p class="muted" id="sub" role="status">Loading…</p>
+<form id="f" hidden novalidate>
+<fieldset class="q"><div class="qrow"><legend id="q1">1. How helpful was the program?</legend><button type="button" class="listen sec" data-q="q1" aria-label="Listen to question 1"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span>Listen</span></button></div>
+<div class="scale" role="radiogroup" aria-labelledby="q1">
+ <label><input type="radio" name="rating" value="1"><span>1</span></label><label><input type="radio" name="rating" value="2"><span>2</span></label>
  <label><input type="radio" name="rating" value="3"><span>3</span></label><label><input type="radio" name="rating" value="4"><span>4</span></label>
  <label><input type="radio" name="rating" value="5"><span>5</span></label></div>
-<p class="muted">1 = not helpful, 5 = very helpful</p>
-<label>Would you recommend it to another parent?</label>
-<div class="row"><label><input type="radio" name="rec" value="yes" style="width:auto"> Yes</label><label><input type="radio" name="rec" value="no" style="width:auto"> No</label></div>
-<label>What did you value most?<textarea name="most_valued" rows="3"></textarea></label>
-<label>Any suggestions?<textarea name="suggestions" rows="3"></textarea></label>
-<p class="err" id="err"></p><button>Send feedback</button></form></div></main>
+<p class="scale-ends"><span>1 = not helpful</span><span>5 = very helpful</span></p></fieldset>
+<fieldset class="q"><div class="qrow"><legend id="q2">2. Would you recommend it to another parent?</legend><button type="button" class="listen sec" data-q="q2" aria-label="Listen to question 2"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span>Listen</span></button></div>
+<div class="yn" role="radiogroup" aria-labelledby="q2"><label><input type="radio" name="rec" value="yes"> Yes</label><label><input type="radio" name="rec" value="no"> No</label></div></fieldset>
+<div class="q"><div class="qrow"><label class="ql" for="mv" id="q3">3. What did you value most?</label><button type="button" class="listen sec" data-q="q3" aria-label="Listen to question 3"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span>Listen</span></button></div>
+<textarea id="mv" name="most_valued" rows="3" maxlength="2000" dir="auto"></textarea></div>
+<div class="q"><div class="qrow"><label class="ql" for="sg" id="q4">4. Any suggestions?</label><button type="button" class="listen sec" data-q="q4" aria-label="Listen to question 4"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span>Listen</span></button></div>
+<textarea id="sg" name="suggestions" rows="3" maxlength="2000" dir="auto"></textarea></div>
+<p class="err" id="err" role="alert"></p><button id="send">Send feedback</button>
+<div class="voice-box" id="recBox" hidden><p class="ql">Prefer to talk? Record your answer instead.</p>
+<button type="button" id="recBtn" class="sec"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg><span>Record your answer</span></button> <span id="recState" role="status" aria-live="polite"></span>
+<p class="muted">Your recording is turned into text and is not shared. It is anonymous.</p></div>
+</form></div></main>
 <script>
-const id = location.pathname.split('/').pop(), $ = (s) => document.querySelector(s), f = $('#f');
-fetch(`/api/programs/${id}/public`).then(async (r) => {
-  if (!r.ok) return ($('#sub').textContent = 'Program not found.');
-  const p = await r.json(); $('#sub').textContent = p.name + ' – thank you for sharing your thoughts. It takes about a minute and is anonymous.'; f.hidden = false;
-});
+const token = location.pathname.split('/').pop(), $ = (s) => document.querySelector(s), f = $('#f');
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const lang = (navigator.language || 'en').slice(0, 2).toLowerCase();
+const thanks = () => { $('#box').innerHTML = '<div class="done-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><h1 tabindex="-1" id="th">Thank you!</h1><p>Your feedback helps us improve Baby Connections for every family.</p>'; $('#th').focus(); };
+
+fetch(`/api/programs/${encodeURIComponent(token)}/public`).then(async (r) => {
+  if (!r.ok) return ($('#sub').textContent = 'This link is not valid. Please check the QR code and try again.');
+  const p = await r.json();
+  $('#sub').textContent = p.name + ' - thank you for sharing your thoughts. It takes about a minute and is anonymous.';
+  f.hidden = false;
+}).catch(() => ($('#sub').textContent = 'Could not load the form. Please check your connection.'));
+
 f.onsubmit = async (e) => {
   e.preventDefault();
-  const rec = f.rec.value;
-  const r = await fetch('/api/feedback/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rating: f.rating.value, would_recommend: rec || null, most_valued: f.most_valued.value, suggestions: f.suggestions.value }) });
-  const d = await r.json();
-  if (!r.ok) return ($('#err').textContent = d.error);
-  $('#box').innerHTML = '<h1>Thank you!</h1><p>Your feedback helps us improve Baby Connections for every family.</p>';
+  $('#err').textContent = '';
+  if (!f.rating.value) { $('#err').textContent = 'Please choose a rating from 1 to 5.'; f.querySelector('input[name=rating]').focus(); return; }
+  $('#send').disabled = true;
+  try {
+    const r = await fetch('/api/feedback/' + encodeURIComponent(token), { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rating: f.rating.value, would_recommend: f.rec.value || null, most_valued: f.most_valued.value, suggestions: f.suggestions.value, language: lang }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Something went wrong. Please try again.');
+    thanks();
+  } catch (x) { $('#err').textContent = x.message; $('#send').disabled = false; }
+};
+
+// ---- Listen (text to speech) ----
+let audio;
+document.querySelectorAll('.listen').forEach((b) => b.onclick = async () => {
+  const text = $('#' + b.dataset.q).textContent.replace(/^\d+\.\s*/, '');
+  b.disabled = true;
+  try {
+    const r = await fetch(`/api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(text.slice(0, 300))}`);
+    if (r.status === 503) { document.querySelectorAll('.listen').forEach((x) => x.hidden = true); return; }
+    if (!r.ok) throw new Error();
+    if (audio) audio.pause();
+    audio = new Audio(URL.createObjectURL(await r.blob())); await audio.play();
+  } catch { $('#err').textContent = 'Sorry, we could not play that. Please read the question instead.'; }
+  finally { b.disabled = false; }
+});
+
+// ---- Record your answer ----
+const TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus', 'audio/ogg'];
+if (window.MediaRecorder && navigator.mediaDevices?.getUserMedia) $('#recBox').hidden = false;
+let mr, chunks = [], stream, timer;
+const setLabel = (b, t) => { const s = b.querySelector('span'); (s || b).textContent = t; };
+const stopRec = () => { if (mr && mr.state === 'recording') mr.stop(); };
+$('#recBtn').onclick = async () => {
+  const btn = $('#recBtn'), st = $('#recState');
+  if (mr && mr.state === 'recording') return stopRec();
+  $('#err').textContent = '';
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch { st.textContent = 'We could not use the microphone. Please type your answers instead.'; return; }
+  const mimeType = TYPES.find((t) => MediaRecorder.isTypeSupported(t)) || '';
+  mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined); chunks = [];
+  mr.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  mr.onstop = async () => {
+    clearTimeout(timer); stream.getTracks().forEach((t) => t.stop());
+    setLabel(btn, 'Record your answer'); st.className = '';
+    const type = (mr.mimeType || mimeType || 'audio/webm').split(';')[0];
+    const blob = new Blob(chunks, { type });
+    if (blob.size < 1000) { st.textContent = 'That was too short. Please try again.'; return; }
+    st.textContent = 'Sending your answer…'; btn.disabled = true;
+    const fd = new FormData(); fd.append('lang', lang);
+    fd.append('audio', blob, 'answer.' + ({ 'audio/mp4': 'm4a', 'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'audio/wav': 'wav' }[type] || 'webm'));
+    try {
+      const r = await fetch(`/api/feedback/${encodeURIComponent(token)}/voice`, { method: 'POST', body: fd });
+      if (r.status === 503) { $('#recBox').hidden = true; $('#err').textContent = 'Voice answers are not available right now. Please type your answers.'; return; }
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Could not send your recording.');
+      thanks();
+    } catch (x) { st.textContent = x.message + ' You can try again.'; }
+    finally { btn.disabled = false; }
+  };
+  mr.start(); setLabel(btn, 'Stop and send'); st.className = 'recording'; st.textContent = 'Recording… tap again to stop and send.';
+  timer = setTimeout(stopRec, 120000); // 2 minute cap
 };
 </script></body></html>

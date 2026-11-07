@@ -3,7 +3,7 @@
 // `staff` table. Parents and facilitators never log in; they use tokenized links.
 import { Router } from 'express';
 import { createHash, randomBytes } from 'node:crypto';
-import { db } from './db.js';
+import { one, run } from './db.js';
 
 export const auth = Router();
 
@@ -18,20 +18,26 @@ const secure = BASE_URL.startsWith('https:');
 const devLogin = process.env.AUTH_DEV_LOGIN === '1';
 export const googleEnabled = Boolean(CLIENT_ID && CLIENT_SECRET);
 
+// Staff login is OFF unless REQUIRE_AUTH=1 (temporary: the dashboard is open to anyone who can reach the server).
+// Turn it back on before deploying anywhere public. The login code below is unchanged and still tested.
+export const authRequired = process.env.REQUIRE_AUTH === '1';
+const LOCAL_STAFF = { id: 0, email: 'staff@local', name: 'Staff (login off)', role: 'admin' };
+if (!authRequired) console.warn('[auth] WARNING: staff login is OFF (set REQUIRE_AUTH=1 to enable). Do not expose this server publicly.');
+
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 const rand = () => randomBytes(32).toString('base64url');
 const normEmail = (e) => String(e || '').trim().toLowerCase();
 
 // ---- staff table helpers --------------------------------------------------------------------
-export function addStaff(email, name = null, role = 'staff') {
-  db.prepare(`INSERT INTO staff (email, name, role) VALUES (?,?,?)
-              ON CONFLICT(email) DO UPDATE SET active=1, role=excluded.role, name=COALESCE(excluded.name, name)`)
-    .run(normEmail(email), name, role);
+export async function addStaff(email, name = null, role = 'staff') {
+  await run(`INSERT INTO staff (email, name, role) VALUES ($1,$2,$3)
+             ON CONFLICT (lower(email)) DO UPDATE SET active=true, role=excluded.role, name=COALESCE(excluded.name, staff.name)`,
+    [normEmail(email), name, role]);
 }
 // Bootstrap the first admin(s) without touching SQL: STAFF_ADMIN_EMAILS=a@x.org,b@x.org
-for (const e of (process.env.STAFF_ADMIN_EMAILS || '').split(',').map(normEmail).filter(Boolean)) addStaff(e, null, 'admin');
+for (const e of (process.env.STAFF_ADMIN_EMAILS || '').split(',').map(normEmail).filter(Boolean)) await addStaff(e, null, 'admin');
 
-const findStaff = (email) => db.prepare('SELECT * FROM staff WHERE email=? AND active=1').get(normEmail(email));
+const findStaff = (email) => one('SELECT * FROM staff WHERE lower(email)=$1 AND active=true', [normEmail(email)]);
 
 // ---- cookies & sessions ---------------------------------------------------------------------
 function cookies(req) {
@@ -45,20 +51,20 @@ function cookies(req) {
 const setCookie = (res, value, maxAgeMs) =>
   res.append('Set-Cookie', `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(maxAgeMs / 1000)}${secure ? '; Secure' : ''}`);
 
-function startSession(res, staff) {
+async function startSession(res, staff) {
   const token = rand();
-  db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(Date.now());
-  db.prepare('INSERT INTO sessions (id, staff_id, expires_at) VALUES (?,?,?)').run(sha(token), staff.id, Date.now() + SESSION_MS);
-  db.prepare('UPDATE staff SET last_login_at=CURRENT_TIMESTAMP WHERE id=?').run(staff.id);
+  await run('DELETE FROM sessions WHERE expires_at < $1', [Date.now()]);
+  await run('INSERT INTO sessions (id, staff_id, expires_at) VALUES ($1,$2,$3)', [sha(token), staff.id, Date.now() + SESSION_MS]);
+  await run('UPDATE staff SET last_login_at=now() WHERE id=$1', [staff.id]);
   setCookie(res, token, SESSION_MS);
 }
 
 /** Returns the signed-in staff row (active only) or undefined. Deactivating staff kills their sessions. */
-export function currentStaff(req) {
+export async function currentStaff(req) {
   const t = cookies(req)[COOKIE];
   if (!t) return undefined;
-  return db.prepare(`SELECT st.id, st.email, st.name, st.role FROM sessions s JOIN staff st ON st.id=s.staff_id
-                     WHERE s.id=? AND s.expires_at > ? AND st.active=1`).get(sha(t), Date.now());
+  return one(`SELECT st.id, st.email, st.name, st.role FROM sessions s JOIN staff st ON st.id=s.staff_id
+              WHERE s.id=$1 AND s.expires_at > $2 AND st.active=true`, [sha(t), Date.now()]);
 }
 
 // ---- which routes need a login --------------------------------------------------------------
@@ -71,15 +77,18 @@ const PUBLIC_API = [
   ['POST', /^\/api\/feedback\/[^/]+\/photos\/?$/],    // facilitator photo upload
   ['GET', /^\/api\/programs\/[^/]+\/public\/?$/],
   ['GET', /^\/api\/programs\/[^/]+\/qr\.png$/],
+  ['POST', /^\/api\/feedback\/[^/]+\/voice\/?$/],   // parent voice answer (rate limited by its route)
+  ['GET', /^\/api\/tts\/?$/],                         // read-aloud audio for the public feedback form
 ];
-const isDashboardPage = (p) => /^\/(index\.html)?$/i.test(p);
+const isDashboardPage = (p) => /^\/(index\.html|compose\.html)?$/i.test(p);
 const isApi = (p) => /^\/api(\/|$)/i.test(p);
 
-export function requireStaff(req, res, next) {
+export async function requireStaff(req, res, next) {
   const method = req.method === 'HEAD' ? 'GET' : req.method;
+  if (!authRequired) { req.staff = LOCAL_STAFF; return next(); }
   if (!isDashboardPage(req.path) && !isApi(req.path)) return next();
   if (isApi(req.path) && PUBLIC_API.some(([m, re]) => m === method && re.test(req.path))) return next();
-  const staff = currentStaff(req);
+  const staff = await currentStaff(req);
   if (staff) { req.staff = staff; return next(); }
   if (isApi(req.path)) return res.status(401).json({ error: 'Staff login required' });
   res.redirect('/login.html');
@@ -124,10 +133,10 @@ auth.get('/auth/google/callback', async (req, res) => {
     const okIssuer = claims.iss === 'https://accounts.google.com' || claims.iss === 'accounts.google.com';
     if (!okIssuer || claims.aud !== CLIENT_ID || claims.nonce !== p.nonce || claims.exp * 1000 < Date.now() || claims.email_verified !== true)
       return fail(res, 'oauth_failed');
-    const staff = findStaff(claims.email);
+    const staff = await findStaff(claims.email);
     if (!staff) return fail(res, 'not_staff');
-    if (!staff.name && claims.name) db.prepare('UPDATE staff SET name=? WHERE id=?').run(claims.name, staff.id);
-    startSession(res, staff);
+    if (!staff.name && claims.name) await run('UPDATE staff SET name=$1 WHERE id=$2', [claims.name, staff.id]);
+    await startSession(res, staff);
     res.redirect('/');
   } catch (e) {
     console.error('[auth] google callback failed:', e.message);
@@ -136,24 +145,25 @@ auth.get('/auth/google/callback', async (req, res) => {
 });
 
 // ---- dev login (AUTH_DEV_LOGIN=1 only) ------------------------------------------------------
-auth.post('/auth/dev-login', (req, res) => {
+auth.post('/auth/dev-login', async (req, res) => {
   if (!devLogin) return res.sendStatus(404);
-  const staff = findStaff(req.body?.email);
+  const staff = await findStaff(req.body?.email);
   if (!staff) return res.status(403).json({ error: 'That email is not on the staff list' });
-  startSession(res, staff);
+  await startSession(res, staff);
   res.json({ ok: true });
 });
 
 // ---- session endpoints ----------------------------------------------------------------------
-auth.post('/auth/logout', (req, res) => {
+auth.post('/auth/logout', async (req, res) => {
   const t = cookies(req)[COOKIE];
-  if (t) db.prepare('DELETE FROM sessions WHERE id=?').run(sha(t));
+  if (t) await run('DELETE FROM sessions WHERE id=$1', [sha(t)]);
   setCookie(res, '', 0);
   res.json({ ok: true });
 });
 
 // Public so the login page can learn which methods exist; returns the user when signed in.
-auth.get('/api/me', (req, res) => {
-  const s = currentStaff(req);
+auth.get('/api/me', async (req, res) => {
+  if (!authRequired) return res.json({ staff: LOCAL_STAFF, google: false, devLogin: false, authDisabled: true });
+  const s = await currentStaff(req);
   res.json({ staff: s || null, google: googleEnabled, devLogin });
 });

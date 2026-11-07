@@ -1,13 +1,14 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/style.css"><title>Staff sign in · Baby Connections</title></head><body>
-<main><div class="card">
-<h1>Baby Connections staff</h1>
+<link rel="stylesheet" href="/style.css"><title>Staff sign in · Baby Connections</title></head><body class="auth">
+<header class="site-head simple"><div class="in"><p class="brand"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle class="a" cx="12" cy="17" r="9"/><circle class="b" cx="21" cy="17" r="9"/></svg><span>Baby Connections <small>Strong Start</small></span></p></div></header>
+<main id="main"><div class="card">
+<h1>Staff sign in</h1>
 <p class="muted">Sign in with the email address the Strong Start team added you with.</p>
-<p id="msg" class="err" hidden></p>
+<p id="msg" class="err" role="alert" hidden></p>
 <a id="google" class="btn" href="/auth/google" hidden>Sign in with Google</a>
 <form id="dev" hidden>
-  <p class="warn">Development login (AUTH_DEV_LOGIN=1): no password. Never enable in production.</p>
-  <label for="email">Staff email</label><input id="email" type="email" required>
+  <p class="notice warn">Development login (AUTH_DEV_LOGIN=1): no password. Never enable in production.</p>
+  <label for="email">Staff email</label><input id="email" type="email" required autocomplete="email">
   <p><button>Sign in</button></p>
 </form>
 <p id="none" class="muted" hidden>Sign-in isn't configured yet. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (see .env.example).</p>

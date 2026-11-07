@@ -1,25 +1,58 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/style.css"><title>Upload Paper Feedback</title></head><body>
-<main><div class="card"><h1>Upload paper feedback forms</h1><p class="muted" id="sub">Loading…</p>
+<link rel="stylesheet" href="/style.css"><title>Upload Paper Feedback</title>
+</head><body class="public">
+<header class="site-head simple"><div class="in"><p class="brand"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle class="a" cx="12" cy="17" r="9"/><circle class="b" cx="21" cy="17" r="9"/></svg><span>Baby Connections <small>Strong Start</small></span></p></div></header>
+<main id="main"><div class="card"><h1>Upload paper feedback forms</h1><p class="muted" id="sub" role="status">Loading…</p>
 <form id="f" hidden>
-<label>Photos of completed forms (one form per photo)<input type="file" name="photos" accept="image/*" multiple capture="environment" required></label>
-<p class="muted">Lay each form flat in good light. We read the handwriting automatically; anything unclear is flagged for a quick human check.</p>
-<p class="err" id="err"></p><button id="go">Upload &amp; read forms</button></form>
-<div id="out"></div></div></main>
+<label>Photos of completed forms (one form per photo)<input id="pick" type="file" name="photos" accept="image/jpeg,image/png,image/webp,image/gif" multiple required></label>
+<p class="muted">Lay each form flat in good light and fill the frame. You can choose up to 30 photos at once (10MB each).</p>
+<p class="err" id="err" role="alert"></p>
+<button id="go">Upload &amp; read forms</button></form>
+<progress id="bar" max="1" value="0" hidden aria-label="Upload progress"></progress>
+<ul class="files" id="list" aria-live="polite"></ul>
+<button type="button" id="retry" class="sec" hidden>Retry failed photos</button>
+<section class="muted fine" aria-labelledby="whatH"><h2 id="whatH">What happens to these photos?</h2>
+<p>Each photo is stored securely and read automatically by AI to turn the handwriting into text (other languages are translated to English). Anything unclear is flagged for a Strong Start staff member to check. Only Strong Start staff can see the photos and answers. Please do not photograph anything other than the feedback form.</p></section>
+</div></main>
 <script>
-const id = location.pathname.split('/').pop(), $ = (s) => document.querySelector(s), f = $('#f');
-fetch(`/api/programs/${id}/public`).then(async (r) => {
-  if (!r.ok) return ($('#sub').textContent = 'Program not found.');
+const token = location.pathname.split('/').pop(), $ = (s) => document.querySelector(s), f = $('#f');
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+fetch(`/api/programs/${encodeURIComponent(token)}/public`).then(async (r) => {
+  if (!r.ok) return ($('#sub').textContent = 'This link is not valid.');
   $('#sub').textContent = (await r.json()).name; f.hidden = false;
-});
-f.onsubmit = async (e) => {
-  e.preventDefault(); $('#go').disabled = true; $('#go').textContent = 'Reading handwriting…'; $('#err').textContent = '';
-  const r = await fetch(`/api/feedback/${id}/photos`, { method: 'POST', body: new FormData(f) });
-  const d = await r.json(); $('#go').disabled = false; $('#go').textContent = 'Upload & read forms';
-  if (!r.ok) return ($('#err').textContent = d.error);
-  const flagged = d.results.filter((x) => x.needsReview).length;
-  $('#out').innerHTML = `<p class="ok">${d.results.length} form(s) saved.</p>` +
-    (flagged ? `<p class="warn">${flagged} need a quick review${d.aiEnabled ? '' : ' (AI handwriting reading is not configured yet)'}.</p>` : '');
-  f.reset();
+}).catch(() => ($('#sub').textContent = 'Could not load. Check your connection.'));
+
+let items = []; // { file, li, state }
+const render = (it, text, cls) => { it.li.innerHTML = `<span class="nm">${esc(it.file.name)}</span><span class="st ${cls}">${esc(text)}</span>`; };
+async function sendOne(it) {
+  it.state = 'sending'; render(it, 'Reading handwriting…', '');
+  const fd = new FormData(); fd.append('photos', it.file);
+  try {
+    const r = await fetch(`/api/feedback/${encodeURIComponent(token)}/photos`, { method: 'POST', body: fd });
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 429) throw new Error('Too many uploads, please wait a few minutes and retry');
+    const res = d.results && d.results[0];
+    if (!r.ok || !res) throw new Error(d.error || 'Upload failed');
+    if (res.status === 'error') throw new Error(res.error || 'Could not save');
+    it.state = 'done';
+    render(it, res.needsReview ? 'Saved - needs a quick review' : 'Saved', res.needsReview ? 'review' : 'saved');
+  } catch (x) { it.state = 'error'; render(it, 'Error: ' + x.message, 'error'); }
+}
+async function runAll(list) {
+  $('#go').disabled = true; $('#retry').hidden = true; $('#bar').hidden = false; $('#bar').max = list.length; $('#bar').value = 0;
+  for (const it of list) { await sendOne(it); $('#bar').value++; }
+  $('#go').disabled = false; $('#bar').hidden = true;
+  const failed = items.filter((i) => i.state === 'error').length, rev = items.filter((i) => /review/.test(i.li.innerHTML)).length;
+  $('#retry').hidden = !failed;
+  $('#sub').textContent = `${items.length - failed} of ${items.length} saved` + (rev ? `, ${rev} need review` : '') + (failed ? `, ${failed} failed` : '') + '.';
+}
+f.onsubmit = (e) => {
+  e.preventDefault(); $('#err').textContent = '';
+  const files = [...$('#pick').files];
+  if (!files.length) return ($('#err').textContent = 'Please choose at least one photo.');
+  if (files.length > 30) return ($('#err').textContent = 'Please choose at most 30 photos at a time.');
+  $('#list').innerHTML = ''; items = files.map((file) => { const li = document.createElement('li'); $('#list').appendChild(li); const it = { file, li, state: 'queued' }; render(it, 'Waiting', ''); return it; });
+  f.reset(); runAll(items);
 };
+$('#retry').onclick = () => runAll(items.filter((i) => i.state === 'error'));
 </script></body></html>

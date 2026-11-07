@@ -1,36 +1,113 @@
 // Steps 1-3: inbound facilitator email -> order form -> confirmation + kits-received emails.
 import { Router } from 'express';
-import { randomBytes } from 'node:crypto';
-import { db, KIT_ITEMS } from '../db.js';
+import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
+import { query, one, run, tx, KIT_ITEMS } from '../db.js';
 import { sendMail, BASE_URL, STAFF_EMAIL } from '../mailer.js';
 
 export const orders = Router();
 
 const token = () => randomBytes(16).toString('hex');
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const page = (title, msg) =>
-  `<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><link rel=stylesheet href=/style.css><title>${title}</title><main class=card><h1>${title}</h1><p>${msg}</p></main>`;
+  `<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><link rel=stylesheet href=/style.css><title>${esc(title)}</title></head><body class=public><header class="site-head simple"><div class=in><p class=brand><svg class=mark viewBox="0 0 32 32" aria-hidden=true focusable=false><circle class=a cx=12 cy=17 r=9 /><circle class=b cx=21 cy=17 r=9 /></svg><span>Baby Connections <small>Strong Start</small></span></p></div></header><main id=main><div class=card>${title === 'Thank you!' ? `<div class=done-icon><svg viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2.5 stroke-linecap=round stroke-linejoin=round aria-hidden=true><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>` : ''}<h1>${esc(title)}</h1><p>${esc(msg)}</p></div></main></body></html>`;
 
+// ---------- input helpers ----------
+const str = (v, max) => (v == null ? '' : String(v)).replace(/\u0000/g, '').trim().slice(0, max);
+const oneLine = (v, max) => str(v, max).replace(/\s*[\r\n]+\s*/g, ' ');
+const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s + 'T00:00:00Z'));
+const dateOrNull = (v) => { const s = str(v, 10); return isDate(s) ? s : null; };
+const intId = (v) => (/^\d{1,9}$/.test(String(v)) ? Number(v) : null);
+const MAX_QTY = 5000;
+const cleanItems = (items) => {
+  const out = new Map();
+  for (const i of Array.isArray(items) ? items.slice(0, 50) : []) {
+    const qty = Math.floor(Number(i?.qty));
+    if (KIT_ITEMS.includes(i?.item) && Number.isFinite(qty) && qty > 0) out.set(i.item, Math.min(qty, MAX_QTY));
+  }
+  return [...out].map(([item, qty]) => ({ item, qty }));
+};
+const money = (v) => {
+  if (v === '' || v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 && n < 1e7 ? Math.round(n * 100) / 100 : undefined; // undefined = invalid
+};
+
+// ---------- inbound email ----------
 /** Accepts our own JSON ({from,subject,body,name}) or Postmark/SendGrid-style fields. */
-function normalizeInbound(b) {
-  const raw = b.from || b.From || b.FromFull?.Email || '';
+function normalizeInbound(b = {}) {
+  const raw = str(b.from || b.From || b.FromFull?.Email || b.sender, 320);
   const email = (raw.match(/<([^>]+)>/)?.[1] || raw).trim().toLowerCase();
-  const name = b.name || b.FromName || raw.replace(/<[^>]*>/, '').replace(/"/g, '').trim() || null;
-  return { email, name: name === email ? null : name, subject: b.subject || b.Subject || '', body: b.body || b.TextBody || b.text || '' };
+  const name = oneLine(b.name || b.FromName || raw.replace(/<[^>]*>/, '').replace(/"/g, ''), 120) || null;
+  return {
+    email,
+    name: name === email ? null : name,
+    subject: oneLine(b.subject || b.Subject, 300),
+    body: str(b.body || b.TextBody || b.text || b.plain || '', 20000),
+  };
+}
+
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+/** Regex-only extraction of order hints from a facilitator's free-text email. Exported for tests. */
+export function parseHints(subject = '', body = '', now = new Date()) {
+  const text = `${subject}\n${body}`;
+  const h = {};
+  const prog =
+    text.match(/\b(?:program|class|group|series|workshop|session)\s*(?:name\s*)?(?:is|:|called|named)\s*["“']?([^\n"”.,;]{3,80})/i) ||
+    text.match(/\bfor (?:our|my|the)\s+([A-Z][\w'’& -]{2,60}?)\s+(?:program|class|group|series|workshop)\b/);
+  if (prog) h.program_name = prog[1].trim();
+  const ppl = text.match(/\b(\d{1,3})\s+(?:participants?|parents?|families|caregivers?|moms?|mothers?|babies|people|attendees|registrants)\b/i);
+  if (ppl) h.participants = Number(ppl[1]);
+  const kits = text.match(/\b(\d{1,3})\s+(?:participant\s+|parent\s+)?kits?\b/i);
+  if (kits) h.kits = Number(kits[1]);
+
+  const dates = [];
+  for (const m of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g)) if (isDate(m[0])) dates.push(m[0]);
+  for (const m of text.matchAll(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b/gi)) {
+    const mo = MONTHS.indexOf(m[1].toLowerCase());
+    const day = Number(m[2]);
+    if (day < 1 || day > 31) continue;
+    let year = m[3] ? Number(m[3]) : now.getUTCFullYear();
+    if (!m[3] && Date.UTC(year, mo, day) < now.getTime() - 86400000) year += 1;
+    const iso = `${year}-${String(mo + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    if (isDate(iso)) dates.push(iso);
+  }
+  const uniq = [...new Set(dates)].slice(0, 4);
+  if (uniq.length) { h.dates = uniq; h.start_date = uniq[0]; if (uniq.length > 1) h.end_date = uniq[uniq.length - 1]; }
+
+  const addr = text.match(/^.*\b\d{1,6}\s+[A-Za-z0-9.'’ -]{2,40}\s(?:st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|ln|lane|way|ct|court|pl|place|pkwy|parkway)\b\.?[^\n]*(?:\n[^\n]*\b\d{5}(?:-\d{4})?\b[^\n]*)?/im);
+  if (addr) h.address = addr[0].replace(/^\s*(?:ship(?:ping)?\s*(?:to|address)?|address)\s*[:\-]\s*/i, '').trim().slice(0, 300);
+  return h;
+}
+
+let warnedNoSecret = false;
+const sha = (s) => createHash('sha256').update(String(s)).digest();
+function inboundAllowed(req) {
+  const secret = process.env.INBOUND_EMAIL_SECRET;
+  if (!secret) {
+    if (!warnedNoSecret) { warnedNoSecret = true; console.warn('[inbound-email] INBOUND_EMAIL_SECRET is not set: the webhook accepts anyone. Set it in production.'); }
+    return true;
+  }
+  const given = req.get('x-inbound-secret') ?? (typeof req.query.secret === 'string' ? req.query.secret : '');
+  return timingSafeEqual(sha(given), sha(secret));
 }
 
 // Step 1: an email from a facilitator arrives (point your email provider's inbound webhook here).
 orders.post('/api/inbound-email', async (req, res) => {
+  if (!inboundAllowed(req)) return res.status(401).json({ error: 'Unauthorized' });
   const m = normalizeInbound(req.body);
-  if (!/^\S+@\S+\.\S+$/.test(m.email)) return res.status(400).json({ error: 'Valid sender email required' });
+  if (m.email.length > 254 || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(m.email)) return res.status(400).json({ error: 'Valid sender email required' });
+  const hints = parseHints(m.subject, m.body);
 
-  db.prepare('INSERT INTO facilitators (email, name) VALUES (?,?) ON CONFLICT(email) DO UPDATE SET name=COALESCE(facilitators.name, excluded.name)').run(m.email, m.name);
-  const fac = db.prepare('SELECT * FROM facilitators WHERE email=?').get(m.email);
-
-  // Step 2: create an order and reply with its personal order-form link.
   const t = token();
-  const { lastInsertRowid: orderId } = db.prepare('INSERT INTO orders (token, facilitator_id) VALUES (?,?)').run(t, fac.id);
-  db.prepare('INSERT INTO inbound_emails (facilitator_id, from_email, subject, body, order_id) VALUES (?,?,?,?,?)')
-    .run(fac.id, m.email, m.subject, m.body, orderId);
+  const { fac, orderId } = await tx(async (q) => {
+    await q.run('INSERT INTO facilitators (email, name) VALUES ($1,$2) ON CONFLICT(email) DO UPDATE SET name=COALESCE(facilitators.name, excluded.name)', [m.email, m.name]);
+    const fac = await q.one('SELECT * FROM facilitators WHERE email=$1', [m.email]);
+    // Step 2: create an order and reply with its personal order-form link.
+    const { rows } = await q.run('INSERT INTO orders (token, facilitator_id) VALUES ($1,$2) RETURNING id', [t, fac.id]);
+    await q.run('INSERT INTO inbound_emails (facilitator_id, from_email, subject, body, order_id, hints) VALUES ($1,$2,$3,$4,$5,$6::jsonb)',
+      [fac.id, m.email, m.subject, m.body, rows[0].id, JSON.stringify(hints)]);
+    return { fac, orderId: rows[0].id };
+  });
 
   await sendMail(m.email, 'Your Baby Connections kit order form',
     `Hi ${fac.name || 'there'},\n\nThanks for getting in touch. Please fill out your kit order form here:\n${BASE_URL}/order/${t}\n\nIt takes a couple of minutes: tell us about your program and which kits you need.\n\nBaby Connections team`);
@@ -39,72 +116,197 @@ orders.post('/api/inbound-email', async (req, res) => {
 
 orders.get('/order/:token', (_req, res) => res.sendFile('order.html', { root: 'public' }));
 
-orders.get('/api/order-form/:token', (req, res) => {
-  const o = db.prepare('SELECT o.status, f.name, f.email FROM orders o JOIN facilitators f ON f.id=o.facilitator_id WHERE o.token=?').get(req.params.token);
+orders.get('/api/order-form/:token', async (req, res) => {
+  const o = await one(`SELECT o.id, o.status, f.name, f.email,
+      (SELECT ie.hints FROM inbound_emails ie WHERE ie.order_id=o.id ORDER BY ie.id DESC LIMIT 1) AS hints
+    FROM orders o JOIN facilitators f ON f.id=o.facilitator_id WHERE o.token=$1`, [req.params.token]);
   if (!o) return res.status(404).json({ error: 'Order not found' });
-  res.json({ ...o, kitItems: KIT_ITEMS });
+  const { id: _id, ...rest } = o;
+  res.json({ ...rest, hints: o.hints || {}, kitItems: KIT_ITEMS });
 });
 
 // Facilitator submits the order form -> program + items created, confirmation emailed.
 orders.post('/api/order-form/:token', async (req, res) => {
-  const o = db.prepare('SELECT * FROM orders WHERE token=?').get(req.params.token);
+  const o = await one('SELECT * FROM orders WHERE token=$1', [req.params.token]);
   if (!o) return res.status(404).json({ error: 'Order not found' });
   if (o.status !== 'form_sent') return res.status(409).json({ error: 'This order was already submitted' });
 
-  const { program = {}, items = [], shipping_address, requested_date, notes, facilitator_name } = req.body;
-  const lines = items.filter((i) => KIT_ITEMS.includes(i.item) && Number(i.qty) > 0);
-  if (!program.name || !shipping_address || !lines.length)
+  const b = req.body ?? {};
+  const program = b.program ?? {};
+  const lines = cleanItems(b.items);
+  const pname = oneLine(program.name, 200);
+  const address = str(b.shipping_address, 500);
+  if (!pname || !address || !lines.length)
     return res.status(400).json({ error: 'Program name, shipping address and at least one kit are required' });
+  const requested = dateOrNull(b.requested_date);
+  if (b.requested_date && !requested) return res.status(400).json({ error: 'Requested delivery date is not a valid date' });
+  const fname = oneLine(b.facilitator_name, 120);
+  const notes = str(b.notes, 2000) || null;
+  const projected = Math.min(Math.floor(Number(program.projected_participants)) || 0, 100000) || null;
 
-  if (facilitator_name) db.prepare('UPDATE facilitators SET name=? WHERE id=?').run(facilitator_name, o.facilitator_id);
-  const { lastInsertRowid: programId } = db.prepare(
-    'INSERT INTO programs (facilitator_id,name,location,start_date,end_date,projected_participants) VALUES (?,?,?,?,?,?)'
-  ).run(o.facilitator_id, program.name, program.location || null, program.start_date || null, program.end_date || null, Number(program.projected_participants) || null);
+  const programId = await tx(async (q) => {
+    const claim = await q.run("UPDATE orders SET status='ordered', shipping_address=$1, requested_date=$2, notes=$3, ordered_at=now() WHERE id=$4 AND status='form_sent' RETURNING id",
+      [address, requested, notes, o.id]);
+    if (!claim.rows.length) return null;
+    if (fname) await q.run('UPDATE facilitators SET name=$1 WHERE id=$2', [fname, o.facilitator_id]);
+    const { rows } = await q.run('INSERT INTO programs (facilitator_id,name,location,start_date,end_date,projected_participants) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+      [o.facilitator_id, pname, oneLine(program.location, 200) || null, dateOrNull(program.start_date), dateOrNull(program.end_date), projected]);
+    await q.run('UPDATE orders SET program_id=$1 WHERE id=$2', [rows[0].id, o.id]);
+    for (const l of lines) await q.run('INSERT INTO order_items (order_id,item,qty) VALUES ($1,$2,$3)', [o.id, l.item, l.qty]);
+    return rows[0].id;
+  });
+  if (programId == null) return res.status(409).json({ error: 'This order was already submitted' });
 
-  db.prepare("UPDATE orders SET program_id=?, status='ordered', shipping_address=?, requested_date=?, notes=?, ordered_at=CURRENT_TIMESTAMP WHERE id=?")
-    .run(programId, shipping_address, requested_date || null, notes || null, o.id);
-  const ins = db.prepare('INSERT INTO order_items (order_id,item,qty) VALUES (?,?,?)');
-  lines.forEach((l) => ins.run(o.id, l.item, Math.floor(Number(l.qty))));
-
-  const fac = db.prepare('SELECT * FROM facilitators WHERE id=?').get(o.facilitator_id);
+  const fac = await one('SELECT * FROM facilitators WHERE id=$1', [o.facilitator_id]);
   const summary = lines.map((l) => `  - ${l.item}: ${l.qty}`).join('\n');
-  await sendMail(fac.email, `Order confirmation: ${program.name}`,
-    `Hi ${fac.name || 'there'},\n\nWe've received your order for "${program.name}":\n${summary}\n\nShip to: ${shipping_address}\n${requested_date ? `Requested by: ${requested_date}\n` : ''}\nWe'll email you when it ships.\n\nBaby Connections team`);
-  await sendMail(STAFF_EMAIL, `New kit order #${o.id}: ${program.name}`,
-    `${fac.name || fac.email} ordered:\n${summary}\n\nShip to: ${shipping_address}\nOpen the dashboard: ${BASE_URL}/`);
+  await sendMail(fac.email, `Order confirmation: ${pname}`,
+    `Hi ${fac.name || 'there'},\n\nWe've received your order for "${pname}":\n${summary}\n\nShip to: ${address}\n${requested ? `Requested by: ${requested}\n` : ''}\nWe'll email you when it ships.\n\nBaby Connections team`);
+  await sendMail(STAFF_EMAIL, `New kit order #${o.id}: ${pname}`,
+    `${fac.name || fac.email} ordered:\n${summary}\n\nShip to: ${address}\nOpen the dashboard: ${BASE_URL}/`);
   res.json({ ok: true, orderId: o.id, programId });
 });
 
-orders.get('/api/orders', (_req, res) => {
-  const rows = db.prepare(`SELECT o.id, o.status, o.token, o.created_at, o.ordered_at, o.shipped_at, o.received_at, o.shipping_address,
-      f.name AS facilitator, f.email, p.name AS program, p.id AS program_id
-    FROM orders o JOIN facilitators f ON f.id=o.facilitator_id LEFT JOIN programs p ON p.id=o.program_id ORDER BY o.id DESC`).all();
-  const items = db.prepare('SELECT item, qty FROM order_items WHERE order_id=?');
-  res.json(rows.map((r) => ({ ...r, items: items.all(r.id) })));
+// ---------- staff: orders (auth.js default-deny covers everything below) ----------
+async function itemsFor(orderId) {
+  return query('SELECT item, qty FROM order_items WHERE order_id=$1 ORDER BY id', [orderId]);
+}
+
+orders.get('/api/orders', async (_req, res) => {
+  const rows = await query(`SELECT o.id, o.status, o.token, o.created_at, o.ordered_at, o.shipped_at, o.received_at, o.cancelled_at, o.reminder_sent_at,
+      o.shipping_address, o.requested_date, o.notes, o.shipping_cost,
+      f.name AS facilitator, f.email, p.name AS program, p.id AS program_id, p.token AS program_token
+    FROM orders o JOIN facilitators f ON f.id=o.facilitator_id LEFT JOIN programs p ON p.id=o.program_id ORDER BY o.id DESC`);
+  const items = await query('SELECT order_id, item, qty FROM order_items ORDER BY id');
+  const by = new Map();
+  for (const i of items) (by.get(i.order_id) ?? by.set(i.order_id, []).get(i.order_id)).push({ item: i.item, qty: i.qty });
+  res.json(rows.map((r) => ({ ...r, items: by.get(r.id) ?? [] })));
 });
 
-// Staff marks an order shipped -> facilitator gets a "confirm you received it" link.
-orders.post('/api/orders/:id/ship', async (req, res) => {
-  const o = db.prepare("SELECT * FROM orders WHERE id=? AND status='ordered'").get(req.params.id);
-  if (!o) return res.status(409).json({ error: 'Order not found or not in "ordered" status' });
-  db.prepare("UPDATE orders SET status='shipped', shipped_at=CURRENT_TIMESTAMP WHERE id=?").run(o.id);
-  const fac = db.prepare('SELECT * FROM facilitators WHERE id=?').get(o.facilitator_id);
-  await sendMail(fac.email, 'Your Baby Connections kits have shipped',
-    `Hi ${fac.name || 'there'},\n\nYour order is on its way to ${o.shipping_address}.\n\nWhen the kits arrive, please confirm with one click:\n${BASE_URL}/received/${o.token}\n\nBaby Connections team`);
+// Staff edits an order that has not shipped yet.
+orders.patch('/api/orders/:id', async (req, res) => {
+  const id = intId(req.params.id);
+  const o = id && (await one('SELECT * FROM orders WHERE id=$1', [id]));
+  if (!o) return res.status(404).json({ error: 'Order not found' });
+  const b = req.body ?? {};
+  if (o.status === 'cancelled') return res.status(409).json({ error: 'Order is cancelled' });
+  const editable = ['form_sent', 'ordered'].includes(o.status);
+  const touchesShipment = ['shipping_address', 'requested_date', 'notes', 'items'].some((k) => k in b);
+  if (touchesShipment && !editable) return res.status(409).json({ error: 'Only orders that have not shipped can be edited' });
+
+  const sets = [], vals = [];
+  const add = (col, v) => { vals.push(v); sets.push(`${col}=$${vals.length}`); };
+  if ('shipping_address' in b) {
+    const a = str(b.shipping_address, 500);
+    if (!a) return res.status(400).json({ error: 'Shipping address cannot be empty' });
+    add('shipping_address', a);
+  }
+  if ('requested_date' in b) {
+    const d = b.requested_date ? dateOrNull(b.requested_date) : null;
+    if (b.requested_date && !d) return res.status(400).json({ error: 'Requested date is not a valid date' });
+    add('requested_date', d);
+  }
+  if ('notes' in b) add('notes', str(b.notes, 2000) || null);
+  if ('shipping_cost' in b) {
+    const c = money(b.shipping_cost);
+    if (c === undefined) return res.status(400).json({ error: 'Shipping cost must be a non-negative number' });
+    add('shipping_cost', c);
+  }
+  let lines = null;
+  if ('items' in b) {
+    lines = cleanItems(b.items);
+    if (!lines.length) return res.status(400).json({ error: 'At least one kit is required' });
+  }
+  if (!sets.length && !lines) return res.status(400).json({ error: 'Nothing to update' });
+
+  const ok = await tx(async (q) => {
+    vals.push(id);
+    const r = await q.run(`UPDATE orders SET ${sets.length ? sets.join(',') : 'id=id'} WHERE id=$${vals.length} AND status<>'cancelled' RETURNING id`, vals);
+    if (!r.rows.length) return false;
+    if (lines) {
+      await q.run('DELETE FROM order_items WHERE order_id=$1', [id]);
+      for (const l of lines) await q.run('INSERT INTO order_items (order_id,item,qty) VALUES ($1,$2,$3)', [id, l.item, l.qty]);
+    }
+    return true;
+  });
+  if (!ok) return res.status(409).json({ error: 'Order could not be updated' });
+  const fresh = await one('SELECT id, status, shipping_address, requested_date, notes, shipping_cost FROM orders WHERE id=$1', [id]);
+  res.json({ ok: true, order: { ...fresh, items: await itemsFor(id) } });
+});
+
+orders.post('/api/orders/:id/cancel', async (req, res) => {
+  const id = intId(req.params.id);
+  if (!id) return res.status(404).json({ error: 'Order not found' });
+  const { rows } = await run("UPDATE orders SET status='cancelled', cancelled_at=now() WHERE id=$1 AND status IN ('form_sent','ordered','shipped') RETURNING id, facilitator_id, program_id", [id]);
+  if (!rows.length) {
+    return res.status(await one('SELECT 1 AS x FROM orders WHERE id=$1', [id]) ? 409 : 404)
+      .json({ error: 'Order not found or cannot be cancelled' });
+  }
+  const o = rows[0];
+  const fac = await one('SELECT * FROM facilitators WHERE id=$1', [o.facilitator_id]);
+  const prog = o.program_id ? await one('SELECT name FROM programs WHERE id=$1', [o.program_id]) : null;
+  await sendMail(fac.email, 'Your Baby Connections order was cancelled',
+    `Hi ${fac.name || 'there'},\n\nYour kit order${prog ? ` for "${prog.name}"` : ''} has been cancelled. If this is unexpected, or you'd still like kits, just reply to this email and we'll help.\n\nBaby Connections team`);
   res.json({ ok: true });
 });
 
+// Staff marks an order shipped -> facilitator gets a "confirm you received it" link; staff get a packing slip.
+orders.post('/api/orders/:id/ship', async (req, res) => {
+  const id = intId(req.params.id);
+  const claim = id && (await run("UPDATE orders SET status='shipped', shipped_at=now() WHERE id=$1 AND status='ordered' RETURNING *", [id]));
+  if (!claim?.rows.length) return res.status(409).json({ error: 'Order not found or not in "ordered" status' });
+  const o = claim.rows[0];
+  const fac = await one('SELECT * FROM facilitators WHERE id=$1', [o.facilitator_id]);
+  const prog = o.program_id ? await one('SELECT * FROM programs WHERE id=$1', [o.program_id]) : null;
+  await sendMail(fac.email, 'Your Baby Connections kits have shipped',
+    `Hi ${fac.name || 'there'},\n\nYour order is on its way to ${o.shipping_address}.\n\nWhen the kits arrive, please confirm with one click:\n${BASE_URL}/received/${o.token}\n\nBaby Connections team`);
+  const lines = (await itemsFor(o.id)).map((l) => `  [ ] ${l.item}: ${l.qty}`).join('\n');
+  await sendMail(STAFF_EMAIL, `Packing slip: order #${o.id}${prog ? ` (${prog.name})` : ''}`,
+    `PACKING SLIP, order #${o.id}\n\nFacilitator: ${fac.name || ''} <${fac.email}>\n${prog ? `Program: ${prog.name}${prog.location ? ` (${prog.location})` : ''}\n` : ''}\nShip to:\n${o.shipping_address}\n\nItems:\n${lines}\n\n${o.requested_date ? `Requested by: ${o.requested_date}\n` : ''}${o.shipping_cost != null ? `Shipping cost: $${Number(o.shipping_cost).toFixed(2)}\n` : ''}${o.notes ? `Notes: ${o.notes}\n` : ''}${prog ? `\nProgram QR sheet to include: ${BASE_URL}/sheet/${prog.token}\n` : ''}`);
+  res.json({ ok: true });
+});
+
+// ---------- reminders ----------
+/** Emails facilitators whose order shipped more than `days` days ago and is still unconfirmed (once per order). */
+export async function sendOverdueReminders(days = 7) {
+  const n = Math.min(Math.max(Number(days) || 7, 0), 365);
+  const due = await query(`SELECT o.id FROM orders o WHERE o.status='shipped' AND o.reminder_sent_at IS NULL
+    AND o.shipped_at < now() - ($1::float8 * interval '1 day') ORDER BY o.id`, [n]);
+  let sent = 0;
+  for (const { id } of due) {
+    const { rows } = await run("UPDATE orders SET reminder_sent_at=now() WHERE id=$1 AND status='shipped' AND reminder_sent_at IS NULL RETURNING token, facilitator_id", [id]);
+    if (!rows.length) continue; // someone else got it first
+    const fac = await one('SELECT * FROM facilitators WHERE id=$1', [rows[0].facilitator_id]);
+    await sendMail(fac.email, 'Did your Baby Connections kits arrive?',
+      `Hi ${fac.name || 'there'},\n\nOur records show your kits shipped over ${n} days ago, but we haven't heard that they arrived. When they do, please confirm with one click:\n${BASE_URL}/received/${rows[0].token}\n\nIf something is wrong, just reply to this email.\n\nBaby Connections team`);
+    sent++;
+  }
+  return sent;
+}
+
+orders.post('/api/orders/send-reminders', async (req, res) => {
+  const raw = req.body?.days ?? req.query.days;
+  const days = raw == null || raw === '' ? 7 : Number(raw);
+  if (!Number.isFinite(days) || days < 0 || days > 365) return res.status(400).json({ error: 'days must be between 0 and 365' });
+  res.json({ ok: true, sent: await sendOverdueReminders(days) });
+});
+
+if (process.env.ENABLE_JOBS === '1') {
+  setInterval(() => sendOverdueReminders().catch((e) => console.error('[jobs] reminders failed:', e.message)), 60 * 60 * 1000).unref();
+}
+
 // Facilitator clicks the link in the shipped email.
 orders.get('/received/:token', async (req, res) => {
-  const o = db.prepare('SELECT * FROM orders WHERE token=?').get(req.params.token);
+  const o = await one('SELECT * FROM orders WHERE token=$1', [req.params.token]);
   if (!o || !['shipped', 'received'].includes(o.status)) return res.status(404).send(page('Not found', 'We could not find a shipped order for this link.'));
   if (o.status === 'shipped') {
-    db.prepare("UPDATE orders SET status='received', received_at=CURRENT_TIMESTAMP WHERE id=?").run(o.id);
-    const fac = db.prepare('SELECT * FROM facilitators WHERE id=?').get(o.facilitator_id);
-    const prog = db.prepare('SELECT * FROM programs WHERE id=?').get(o.program_id);
-    await sendMail(fac.email, 'Thanks, kits received',
-      `Hi ${fac.name || 'there'},\n\nThanks for confirming your kits arrived.${prog ? `\n\nFor parent feedback, share this QR/link at the end of your program:\n${BASE_URL}/feedback/${prog.id}\nPrinted paper forms? Photograph and upload them here:\n${BASE_URL}/upload/${prog.id}` : ''}\n\nBaby Connections team`);
-    await sendMail(STAFF_EMAIL, `Order #${o.id} received by facilitator`, `${fac.name || fac.email} confirmed receipt of order #${o.id}.`);
+    const claim = await run("UPDATE orders SET status='received', received_at=now() WHERE id=$1 AND status='shipped' RETURNING id", [o.id]);
+    if (claim.rows.length) {
+      const fac = await one('SELECT * FROM facilitators WHERE id=$1', [o.facilitator_id]);
+      const prog = o.program_id ? await one('SELECT * FROM programs WHERE id=$1', [o.program_id]) : null;
+      await sendMail(fac.email, 'Thanks, kits received',
+        `Hi ${fac.name || 'there'},\n\nThanks for confirming your kits arrived.${prog ? `\n\nFor parent feedback, share this QR/link at the end of your program:\n${BASE_URL}/feedback/${prog.token}\nPrint a QR sheet to hand out:\n${BASE_URL}/sheet/${prog.token}\nPrinted paper forms? Photograph and upload them here:\n${BASE_URL}/upload/${prog.token}` : ''}\n\nBaby Connections team`);
+      await sendMail(STAFF_EMAIL, `Order #${o.id} received by facilitator`, `${fac.name || fac.email} confirmed receipt of order #${o.id}.`);
+    }
   }
   res.send(page('Thank you!', 'Your kit delivery is confirmed. We just emailed you the parent feedback links for your program.'));
 });

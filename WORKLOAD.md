@@ -4,6 +4,14 @@ The app is split by **lane**, so each person owns separate files and merge confl
 
 The dashboard is **for Strong Start staff only**. Parents and facilitators never log in; they only use emailed or QR links (see [Who can access what](#who-can-access-what)).
 
+## Status (Nov 7)
+
+**Built and covered by `npm test`:** all of lanes A, B and C in code (frontend and backend), including staff login, the Postgres/Tiger Data database layer, Gemini AI, Cloudinary photo pipeline with local fallback, ElevenLabs read-aloud / voice feedback / email dictation, trends, rollups, CSV export, and the design pass.
+
+**Staff login is currently OFF** (temporary, so it's easy to test): the dashboard and staff API are open to anyone who can reach the server. Set `REQUIRE_AUTH=1` to turn it back on; do this before any public deploy. Person C owns re-enabling and Google sign-in setup.
+
+**Still needs a human:** (1) add the real keys to `.env` and try each service live (tests use fakes); ElevenLabs needs `ELEVENLABS_VOICE_ID`; (2) the Tiger Data hypertable/aggregate paths have not run against a real Timescale server; (3) match the questions to the real paper form; (4) Vultr deployment, domain, real inbound-email provider and SMTP; (5) DEV post and Devpost entry; (6) try the mic and photo flows on real phones.
+
 ## At a glance
 
 | | Lane | Files they own | Sponsor tracks | Main deliverables |

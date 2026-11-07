@@ -2,16 +2,22 @@ import express from 'express';
 import { orders } from './routes/orders.js';
 import { feedback } from './routes/feedback.js';
 import { dashboard } from './routes/dashboard.js';
+import { voice } from './routes/voice.js';
+import { compose } from './routes/compose.js';
 import { aiEnabled } from './ai.js';
 import { auth, requireStaff } from './auth.js';
+import { dbBackend, isTimescale } from './db.js';
 
 export const app = express();
+// Behind a reverse proxy (Caddy, etc.) the client IP comes from X-Forwarded-For; needed for per-IP rate limits.
+if (process.env.TRUST_PROXY) app.set('trust proxy', /^\d+$/.test(process.env.TRUST_PROXY) ? Number(process.env.TRUST_PROXY) : process.env.TRUST_PROXY === 'true' ? 1 : process.env.TRUST_PROXY);
+else if ((process.env.BASE_URL || '').startsWith('https:')) app.set('trust proxy', 1);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false })); // inbound-email webhooks often post form data
 app.use(auth);        // /auth/*, /api/me: must come before the gate
 app.use(requireStaff); // default-deny for the dashboard page and /api (before static serves index.html)
 app.use(express.static('public'));
-app.use(orders, feedback, dashboard);
+app.use(orders, feedback, dashboard, voice, compose);
 
 app.use((err, _req, res, _next) => {
   console.error(err);
@@ -20,6 +26,10 @@ app.use((err, _req, res, _next) => {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = process.env.PORT || 3000;
-  app.listen(port, () =>
-    console.log(`StrongStart running at http://localhost:${port}  (AI handwriting: ${aiEnabled ? 'on' : 'OFF - set ANTHROPIC_API_KEY'})`));
+  app.listen(port, () => {
+    const persisted = process.env.PGLITE_DIR ? ' (persisted)' : ' (in-memory, resets on restart)';
+    console.log(`StrongStart running at http://localhost:${port}`);
+    console.log(`  AI (Gemini): ${aiEnabled ? 'on' : 'OFF (set GEMINI_API_KEY)'}`);
+    console.log(`  Database: ${dbBackend === 'tiger' ? 'Tiger Data / Postgres' : 'local PGlite' + persisted}${isTimescale ? ' + TimescaleDB' : ''}`);
+  });
 }
