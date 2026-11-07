@@ -23,7 +23,7 @@ Create a service at Tiger Data, then set `TIGER_DATABASE_URL` to its connection 
 | `PORT`, `BASE_URL` | Port, and public URL used in emailed links and QR codes |
 | `TIGER_DATABASE_URL` | Tiger Data / Postgres URL (otherwise local PGlite) |
 | `PGLITE_DIR` | Persist the local PGlite database in this folder |
-| `GEMINI_API_KEY`, `GEMINI_MODEL` | Gemini: handwriting, translation, summaries (default model `gemini-2.5-flash`) |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Gemini: handwriting, translation, summaries (default model `gemini-3.8-flash`) |
 | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | Read-aloud, voice feedback, email dictation |
 | `CLOUDINARY_URL` | Photo storage |
 | `INBOUND_EMAIL_SECRET` | Shared secret for the inbound-email webhook |
@@ -39,7 +39,7 @@ Create a service at Tiger Data, then set `TIGER_DATABASE_URL` to its connection 
 
 Parents and facilitators never log in; they use links. **Public** (no login): `/order/:token`, `/feedback/:programToken`, `/upload/:programToken`, `/sheet/:programToken` (printable QR sheet), the matching `/api/feedback/:token...`, `/api/programs/:token/public`, `/api/programs/:token/qr.png`, `/api/order-form/:token`, `/api/tts`, `/api/inbound-email` (webhook), and `/login.html`. Program links use a random token, never the numeric id.
 
-**Staff only** (Google sign-in, and the email must be an active row in the `staff` table): the dashboard at `/`, `/compose.html`, and every other `/api/*` route (default-deny; the public list is in `src/auth.js`). The dashboard has Orders, Programs and feedback (date/facilitator filters, CSV export), Outstanding surveys, Review queue (photo, transcription and English translation), Trends, Rollup, Emails, Compose email and, for admins, Staff management.
+**Staff only** (Google sign-in, and the email must be an active row in the `staff` table): the dashboard at `/`, `/compose.html`, and every other `/api/*` route (default-deny; the public list is in `src/auth.js`). The dashboard has Orders, Programs and feedback (date/facilitator filters, CSV export), Review queue and Outstanding surveys (both inside Programs), Insights (trends and rollup), Emails and, for admins, Staff management. Emails are written from the Partners tab (voice dictation and AI tidy-up included).
 
 ## Staff accounts
 1. Create a Google OAuth client (Web application) with redirect URI `BASE_URL/auth/google/callback` and put the id and secret in `.env`.

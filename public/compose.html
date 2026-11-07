@@ -8,7 +8,7 @@
 <form id="f" novalidate>
 <label for="to">To</label><select id="to" required><option value="">Loading…</option></select>
 <label for="subject">Subject</label><input id="subject" maxlength="200" required>
-<label for="body">Message</label><textarea id="body" rows="10" maxlength="10000" required></textarea>
+<label for="body">Message</label><textarea data-nodictate id="body" rows="10" maxlength="10000" required></textarea>
 <div class="actions">
 <button type="button" id="mic" class="sec" aria-pressed="false">Start dictating</button>
 <button type="button" id="tidy" class="sec">Tidy with AI</button>
@@ -98,4 +98,5 @@ $('#f').onsubmit = async (e) => {
   } catch (er) { $('#err').textContent = er.message; }
   b.disabled = false; b.textContent = 'Send email';
 };
-</script></body></html>
+</script><script src="/dictate.js" defer></script>
+</body></html>

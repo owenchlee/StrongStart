@@ -1,0 +1,11 @@
+{
+  "claims": [
+    { "id": "c_tests", "text": "Unit tests pass", "evidence": ["e_tests"] },
+    { "id": "c_graph", "text": "Workflow has no human-gate bypass", "evidence": ["e_graph"] },
+    { "id": "c_done", "text": "Feature is shippable", "evidence": [], "dependsOn": ["c_tests", "c_graph"] }
+  ],
+  "evidence": [
+    { "id": "e_tests", "kind": "command", "cmd": "node skills/verify-loop/scripts/verify.mjs" },
+    { "id": "e_graph", "kind": "command", "cmd": "node skills/verify-loop/scripts/graph-check.mjs skills/verify-loop/examples/workflow.json" }
+  ]
+}

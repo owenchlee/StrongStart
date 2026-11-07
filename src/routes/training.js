@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
 import { query, one, run, tx } from '../db.js';
+import { sendMail, BASE_URL } from '../mailer.js';
 // Import Outlook helper
 import { createOutlookEvent } from '../msgraph.js';
 
@@ -79,7 +80,7 @@ trainingRouter.post('/api/training/register', async (req, res) => {
     await q.run(
       `INSERT INTO facilitators (email, name, phone, organization)
        VALUES ($1, $2, $3, $4)
-       ON CONFLICT (lower(email)) DO UPDATE
+       ON CONFLICT (email) DO UPDATE
        SET name = COALESCE(excluded.name, facilitators.name),
            phone = COALESCE(excluded.phone, facilitators.phone),
            organization = COALESCE(excluded.organization, facilitators.organization)`,

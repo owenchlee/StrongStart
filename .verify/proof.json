@@ -1,0 +1,59 @@
+{
+  "claims": [
+    {
+      "id": "c_tests",
+      "text": "Full test suite passes (incl. new training test)",
+      "evidence": [
+        "e_tests"
+      ]
+    },
+    {
+      "id": "c_training",
+      "text": "Training registration -> capacity -> certificate works (was a 500)",
+      "evidence": [
+        "e_training"
+      ]
+    },
+    {
+      "id": "c_sim",
+      "text": "End-to-end sim: order -> ship -> receive -> training -> parent feedback -> completion -> dashboard (80 checks)",
+      "evidence": [
+        "e_sim"
+      ]
+    },
+    {
+      "id": "c_done",
+      "text": "Loop works end to end on this branch",
+      "evidence": [
+        "e_gate"
+      ],
+      "dependsOn": [
+        "c_tests",
+        "c_training",
+        "c_sim"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "e_tests",
+      "kind": "command",
+      "cmd": "npm run test"
+    },
+    {
+      "id": "e_training",
+      "kind": "command",
+      "cmd": "node test/training.js"
+    },
+    {
+      "id": "e_sim",
+      "kind": "command",
+      "cmd": "node .verify/sim.mjs"
+    },
+    {
+      "id": "e_gate",
+      "kind": "command",
+      "cmd": "node .claude/skills/verify-loop/scripts/verify.mjs"
+    }
+  ]
+}

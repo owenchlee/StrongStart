@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/style.css"><script src="/theme.js"></script>
+  <title>Your profile | Baby Connections</title>
+  <style>
+    .prof { max-width: 44rem; margin: 0 auto; }
+    .prof section { margin: var(--s5) 0; }
+    .prof h2 { margin: 0 0 var(--s1); font-size: var(--fs-lg, 1.25rem); }
+    .day-row { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: end; margin: var(--s2) 0; }
+    .day-row > label.dn { flex: 1 1 9rem; margin: 0; display: flex; align-items: center; gap: var(--s2); min-height: var(--tap); }
+    .day-row label.t { margin: 0; }
+    .opts { display: flex; gap: var(--s5); flex-wrap: wrap; }
+    .opts label { display: flex; align-items: center; gap: var(--s2); margin: 0; font-weight: 400; font-size: var(--fs-md); min-height: var(--tap); }
+    .seg { display: inline-flex; border: 1.5px solid var(--line-strong); margin: var(--s3) 0; }
+    .seg button { border: 0; border-radius: 0; box-shadow: none; background: transparent; color: var(--primary-text, var(--primary)); min-height: var(--tap); text-transform: none; letter-spacing: 0; }
+    .seg button[aria-pressed="true"] { background: var(--primary); color: var(--on-primary, #fff); }
+    .pager { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); margin: var(--s2) 0; flex-wrap: wrap; }
+    .sched { display: grid; grid-template-columns: 3.4rem repeat(7, minmax(0, 1fr)); user-select: none; -webkit-user-select: none; overflow-x: auto; }
+    .sched .hd { text-align: center; padding: var(--s2) 0; border-bottom: 1px solid var(--line-strong); font-size: var(--fs-sm); line-height: 1.25; font-weight: 600; cursor: pointer; background: transparent; border-top: 0; border-left: 0; border-right: 0; border-radius: 0; box-shadow: none; min-height: 0; color: inherit; text-transform: none; letter-spacing: 0; display: block; }
+    .sched .hd small { display: block; font-weight: 400; color: var(--muted); }
+    .sched .hd .tag { display: inline-block; font-size: .7rem; font-weight: 700; color: var(--primary-text, var(--primary)); }
+    .sched .t { font-size: var(--fs-xs, .75rem); color: var(--muted); text-align: right; padding-right: var(--s2); height: 1.6rem; line-height: 0; transform: translateY(-1px); }
+    .sched .t.hr { line-height: 1; }
+    .cell { height: 1.6rem; border: 0; border-left: 1px solid var(--line, #ddd); border-bottom: 1px dotted var(--line, #ddd); padding: 0; margin: 0; min-height: 0; border-radius: 0; box-shadow: none; touch-action: none; display: block; width: 100%; background: transparent; cursor: pointer; }
+    .cell.hr { border-top: 1px solid var(--line-strong, #aaa); }
+    .cell:hover { background: color-mix(in srgb, var(--ok, #1a7f37) 18%, var(--surface)); }
+    .cell[aria-pressed="true"] { background: var(--ok, #1a7f37); }
+    .cell[aria-pressed="true"]::after { content: "✓"; color: #fff; font-size: .8rem; line-height: 1; }
+    .cell.past { opacity: .45; }
+    .cell:focus-visible { outline: 3px solid var(--focus, #0055a5); outline-offset: -3px; position: relative; z-index: 1; }
+    .actions { display: flex; gap: var(--s3); flex-wrap: wrap; align-items: center; margin-top: var(--s3); }
+    .who-line { display: flex; align-items: center; gap: var(--s3); }
+  </style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head"><div class="in"><h1 class="brand"><img class="logo logo-light" src="/img/strong-start-logo.png" alt="Strong Start, a children's literacy charity"><img class="logo logo-dark" src="/img/strong-start-logo-dark.png" alt="" aria-hidden="true"><span class="app">Baby Connections<small>Profile</small></span></h1>
+<div class="who"><a class="btn sec sm" href="/">&larr; Back to dashboard</a></div></div></header>
+
+<main class="wide" id="main" tabindex="-1">
+  <div class="prof">
+    <h2 class="page-title" style="margin-bottom:var(--s4)">Your profile</h2>
+
+    <section class="card" aria-labelledby="hAcct">
+      <h2 id="hAcct">Account</h2>
+      <div class="who-line"><span class="avatar" id="av" aria-hidden="true"></span><div><b id="pName">&hellip;</b><br><span class="muted" id="pEmail"></span> <span class="pill st-off" id="pRole" hidden></span></div></div>
+      <p style="margin-bottom:0"><button type="button" class="sec" id="signout">Sign out</button></p>
+    </section>
+
+    <section class="card" aria-labelledby="hApp">
+      <h2 id="hApp">Appearance</h2>
+      <div class="opts" role="radiogroup" aria-labelledby="hApp">
+        <label><input type="radio" name="theme" value="system"> System</label>
+        <label><input type="radio" name="theme" value="light"> Light</label>
+        <label><input type="radio" name="theme" value="dark"> Dark</label>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="hAvail">
+      <h2 id="hAvail">My availability</h2>
+      <p class="muted">Partners you send a training link can only pick from the times you mark here. <b>Click or drag</b> across the grid to mark when you're free (meetings are 30 minutes).</p>
+      <label for="avTz">Time zone</label><input id="avTz" list="avTzList" autocomplete="off"><datalist id="avTzList"></datalist>
+      <div class="seg" role="group" aria-label="Which availability to edit">
+        <button type="button" id="modeStd" aria-pressed="true">Standard week</button>
+        <button type="button" id="modeWeek" aria-pressed="false">Specific week or day</button>
+      </div>
+      <p class="muted" id="modeHelp"></p>
+      <div class="pager" id="pager" hidden><button type="button" class="sec sm" id="prevW">&larr; Earlier</button><b id="weekLabel" aria-live="polite"></b><button type="button" class="sec sm" id="nextW">Later &rarr;</button></div>
+      <div id="grid" role="group" aria-label="Availability grid. Each cell is a 30-minute slot you can toggle."></div>
+      <p class="err" id="avErr" role="alert" hidden></p>
+      <div class="actions"><button type="button" id="avSave">Save</button><button type="button" class="sec" id="avReset" hidden>Reset this week to standard</button><span class="ok" id="avOk" role="status" aria-live="polite"></span></div>
+    </section>
+
+    <section class="card" aria-labelledby="hGoogle">
+      <h2 id="hGoogle">Google Calendar</h2>
+      <p class="muted" id="gMsg" role="status" aria-live="polite"></p>
+      <p class="muted" id="avGoogle"></p>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const j = (u, o) => fetch(u, o).then(async (r) => {
+  if (r.status === 401) { location.href = '/login.html'; throw new Error('signed out'); }
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok && !body.error) body.error = 'Request failed (' + r.status + ')';
+  return body;
+});
+fetch('/api/me').then((r) => r.json()).then((m) => {
+  if (!m.staff) { location.href = '/login.html'; return; }
+  const name = m.staff.name || m.staff.email;
+  $('#pName').textContent = name; $('#pEmail').textContent = m.staff.email; $('#av').textContent = (name.trim()[0] || '?').toUpperCase();
+  if (m.staff.role) { $('#pRole').textContent = m.staff.role; $('#pRole').hidden = false; }
+  if (m.authDisabled) $('#signout').hidden = true; // no sign-out while login is off
+});
+$('#signout').onclick = async () => { await fetch('/auth/logout', { method: 'POST' }); location.href = '/login.html'; };
+
+document.querySelectorAll('input[name=theme]').forEach((r) => {
+  r.checked = r.value === window.bcTheme.get();
+  r.addEventListener('change', () => { if (r.checked) window.bcTheme.set(r.value); });
+});
+
+// ---- availability editor (graph style) ----
+const STEP = 30, ORDER = [1, 2, 3, 4, 5, 6, 0]; // columns Mon..Sun -> JS weekday numbers
+const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+const addDays = (ymd, n) => new Date(Date.parse(ymd + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+const mondayOf = (ymd) => addDays(ymd, -((new Date(ymd + 'T00:00:00Z').getUTCDay() + 6) % 7));
+const fmtDay = (ymd) => new Date(ymd + 'T12:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+let A = null;            // server data: { timezone, today, windows, overrides, google }
+let mode = 'std';        // 'std' | 'week'
+let weekStart = null;    // Monday (YYYY-MM-DD) shown in week mode
+let cells = new Set();   // "col|row" cells currently marked in the grid
+let dirty = false, rowStart = 6 * 60, rowCount = 32;
+
+const stdWindows = (weekday) => A.windows.filter((w) => w.weekday === weekday);
+const dayWindows = (date) => A.overrides[date] || stdWindows(new Date(date + 'T00:00:00Z').getUTCDay());
+const weekDates = () => ORDER.map((_, c) => addDays(weekStart, c));
+
+function computeRows() {
+  let lo = 6 * 60, hi = 22 * 60;
+  const all = [...A.windows, ...Object.values(A.overrides).flat()];
+  for (const w of all) { lo = Math.min(lo, Math.floor(toMin(w.start) / 60) * 60); hi = Math.max(hi, Math.ceil(toMin(w.end) / 60) * 60); }
+  rowStart = lo; rowCount = (hi - lo) / STEP;
+}
+function fillCells(list, col) { for (const w of list) for (let m = toMin(w.start); m < toMin(w.end); m += STEP) cells.add(col + '|' + (m - rowStart) / STEP); }
+function windowsOf(col) {
+  const rows = [...cells].filter((k) => k.startsWith(col + '|')).map((k) => Number(k.split('|')[1])).sort((a, b) => a - b);
+  const out = []; let run = null;
+  for (const r of rows) { if (run && r === run.end) run.end++; else { run = { start: r, end: r + 1 }; out.push(run); } }
+  return out.map((x) => ({ start: hhmm(rowStart + x.start * STEP), end: hhmm(rowStart + x.end * STEP) }));
+}
+
+function loadCells() {
+  cells = new Set(); dirty = false;
+  if (mode === 'std') ORDER.forEach((wd, c) => fillCells(stdWindows(wd), c));
+  else weekDates().forEach((d, c) => fillCells(dayWindows(d), c));
+}
+
+function draw() {
+  const dates = mode === 'week' ? weekDates() : null;
+  $('#pager').hidden = mode === 'std';
+  $('#modeStd').setAttribute('aria-pressed', mode === 'std'); $('#modeWeek').setAttribute('aria-pressed', mode === 'week');
+  $('#modeHelp').textContent = mode === 'std'
+    ? 'This is your usual week. It repeats every week unless you customize a specific week or day.'
+    : 'Starts from your standard week. Change any days you like, then save. Only the days you change are customized.';
+  if (mode === 'week') {
+    const thisWeek = mondayOf(A.today);
+    $('#prevW').disabled = weekStart <= thisWeek; $('#nextW').disabled = weekStart >= addDays(thisWeek, 7 * 26);
+    $('#weekLabel').textContent = `${fmtDay(weekStart)} – ${fmtDay(addDays(weekStart, 6))}`;
+    $('#avReset').hidden = !dates.some((d) => A.overrides[d]);
+  } else $('#avReset').hidden = true;
+  $('#avSave').textContent = mode === 'std' ? 'Save standard week' : 'Save this week';
+
+  let h = '<div class="sched"><div></div>';
+  ORDER.forEach((wd, c) => {
+    const d = dates && dates[c], custom = d && A.overrides[d];
+    h += `<button type="button" class="hd" data-col="${c}" title="Toggle the whole day">${WD[wd]}${d ? `<small>${fmtDay(d)}</small>` : ''}${custom ? '<span class="tag">Custom</span>' : ''}</button>`;
+  });
+  for (let r = 0; r < rowCount; r++) {
+    const m = rowStart + r * STEP, hr = m % 60 === 0;
+    h += `<div class="t ${hr ? 'hr' : ''}">${hr ? new Date(2000, 0, 1, Math.floor(m / 60)).toLocaleTimeString(undefined, { hour: 'numeric' }) : ''}</div>`;
+    ORDER.forEach((wd, c) => {
+      const past = dates && dates[c] < A.today;
+      h += `<button type="button" class="cell ${hr ? 'hr' : ''} ${past ? 'past' : ''}" data-k="${c}|${r}" ${past ? 'disabled' : ''} aria-pressed="${cells.has(c + '|' + r)}" aria-label="${WD[wd]} ${new Date(2000, 0, 1, Math.floor(m / 60), m % 60).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}"></button>`;
+    });
+  }
+  $('#grid').innerHTML = h + '</div>';
+  $('#avOk').textContent = '';
+}
+
+// click / drag painting: the first cell decides whether the drag marks or clears
+let painting = null;
+const grid = $('#grid');
+const setCell = (el, on) => { on ? cells.add(el.dataset.k) : cells.delete(el.dataset.k); el.setAttribute('aria-pressed', on); dirty = true; $('#avOk').textContent = ''; };
+grid.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest('.cell'); if (!el || el.disabled || e.button > 0) return;
+  e.preventDefault(); painting = el.getAttribute('aria-pressed') !== 'true'; setCell(el, painting);
+});
+grid.addEventListener('pointermove', (e) => {
+  if (painting === null) return;
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  if (el && el.classList && el.classList.contains('cell') && !el.disabled && (el.getAttribute('aria-pressed') === 'true') !== painting) setCell(el, painting);
+});
+window.addEventListener('pointerup', () => { painting = null; }); window.addEventListener('pointercancel', () => { painting = null; });
+grid.addEventListener('click', (e) => {
+  const el = e.target.closest('.cell');
+  if (el && !el.disabled && e.detail === 0) return setCell(el, el.getAttribute('aria-pressed') !== 'true'); // keyboard
+  const hd = e.target.closest('.hd');
+  if (hd) {
+    const list = [...grid.querySelectorAll(`.cell[data-k^="${hd.dataset.col}|"]`)].filter((c) => !c.disabled);
+    const all = list.every((c) => c.getAttribute('aria-pressed') === 'true');
+    list.forEach((c) => setCell(c, !all));
+  }
+});
+
+const err = (m) => { $('#avErr').textContent = m || ''; $('#avErr').hidden = !m; };
+async function refreshData() {
+  const a = await j('/api/me/availability');
+  if (a.error) { err(a.error); return false; }
+  A = a; return true;
+}
+async function save() {
+  err('');
+  if (mode === 'std') {
+    const windows = []; ORDER.forEach((wd, c) => windowsOf(c).forEach((w) => windows.push({ weekday: wd, ...w })));
+    const r = await j('/api/me/availability', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timezone: $('#avTz').value.trim(), windows }) });
+    if (r.error) return err(r.error);
+  } else {
+    const days = {}; weekDates().forEach((d, c) => { if (d >= A.today) days[d] = windowsOf(c); });
+    const r = await j('/api/me/availability/days', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ days }) });
+    if (r.error) return err(r.error);
+  }
+  dirty = false; await refreshData(); loadCells(); draw(); $('#avOk').textContent = 'Saved.';
+}
+async function leave(apply) { if (dirty) await save(); if (err && $('#avErr').hidden === false) return; apply(); loadCells(); draw(); }
+
+$('#avSave').onclick = save;
+$('#modeStd').onclick = () => { if (mode !== 'std') leave(() => { mode = 'std'; }); };
+$('#modeWeek').onclick = () => { if (mode !== 'week') leave(() => { mode = 'week'; weekStart = weekStart || mondayOf(A.today); }); };
+$('#prevW').onclick = () => leave(() => { weekStart = addDays(weekStart, -7); });
+$('#nextW').onclick = () => leave(() => { weekStart = addDays(weekStart, 7); });
+$('#avReset').onclick = async () => {
+  const days = {}; weekDates().forEach((d) => { if (d >= A.today) days[d] = null; });
+  const r = await j('/api/me/availability/days', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ days }) });
+  if (r.error) return err(r.error);
+  await refreshData(); loadCells(); draw(); $('#avOk').textContent = 'This week now matches your standard week.';
+};
+
+function renderGoogle() {
+  const g = A.google;
+  $('#avGoogle').innerHTML = !g.configured ? 'Google is not configured on this server, so meetings are booked without a Meet link.'
+    : g.connected ? `Connected${g.account ? ' as <b>' + esc(g.account) + '</b>' : ''}. Booked meetings get a Google Meet link and an emailed invitation. <button type="button" class="sm sec" id="gDisc">Disconnect</button>`
+    : 'Not connected. Connect so booked meetings get a Google Meet link and an emailed invitation. <a class="btn sm" href="/api/me/google/connect">Connect Google Calendar</a>';
+  const d = $('#gDisc'); if (d) d.onclick = async () => { await j('/api/me/google', { method: 'DELETE' }); await refreshData(); renderGoogle(); };
+}
+
+async function load() {
+  if (!(await refreshData())) return;
+  $('#avTz').value = A.timezone;
+  $('#avTzList').innerHTML = (Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : [A.timezone]).map((z) => `<option value="${esc(z)}">`).join('');
+  computeRows(); loadCells(); draw(); renderGoogle();
+}
+
+const cal = new URLSearchParams(location.search).get('calendar');
+if (cal) $('#gMsg').innerHTML = cal === 'connected' ? '<span class="ok">Google Calendar connected.</span>' : '<span class="err">Could not connect Google Calendar. Please try again.</span>';
+load();
+</script>
+<script src="/dictate.js" defer></script>
+</body>
+</html>

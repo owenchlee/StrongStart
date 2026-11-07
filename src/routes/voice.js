@@ -84,3 +84,18 @@ voice.post('/api/feedback/:token/voice', rateLimit('voice', 10), audioUpload, as
       clip(s?.language ?? lang, 20), clip(s?.translated_text, 5000), weak]);
   res.json({ ok: true, id: rows[0].id, transcript });
 });
+
+// Generic dictation for any text box (public pages use it too): audio in, transcript out. Nothing is stored.
+voice.get('/api/transcribe', (_req, res) => res.json({ enabled: elevenLabsEnabled() }));
+voice.post('/api/transcribe', rateLimit('stt', 20), audioUpload, async (req, res) => {
+  if (!elevenLabsEnabled()) return res.status(503).json({ error: 'Voice typing is not set up yet.' });
+  const f = req.file;
+  if (!f || !f.buffer?.length) return res.status(400).json({ error: 'An audio file is required (field "audio")' });
+  if (!AUDIO_TYPES.test(String(f.mimetype).split(';')[0].trim())) return res.status(400).json({ error: 'Unsupported audio type' });
+  try {
+    res.json({ text: await speechToText(f.buffer, f.mimetype) });
+  } catch (e) {
+    console.error('[transcribe]', e.message);
+    res.status(e instanceof ElevenLabsError ? e.status : 502).json({ error: 'Could not transcribe that. Please try again.' });
+  }
+});

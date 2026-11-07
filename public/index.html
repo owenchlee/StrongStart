@@ -2,14 +2,15 @@
 <link rel="stylesheet" href="/style.css"><script src="/theme.js"></script><title>Baby Connections Dashboard</title></head><body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-head"><div class="in"><h1 class="brand"><img class="logo logo-light" src="/img/strong-start-logo.png" alt="Strong Start, a children's literacy charity"><img class="logo logo-dark" src="/img/strong-start-logo-dark.png" alt="" aria-hidden="true"><span class="app">Baby Connections<small>Staff</small></span></h1>
-<nav aria-label="Dashboard sections"><button data-t="partners">Partners</button><button data-t="training">Training</button><button data-t="orders" class="on">Orders</button><button data-t="programs">Programs &amp; feedback</button><button data-t="outstanding">Outstanding surveys</button><button data-t="review">Review queue</button><button data-t="trends">Trends</button><button data-t="rollup">Rollup</button><button data-t="emails">Emails</button><button data-t="staff" id="staffTab" hidden>Staff</button><a href="/resources" target="_blank" rel="noopener">Knowledge Centre</a><a href="/compose.html">Compose email</a><button data-t="userforms">User Forms</button></nav>
-<div class="who"><button type="button" class="sec sm profile" id="profileBtn" aria-haspopup="true" aria-expanded="false" aria-controls="profileMenu"><span class="avatar" id="av" aria-hidden="true"></span><span id="who"></span><svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button><div class="menu-pop" id="profileMenu" hidden><p class="menu-h">Preferences</p><fieldset><legend>Appearance</legend><label class="opt"><input type="radio" name="theme" value="system"> System</label><label class="opt"><input type="radio" name="theme" value="light"> Light</label><label class="opt"><input type="radio" name="theme" value="dark"> Dark</label></fieldset><button type="button" class="sec sm" id="signout" onclick="logout()">Sign out</button></div></div></div></header>
+<nav aria-label="Dashboard sections"><button data-t="partners">Partners</button><button data-t="orders" class="on">Orders</button><button data-t="programs">Programs &amp; feedback</button><button data-t="insights">Insights</button><button data-t="emails">Emails</button><button data-t="staff" id="staffTab" hidden>Staff</button><button data-t="userforms">Forms &amp; links</button></nav>
+<div class="who"><a class="btn sec sm profile" id="profileBtn" href="/profile.html" aria-label="Your profile and settings"><span class="avatar" id="av" aria-hidden="true"></span><span id="who"></span></a></div></div></header>
 <main class="wide" id="main" tabindex="-1">
 <h2 class="page-title" id="pageTitle">Orders</h2>
-<section id="partners" hidden></section><section id="training" hidden></section><section id="orders" hidden></section><section id="programs" hidden></section><section id="outstanding" hidden></section><section id="review" hidden></section><section id="trends" hidden></section><section id="rollup" hidden></section><section id="emails" hidden></section><section id="staff" hidden></section>
+<section id="partners" hidden></section><section id="orders" hidden></section><section id="programs" hidden></section><section id="insights" hidden></section><section id="emails" hidden></section><section id="staff" hidden></section>
     <section id="userforms" hidden>
-  <h2>User Forms</h2>
+  <h2>Forms &amp; links</h2>
   <div class="form-list">
+    <a class="btn sec sm" href="/resources" target="_blank" rel="noopener">Knowledge Centre</a>
     <a class="btn sec sm" href="/partner-interest.html" target="_blank" rel="noopener">Public EOI Form</a>
     <a class="btn sec sm" href="/order.html" target="_blank" rel="noopener">Order Form</a>
     <a class="btn sec sm" href="/completion.html" target="_blank" rel="noopener">Program Completion Form</a>
@@ -32,14 +33,13 @@ let me = null;
 fetch('/api/me').then((r) => r.json()).then((m) => {
   if (!m.staff) { location.href = '/login.html'; return; }
   me = m.staff; $('#who').textContent = m.staff.name || m.staff.email; $('#av').textContent = ($('#who').textContent.trim()[0] || '?').toUpperCase();
-  if (m.authDisabled) $('#signout').hidden = true; // no sign-out while login is off
   $('#staffTab').hidden = m.staff.role !== 'admin';
 });
 async function logout() { await fetch('/auth/logout', { method: 'POST' }); location.href = '/login.html'; }
 const date = (s) => (s ? String(s).slice(0, 10) : '–');
 const num = (n, d = 2) => (n == null ? '–' : +Number(n).toFixed(d));
 const enc = encodeURIComponent;
-const TABS = ['partners', 'training', 'orders', 'programs', 'outstanding', 'review', 'trends', 'rollup', 'emails', 'staff', 'userforms'];
+const TABS = ['partners', 'orders', 'programs', 'insights', 'emails', 'staff', 'userforms'];
 let tab = (function() {
   const stored = localStorage.getItem('activeTab');
   return stored && TABS.includes(stored) ? stored : TABS[0];
@@ -60,23 +60,8 @@ function enhanceTables() {
 async function refresh() {
   document.querySelectorAll('nav button').forEach((b) => { const on = b.dataset.t === tab; b.classList.toggle('on', on); if (on) { b.setAttribute('aria-current', 'page'); b.scrollIntoView({ block: 'nearest', inline: 'center' }); $('#pageTitle').textContent = b.textContent; } else b.removeAttribute('aria-current'); });
   TABS.forEach((t) => ($('#' + t).hidden = t !== tab));
-  // The overview bar exists only on the Partners tab; on every other tab it is removed from the page.
   $('#stats')?.remove();
-  const o = tab === 'partners' ? await j('/api/overview') : null;
-  if (o) $('#pageTitle').insertAdjacentHTML('afterend', '<div class="stats" id="stats" role="group" aria-label="Program overview"></div>');
-  if (o) $('#stats').innerHTML = [
-    ['Partners', o.partners || 0],
-    ['Active partners', o.activePartners || 0],
-    ['Facilitators', o.facilitators],
-    ['Open orders', o.openOrders],
-    ['Programs', o.programs],
-    ['Completed programs', o.completedPrograms || 0],
-    ['Feedback responses', o.feedbackResponses],
-    ['Needs review', o.needsReview]
-  ]
-    .map(([l, n]) => `<div class="stat${l === 'Needs review' && Number(n) > 0 ? ' attn' : ''}"><b>${esc(n)}</b><span class="muted">${l}</span></div>`).join('')
-    + `<div class="stat"><b>${o.aiEnabled ? 'On' : 'Off'}</b><span class="muted">AI handwriting</span></div>`;
-  await { partners: renderPartners, orders, programs, outstanding, review, trends, rollup, emails, staff }[tab]();
+  await { partners: renderPartners, orders, programs, insights, emails, staff }[tab]();
   enhanceTables();
 }
 
@@ -84,7 +69,6 @@ async function refresh() {
 let partnerFilterStage = '';
 const STAGE_LABELS = {
   expression_of_interest: 'Expression of Interest',
-  initial_contact: 'Initial Contact',
   discovery: 'Discovery',
   pdsa_review: 'PDSA Review',
   pdsa_signed: 'PDSA Signed',
@@ -111,12 +95,12 @@ async function renderPartners() {
 
     <div class="stats" style="margin-bottom:var(--s4);grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
       ${stages.map((st) => `
-        <div class="stat${partnerFilterStage === st ? ' attn' : ''}" style="cursor:pointer" onclick="setPartnerFilter('${st}')">
+        <div class="stat stage-tile${partnerFilterStage === st ? ' attn' : ''}" style="cursor:pointer" onclick="setPartnerFilter('${st}')">
           <b>${pipeline.counts[st] || 0}</b>
           <span class="muted">${STAGE_LABELS[st] || st}</span>
         </div>
       `).join('')}
-      <div class="stat${!partnerFilterStage ? ' attn' : ''}" style="cursor:pointer" onclick="setPartnerFilter('')">
+      <div class="stat stage-tile${!partnerFilterStage ? ' attn' : ''}" style="cursor:pointer" onclick="setPartnerFilter('')">
         <b>${pipeline.total || 0}</b>
         <span class="muted">All Partners</span>
       </div>
@@ -172,6 +156,7 @@ async function renderPartners() {
             <td class="muted">${p.facilitator_count || 0} facilitators<br>${p.program_count || 0} programs</td>
             <td>
               <button class="sm sec" onclick="viewPartner(${p.id})">Details</button>
+              <button class="sm" onclick="viewPartner(${p.id}, true)">Email</button>
             </td>
           </tr>
         `).join('') || '<tr><td colspan="7" class="muted">No partners found.</td></tr>'}
@@ -212,7 +197,23 @@ async function updatePartnerStage(id, stage) {
   refresh();
 }
 
-async function viewPartner(id) {
+const whenFmt = (iso) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+async function loadTrainStatus(id) {
+  const list = await j(`/api/partners/${id}/training-invites`).catch(() => []);
+  const el = $('#trainStatus'); if (!el || !Array.isArray(list)) return;
+  el.innerHTML = list.filter((i) => i.status !== 'cancelled').slice(0, 3).map((i) => i.status === 'scheduled'
+    ? `<div><span class="pill st-on">Booked</span> ${esc(whenFmt(i.meeting_start))} ${i.meet_link ? `&bull; <a href="${esc(i.meet_link)}" target="_blank" rel="noopener">Google Meet</a>` : '&bull; <span class="muted">no Meet link (connect Google Calendar)</span>'}</div>`
+    : `<div><span class="pill st-off">Waiting for partner</span> link sent ${esc(date(i.created_at))} to ${esc(i.invitee_email)} &bull; <a href="/meet/${esc(i.token)}" target="_blank" rel="noopener">open link</a></div>`).join('');
+}
+async function startTraining(id) {
+  const b = $('#startTrainBtn'); b.disabled = true;
+  const r = await jsonPost(`/api/partners/${id}/start-training`);
+  b.disabled = false;
+  if (r.error) return alert(r.error);
+  alert('Link emailed to ' + r.sent_to + '\n\n' + r.link);
+  loadTrainStatus(id);
+}
+async function viewPartner(id, focusEmail) {
   const [p, docs, msgs] = await Promise.all([
     j(`/api/partners/${id}`),
     j(`/api/partners/${id}/documents`).catch(() => []),
@@ -220,6 +221,7 @@ async function viewPartner(id) {
   ]);
   if (p.error) return alert(p.error);
 
+  setTimeout(() => loadTrainStatus(id));
   $('#partnerDetailBox').innerHTML = `
     <div class="card wide-card" style="margin-top:var(--s4);border:2px solid var(--primary)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -233,6 +235,15 @@ async function viewPartner(id) {
       <div class="row" style="margin-top:var(--s3)">
         <div><b>Contact:</b> ${esc(p.contact_name || '–')} &bull; <a href="mailto:${esc(p.contact_email)}">${esc(p.contact_email || '–')}</a> &bull; ${esc(p.contact_phone || '–')}</div>
         <div><b>Current Stage:</b> <span class="pill st-ordered">${esc(p.stage)}</span></div>
+      </div>
+
+      <div id="trainBox" style="margin-top:var(--s3);padding:var(--s3);background:var(--surface-2);border-radius:var(--r-md)">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--s2)">
+          <h4 style="margin:0">Training</h4>
+          <button class="sm" id="startTrainBtn" onclick="startTraining(${p.id})">Start training</button>
+        </div>
+        <p class="muted" style="margin:var(--s2) 0 0">Emails ${esc(p.contact_email || 'the partner')} a link where they pick times from your availability. The earliest overlap is booked as a Google Meet.</p>
+        <div id="trainStatus" style="margin-top:var(--s2)"></div>
       </div>
 
       <!-- PDSA Agreement Section -->
@@ -312,7 +323,13 @@ async function viewPartner(id) {
 
         <!-- CRM Reply Box -->
         <div style="margin-top:var(--s4);background:var(--surface);border:1px solid var(--primary);border-radius:var(--r-md);padding:var(--s3)">
-          <h4 style="margin:0 0 var(--s2);color:var(--primary-text)">Reply to Partner / Facilitator</h4>
+          <h4 style="margin:0 0 var(--s2);color:var(--primary-text)">Email partner or facilitator</h4>
+          <label>To
+            <select id="crmTo" onchange="crmToChanged()">
+              <option value="">${esc(p.contact_name || 'Partner contact')} (${esc(p.contact_email || 'no email on file')})</option>
+              ${(p.facilitators || []).map((f) => `<option value="${Number(f.id)}">Facilitator: ${esc(f.name || f.email)} (${esc(f.email)})</option>`).join('')}
+            </select>
+          </label>
           <label>Subject
             <input id="crmReplySubject" value="Re: Baby Connections Partnership - ${esc(p.name)}">
           </label>
@@ -321,7 +338,7 @@ async function viewPartner(id) {
           </label>
 
           ${docs.length ? `
-            <div style="margin-top:var(--s2)">
+            <div style="margin-top:var(--s2)" id="crmDocsWrap">
               <small><b>Attach Uploaded Documents:</b></small>
               <div style="display:flex;gap:var(--s3);flex-wrap:wrap;margin-top:var(--s1)">
                 ${docs.map((d) => `
@@ -334,19 +351,23 @@ async function viewPartner(id) {
             </div>
           ` : '<p class="muted" style="font-size:var(--fs-sm);margin:var(--s1) 0">No documents uploaded yet to attach.</p>'}
 
+          <div style="display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap;margin-top:var(--s2)">
+            <button type="button" class="sm sec" id="crmMic" aria-pressed="false" onclick="crmDictate()">Start dictating</button>
+            <button type="button" class="sm sec" id="crmTidy" onclick="crmPolish()">Tidy with AI</button>
+            <span id="crmSt" class="muted" role="status" aria-live="polite"></span>
+          </div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:var(--s3);flex-wrap:wrap;gap:var(--s2)">
-            <label style="margin:0;display:flex;align-items:center;gap:var(--s2);font-weight:normal">
+            <label style="margin:0;display:flex;align-items:center;gap:var(--s2);font-weight:normal" id="crmStageWrap">
               <span>Advance stage to:</span>
               <select id="crmReplyStage" style="min-height:32px;padding:2px 6px">
                 <option value="">Keep current (${esc(p.stage)})</option>
-                <option value="initial_contact">Initial Contact</option>
                 <option value="discovery">Discovery</option>
                 <option value="pdsa_review">PDSA Review</option>
                 <option value="pdsa_signed">PDSA Signed</option>
                 <option value="active">Active Partner</option>
               </select>
             </label>
-            <button class="sm" id="crmSendBtn" onclick="sendPartnerReply(${p.id})">Send Email &amp; Documents</button>
+            <button class="sm" id="crmSendBtn" onclick="sendPartnerReply(${p.id})">Send email</button>
           </div>
           <p id="crmReplyMsg" style="margin:var(--s2) 0 0" class="muted"></p>
         </div>
@@ -366,7 +387,8 @@ async function viewPartner(id) {
       ${(p.programs || []).map((pr) => `<div>&bull; <b>${esc(pr.name)}</b> &bull; ${date(pr.start_date)} &rarr; ${date(pr.end_date)} &bull; ${pr.feedback_count || 0} feedback responses</div>`).join('') || '<p class="muted">No programs delivered under this partner yet.</p>'}
     </div>
   `;
-  $('#partnerDetailBox').scrollIntoView({ behavior: 'smooth' });
+  if (focusEmail && $('#crmReplyBody')) { $('#crmReplyBody').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('#crmReplyBody').focus(); }
+  else $('#partnerDetailBox').scrollIntoView({ behavior: 'smooth' });
 }
 
 async function uploadPartnerDocs(partnerId) {
@@ -390,38 +412,81 @@ async function deletePartnerDoc(partnerId, docId) {
   viewPartner(partnerId);
 }
 
+function crmToChanged() {
+  const toFac = !!$('#crmTo').value;
+  // Documents and stage changes only apply to the partner contact.
+  ['#crmDocsWrap', '#crmStageWrap'].forEach((q) => { const el = $(q); if (el) el.style.display = toFac ? 'none' : ''; });
+}
+let crmRec = null, crmChunks = [], crmStream = null;
+const crmSay = (m) => { const el = $('#crmSt'); if (el) el.textContent = m; };
+async function crmDictate() {
+  const mic = $('#crmMic');
+  if (crmRec && crmRec.state === 'recording') { crmRec.stop(); return; }
+  if (!navigator.mediaDevices || !window.MediaRecorder) return crmSay('Dictation is not supported in this browser. You can still type.');
+  try { crmStream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch { return crmSay('Microphone access was blocked. Allow it in your browser, or type instead.'); }
+  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((m) => MediaRecorder.isTypeSupported(m)) || '';
+  crmRec = new MediaRecorder(crmStream, mime ? { mimeType: mime } : undefined);
+  crmChunks = [];
+  crmRec.ondataavailable = (e) => e.data.size && crmChunks.push(e.data);
+  crmRec.onstop = async () => {
+    crmStream.getTracks().forEach((t) => t.stop());
+    mic.setAttribute('aria-pressed', 'false'); mic.textContent = 'Start dictating';
+    const blob = new Blob(crmChunks, { type: crmRec.mimeType || mime || 'audio/webm' });
+    if (!blob.size) return crmSay('');
+    mic.disabled = true; crmSay('Transcribing…');
+    try {
+      const fd = new FormData(); fd.append('audio', blob, 'dictation');
+      const r = await fetch('/api/compose/transcribe', { method: 'POST', body: fd });
+      if (r.status === 401) { location.href = '/login.html'; return; }
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) crmSay(d.error || 'Could not transcribe the recording.');
+      else if (!d.transcript) crmSay('Nothing was heard. Try again.');
+      else { const b = $('#crmReplyBody'); b.value = (b.value ? b.value.replace(/\s+$/, '') + '\n\n' : '') + d.transcript; crmSay('Added to your message. Please review and edit it.'); b.focus(); }
+    } catch { crmSay('Could not transcribe the recording.'); }
+    mic.disabled = false;
+  };
+  crmRec.start(); mic.setAttribute('aria-pressed', 'true'); mic.textContent = 'Stop dictating'; crmSay('Recording…');
+}
+async function crmPolish() {
+  const text = $('#crmReplyBody').value.trim();
+  if (!text) return crmSay('Write or dictate something first.');
+  const btn = $('#crmTidy'); btn.disabled = true; crmSay('Tidying…');
+  const r = await jsonPost('/api/compose/polish', { text, facilitator_id: $('#crmTo').value });
+  if (r.error) crmSay(r.error); else { $('#crmReplyBody').value = r.text; crmSay('Tidied. Please review it before sending.'); }
+  btn.disabled = false;
+}
 async function sendPartnerReply(partnerId) {
   const subject = $('#crmReplySubject').value.trim();
   const body = $('#crmReplyBody').value.trim();
-  const stage = $('#crmReplyStage').value;
-  const msgEl = $('#crmReplyMsg');
+  const stage = $('#crmStageWrap').style.display === 'none' ? '' : $('#crmReplyStage').value;
+  const facId = Number($('#crmTo').value) || 0;
   const btn = $('#crmSendBtn');
 
   if (!body) return alert('Please enter a message body');
+  if (facId && !subject) return alert('Add a subject');
+  const toName = $('#crmTo').selectedOptions[0].textContent;
+  if (facId && !confirm('Send this email to ' + toName + '?')) return;
 
-  const selectedDocs = [...document.querySelectorAll('.crmDocCheckbox:checked')].map((c) => Number(c.value));
+  const selectedDocs = facId ? [] : [...document.querySelectorAll('.crmDocCheckbox:checked')].map((c) => Number(c.value));
 
   btn.disabled = true;
   btn.textContent = 'Sending…';
-  msgEl.textContent = '';
 
   try {
-    const res = await jsonPost(`/api/partners/${partnerId}/reply`, {
-      subject,
-      body,
-      stage: stage || undefined,
-      document_ids: selectedDocs
-    });
+    const res = facId
+      ? await jsonPost('/api/compose/send', { facilitator_id: facId, subject, body })
+      : await jsonPost(`/api/partners/${partnerId}/reply`, { subject, body, stage: stage || undefined, document_ids: selectedDocs });
 
     if (res.error) throw new Error(res.error);
 
-    alert('Email sent successfully with attached documents!');
+    alert(facId ? 'Email sent.' : 'Email sent successfully with attached documents!');
     viewPartner(partnerId);
     refresh();
   } catch (err) {
     alert(err.message || 'Failed to send reply');
     btn.disabled = false;
-    btn.textContent = 'Send Email & Documents';
+    btn.textContent = 'Send email';
   }
 }
 
@@ -481,7 +546,9 @@ async function programs() {
   ]);
   const facs = ru.byFacilitator || [];
   const qs = pfQuery();
-  $('#programs').innerHTML = `<form class="filters" id="pfForm">
+  $('#programs').innerHTML = `<details class="card wide-card" id="reviewBox" style="margin-bottom:var(--s3)"><summary><b>Review queue</b> <span class="muted" id="reviewCount"></span></summary><div id="review"></div></details>
+  <details class="card wide-card" id="outstandingBox" style="margin-bottom:var(--s4)"><summary><b>Outstanding surveys</b> <span class="muted" id="outstandingCount"></span></summary><div id="outstanding"></div></details>
+  <form class="filters" id="pfForm">
     <label>From<input type="date" id="pfFrom" value="${esc(pf.from)}"></label>
     <label>To<input type="date" id="pfTo" value="${esc(pf.to)}"></label>
     <label>Partner
@@ -539,6 +606,7 @@ async function programs() {
     pf.from = pf.to = pf.partner = pf.facilitator = pf.status = '';
     refresh();
   };
+  await Promise.all([review(), outstanding()]);
 }
 
 async function viewCompletion(programId) {
@@ -584,6 +652,8 @@ async function report(id) {
 // ---- Outstanding surveys ----
 async function outstanding() {
   const rows = await j('/api/outstanding');
+  const nOut = Array.isArray(rows) ? rows.length : 0;
+  $('#outstandingCount').textContent = nOut ? `(${nOut} programs still need responses)` : '(all caught up)';
   $('#outstanding').innerHTML = `<p class="muted">Programs with fewer responses than projected participants, biggest gap first.</p>
   <div class="tbl"><table><tr><th>Program</th><th>Facilitator</th><th>Dates</th><th>Responses</th><th>Still needed</th><th>Links</th></tr>
   ${(Array.isArray(rows) ? rows : []).map((p) => { const t = enc(p.token); return `<tr><td>${esc(p.name)}<br><span class="muted">${esc(p.location || '')}</span></td><td>${esc(p.facilitator || p.email)}</td>
@@ -595,12 +665,16 @@ async function outstanding() {
 // ---- Review queue ----
 async function review() {
   const rows = await j('/api/review-queue');
+  const nRev = Array.isArray(rows) ? rows.length : 0;
+  $('#reviewCount').textContent = nRev ? `(${nRev} to check)` : '(nothing to review)';
+  if (nRev) $('#reviewBox').open = true;
   $('#review').innerHTML = (Array.isArray(rows) ? rows : []).map((r) => {
     const img = r.image_url || (r.source === 'photo' ? `/api/feedback/${Number(r.id)}/image` : '');
     const safeImg = /^(https:\/\/|\/api\/)/.test(img) ? img : '';
     return `<div class="card wide-card" data-id="${Number(r.id)}"><h3>${esc(r.program)} <span class="muted">#${esc(r.id)} · ${esc(r.source)}${r.language ? ' · ' + esc(r.language) : ''}</span></h3>
    <div class="review-grid">${safeImg ? `<div><a href="${esc(safeImg)}" target="_blank" rel="noopener"><img class="thumb" alt="Photo of the paper form" src="${esc(safeImg)}"></a></div>` : ''}
    <div>
+     ${r.summary ? `<b>Summary</b><div class="quote-box">${esc(r.summary)}</div>` : ''}
      ${r.raw_text || r.audio_transcript ? `<b>Transcription</b><div class="quote-box">${esc(r.raw_text || r.audio_transcript)}</div>` : ''}
      ${r.translated_text ? `<b>English translation</b><div class="quote-box">${esc(r.translated_text)}</div>` : ''}
    </div>
@@ -614,6 +688,67 @@ async function saveFb(id, btn) {
   const c = btn.closest('.card'), rc = c.querySelector('.rc').value;
   await jsonPost('/api/feedback/' + id, { rating: c.querySelector('.rt').value, would_recommend: rc === '' ? null : rc === '1', most_valued: c.querySelector('.mv').value, suggestions: c.querySelector('.sg').value }, 'PATCH');
   refresh();
+}
+
+// ---- Insights = Trends + Rollup ----
+async function insights() {
+  $('#insights').innerHTML = '<div id="overview"></div><div id="trends"></div><h3 style="margin-top:var(--s5)">By facilitator &amp; partner</h3><div id="rollup"></div>';
+  await Promise.all([overview(), trends(), rollup()]);
+}
+
+// ---- Overview: partners by stage as a pie, plus the other headline figures ----
+// Slice colours follow the stage (fixed order), never its size. Palette validated for light and dark.
+async function overview() {
+  const [o, pipe] = await Promise.all([j('/api/overview'), j('/api/partners/pipeline')]);
+  if (o.error || pipe.error) { $('#overview').innerHTML = `<p class="err">${esc(o.error || pipe.error)}</p>`; return; }
+  const stages = pipe.stages || Object.keys(STAGE_LABELS);
+  const parts = stages.map((st, i) => ({ st, label: STAGE_LABELS[st] || st.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()), n: pipe.counts[st] || 0, i }));
+  const total = parts.reduce((a, p) => a + p.n, 0);
+  const R = 90, C = 100, pt = (a) => [C + R * Math.sin(a), C - R * Math.cos(a)];
+  let ang = 0, slices = '';
+  for (const p of parts.filter((x) => x.n)) {
+    const a0 = ang, a1 = ang + (p.n / total) * 2 * Math.PI; ang = a1;
+    const tip = `${p.label}: ${p.n} (${Math.round((p.n / total) * 100)}%)`;
+    const path = p.n === total ? `<circle cx="${C}" cy="${C}" r="${R}"` : (() => { const [x0, y0] = pt(a0), [x1, y1] = pt(a1); return `<path d="M${C},${C} L${x0},${y0} A${R},${R} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${x1},${y1} Z"`; })();
+    slices += `${path} class="slice" data-i="${p.i}" data-tip="${esc(tip)}" fill="var(--pie-${p.i + 1})" stroke="var(--surface)" stroke-width="2" tabindex="0" role="img" aria-label="${esc(tip)}"/>`;
+  }
+  const figs = [['Facilitators', o.facilitators], ['Open orders', o.openOrders], ['Programs', o.programs], ['Completed programs', o.completedPrograms || 0],
+    ['Feedback responses', o.feedbackResponses], ['Needs review', o.needsReview]];
+  $('#overview').innerHTML = `
+  <style>
+    .pie-root { --pie-1:#2a78d6; --pie-2:#eb6834; --pie-3:#1baf7a; --pie-4:#eda100; --pie-5:#e87ba4; --pie-6:#008300; --pie-7:#6250d6; }
+    :root[data-theme="dark"] .pie-root { --pie-1:#3987e5; --pie-2:#d95926; --pie-3:#199e70; --pie-4:#c98500; --pie-5:#d55181; --pie-6:#008300; --pie-7:#9085e9; }
+    .pie-wrap { display: flex; gap: var(--s6, 2rem); flex-wrap: wrap; align-items: center; }
+    .pie-wrap svg { width: 14rem; max-width: 100%; flex: none; }
+    .pie-wrap .slice { cursor: pointer; transition: opacity .12s; }
+    .pie-wrap.hov .slice { opacity: .35; } .pie-wrap.hov .slice.hi { opacity: 1; }
+    .pie-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); min-width: 16rem; flex: 1; }
+    .pie-legend li { display: flex; align-items: center; gap: var(--s3); padding: var(--s1) var(--s2); }
+    .pie-legend li.hi { background: var(--surface-2, transparent); }
+    .pie-legend i { width: .9rem; height: .9rem; flex: none; background: var(--c); }
+    .pie-legend .nm { flex: 1; } .pie-legend .ct { font-variant-numeric: tabular-nums; font-weight: 700; } .pie-legend .pc { width: 3.2rem; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--s3); margin-top: var(--s4); padding-top: var(--s4); border-top: 1px solid var(--line); }
+    .figs div { display: flex; justify-content: space-between; gap: var(--s3); } .figs b { font-variant-numeric: tabular-nums; }
+    #pieTip { position: fixed; z-index: 50; pointer-events: none; background: var(--surface); color: var(--ink, inherit); border: 1px solid var(--line-strong); padding: var(--s1) var(--s3); font-size: var(--fs-sm); box-shadow: var(--shadow-2, none); }
+  </style>
+  <div class="card pie-root"><h2 style="margin-top:0">Partners by stage</h2>
+    ${total ? `<div class="pie-wrap" id="pieWrap">
+      <svg viewBox="0 0 200 200" role="group" aria-label="Pie chart of ${total} partner${total === 1 ? '' : 's'} by stage">${slices}</svg>
+      <ul class="pie-legend" aria-label="Partners by stage">${parts.map((p) => `<li data-i="${p.i}" style="--c:var(--pie-${p.i + 1})"><i aria-hidden="true"></i><span class="nm">${esc(p.label)}</span><span class="ct">${p.n}</span><span class="pc">${total ? Math.round((p.n / total) * 100) : 0}%</span></li>`).join('')}
+        <li style="border-top:1px solid var(--line);margin-top:var(--s1)"><span class="nm"><b>Total partners</b></span><span class="ct">${total}</span><span class="pc"></span></li></ul>
+    </div>` : '<p class="muted">No partners yet. The chart appears once a partner is added.</p>'}
+    <div class="figs">${figs.map(([l, n]) => `<div class="${l === 'Needs review' && Number(n) > 0 ? 'attn' : ''}"><span class="muted">${esc(l)}</span><b>${esc(n)}</b></div>`).join('')}</div>
+  </div><div id="pieTip" hidden></div>`;
+  const wrap = $('#pieWrap'); if (!wrap) return;
+  const tip = $('#pieTip');
+  const hi = (i) => { wrap.classList.toggle('hov', i != null); wrap.querySelectorAll('[data-i]').forEach((e) => e.classList.toggle('hi', e.dataset.i === String(i))); };
+  wrap.querySelectorAll('.slice').forEach((e) => {
+    e.addEventListener('pointerenter', () => hi(e.dataset.i)); e.addEventListener('pointerleave', () => { hi(null); tip.hidden = true; });
+    e.addEventListener('pointermove', (ev) => { tip.textContent = e.dataset.tip; tip.hidden = false; tip.style.left = ev.clientX + 12 + 'px'; tip.style.top = ev.clientY + 12 + 'px'; });
+    e.addEventListener('focus', () => { hi(e.dataset.i); const r = e.getBoundingClientRect(); tip.textContent = e.dataset.tip; tip.hidden = false; tip.style.left = r.left + r.width / 2 + 'px'; tip.style.top = r.top + r.height / 2 + 'px'; });
+    e.addEventListener('blur', () => { hi(null); tip.hidden = true; });
+  });
+  wrap.querySelectorAll('.pie-legend li[data-i]').forEach((e) => { e.addEventListener('pointerenter', () => hi(e.dataset.i)); e.addEventListener('pointerleave', () => hi(null)); });
 }
 
 // ---- Trends (dependency-free SVG) ----
@@ -669,7 +804,7 @@ async function rollup() {
 // ---- Emails ----
 async function emails() {
   const e = await j('/api/emails');
-  $('#emails').innerHTML = `<p><a class="btn" href="/compose.html">Compose email</a></p><h3>Outbox (sent by the system)</h3><div class="tbl"><table><tr><th>When</th><th>To</th><th>Subject</th><th></th></tr>${(e.outbox || []).map((m) => `<tr><td class="muted">${esc(m.created_at)}</td><td>${esc(m.to_email)}</td><td>${esc(m.subject)}</td><td>${m.delivered ? '<span class="pill st-on">sent</span>' : '<span class="pill st-off">logged only</span>'}</td></tr><tr><td></td><td colspan=3 class="muted pre">${esc(m.body)}</td></tr>`).join('')}</table></div>
+  $('#emails').innerHTML = `<p class="muted">To write an email, open a partner on the Partners tab and press Email.</p><h3>Outbox (sent by the system)</h3><div class="tbl"><table><tr><th>When</th><th>To</th><th>Subject</th><th></th></tr>${(e.outbox || []).map((m) => `<tr><td class="muted">${esc(m.created_at)}</td><td>${esc(m.to_email)}</td><td>${esc(m.subject)}</td><td>${m.delivered ? '<span class="pill st-on">sent</span>' : '<span class="pill st-off">logged only</span>'}</td></tr><tr><td></td><td colspan=3 class="muted pre">${esc(m.body)}</td></tr>`).join('')}</table></div>
   <h3>Inbound from facilitators</h3><div class="tbl"><table><tr><th>When</th><th>From</th><th>Subject</th></tr>${(e.inbound || []).map((m) => `<tr><td class="muted">${esc(m.received_at)}</td><td>${esc(m.from_email)}</td><td>${esc(m.subject)}</td></tr>`).join('')}</table></div>`;
 }
 
@@ -695,4 +830,5 @@ async function deactivate(id) {
   if (r.error) $('#stMsg').textContent = r.error; else refresh();
 }
 refresh();
-</script></body></html>
+</script><script src="/dictate.js" defer></script>
+</body></html>

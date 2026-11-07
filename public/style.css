@@ -358,7 +358,7 @@ th { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; 
 
 /* ---------- profile menu ---------- */
 .who { position: relative; }
-button.profile { gap: var(--s2); text-transform: none; letter-spacing: 0; font-weight: 400; font-size: var(--fs-sm); padding: var(--s1) var(--s3) var(--s1) var(--s1); }
+button.profile, a.profile { gap: var(--s2); text-transform: none; letter-spacing: 0; font-weight: 400; font-size: var(--fs-sm); padding: var(--s1) var(--s3) var(--s1) var(--s1); }
 .avatar { width: 30px; height: 30px; display: grid; place-items: center; background: var(--primary); color: var(--on-primary); font-weight: 700; font-size: var(--fs-sm); flex: none; }
 .chev { width: 12px; height: 12px; flex: none; }
 button.profile[aria-expanded="true"] .chev { transform: rotate(180deg); }
@@ -385,3 +385,7 @@ button.profile[aria-expanded="true"] .chev { transform: rotate(180deg); }
   .site-head nav { margin: 0 calc(var(--s3) * -1); padding: 0 var(--s3); }
   .card { padding: var(--s4); }
 }
+
+/* Partner stage tiles: label on top, number below, identical in every tile */
+.stat.stage-tile { display: flex; flex-direction: column-reverse; justify-content: flex-end; align-items: flex-start; gap: 2px; }
+.stat.stage-tile b, .stat.stage-tile .muted { display: block; }
