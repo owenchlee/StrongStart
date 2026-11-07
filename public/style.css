@@ -1,5 +1,6 @@
 :root{--bg:#f6f7fb;--card:#fff;--ink:#1c2230;--muted:#667085;--line:#e4e7ee;--accent:#2f6fed;--ok:#12805c;--warn:#b54708}
 @media (prefers-color-scheme:dark){:root{--bg:#10131a;--card:#181c26;--ink:#e8ebf2;--muted:#9aa3b5;--line:#2a3040;--accent:#6b9bff;--ok:#4fd1a1;--warn:#f0a35e}}
+[hidden]{display:none!important}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,sans-serif}
 main,header .in{max-width:1000px;margin:0 auto;padding:16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin:16px auto;max-width:640px}
