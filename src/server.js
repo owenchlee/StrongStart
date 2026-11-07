@@ -6,6 +6,8 @@ import { voice } from './routes/voice.js';
 import { compose } from './routes/compose.js';
 import { partners } from './routes/partners.js';
 import { programsRouter } from './routes/programs.js';
+import { trainingRouter } from './routes/training.js';
+import { resourcesRouter } from './routes/resources.js';
 import { aiEnabled } from './ai.js';
 import { auth, requireStaff } from './auth.js';
 import { dbBackend, isTimescale } from './db.js';
@@ -19,7 +21,7 @@ app.use(express.urlencoded({ extended: false })); // inbound-email webhooks ofte
 app.use(auth);        // /auth/*, /api/me: must come before the gate
 app.use(requireStaff); // default-deny for the dashboard page and /api (before static serves index.html)
 app.use(express.static('public'));
-app.use(orders, feedback, dashboard, voice, compose, partners, programsRouter);
+app.use(orders, feedback, dashboard, voice, compose, partners, programsRouter, trainingRouter, resourcesRouter);
 
 app.use((err, _req, res, _next) => {
   console.error(err);

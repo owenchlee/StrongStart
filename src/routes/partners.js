@@ -1,9 +1,26 @@
 // Program Partner Lifecycle Management (EOI -> Discovery -> PDSA -> Active -> Inactive)
 import { Router } from 'express';
+import multer from 'multer';
+import { resolve, extname } from 'node:path';
+import { randomBytes } from 'node:crypto';
+import { unlink } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { query, one, run, PARTNER_STAGES } from '../db.js';
 import { sendMail, STAFF_EMAIL, BASE_URL } from '../mailer.js';
 
 export const partners = Router();
+
+const DOCS_DIR = resolve('data/partner_docs');
+const docUpload = multer({
+  storage: multer.diskStorage({
+    destination: DOCS_DIR,
+    filename: (_r, file, cb) => {
+      const ext = extname(file.originalname).slice(0, 10);
+      cb(null, randomBytes(16).toString('hex') + ext);
+    }
+  }),
+  limits: { fileSize: 25 * 1024 * 1024 } // 25MB max
+});
 
 const str = (v, max = 5000) => (v == null ? '' : String(v)).replace(/\u0000/g, '').trim().slice(0, max);
 const oneLine = (v, max = 200) => str(v, max).replace(/\s*[\r\n]+\s*/g, ' ');
@@ -230,4 +247,135 @@ partners.post('/api/partners/:id/facilitators', async (req, res) => {
   await run('UPDATE programs SET partner_id=$1 WHERE facilitator_id=$2 AND partner_id IS NULL', [partnerId, fac.id]);
 
   res.json({ ok: true, message: `Linked ${fac.name || fac.email} to ${partner.name}` });
+});
+
+// Staff: Upload documents for a partner
+partners.post('/api/partners/:id/documents', docUpload.array('files', 10), async (req, res) => {
+  const partnerId = intId(req.params.id);
+  if (!partnerId) return res.status(404).json({ error: 'Partner not found' });
+
+  const partner = await one('SELECT id FROM partners WHERE id=$1', [partnerId]);
+  if (!partner) return res.status(404).json({ error: 'Partner not found' });
+
+  const files = req.files || [];
+  if (!files.length) return res.status(400).json({ error: 'No files were uploaded' });
+
+  const saved = [];
+  for (const f of files) {
+    const { rows } = await run(
+      `INSERT INTO partner_documents (partner_id, filename, original_name, mime_type, file_size, file_path, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6, 'staff')
+       RETURNING *`,
+      [partnerId, f.filename, f.originalname, f.mimetype, f.size, f.path]
+    );
+    saved.push(rows[0]);
+  }
+
+  res.json({ ok: true, documents: saved });
+});
+
+// Staff: List documents for a partner
+partners.get('/api/partners/:id/documents', async (req, res) => {
+  const partnerId = intId(req.params.id);
+  if (!partnerId) return res.status(404).json({ error: 'Partner not found' });
+
+  const docs = await query('SELECT * FROM partner_documents WHERE partner_id=$1 ORDER BY id DESC', [partnerId]);
+  res.json(docs);
+});
+
+// Public / Facilitator / Staff: Download document
+partners.get('/api/partners/:partnerId/documents/:docId/download', async (req, res) => {
+  const partnerId = intId(req.params.partnerId);
+  const docId = intId(req.params.docId);
+  if (!partnerId || !docId) return res.status(404).send('Not found');
+
+  const doc = await one('SELECT * FROM partner_documents WHERE id=$1 AND partner_id=$2', [docId, partnerId]);
+  if (!doc || !existsSync(doc.file_path)) return res.status(404).send('Document not found or removed');
+
+  res.download(doc.file_path, doc.original_name);
+});
+
+// Staff: Delete document
+partners.delete('/api/partners/:id/documents/:docId', async (req, res) => {
+  const partnerId = intId(req.params.id);
+  const docId = intId(req.params.docId);
+  if (!partnerId || !docId) return res.status(404).json({ error: 'Not found' });
+
+  const doc = await one('SELECT * FROM partner_documents WHERE id=$1 AND partner_id=$2', [docId, partnerId]);
+  if (!doc) return res.status(404).json({ error: 'Document not found' });
+
+  await run('DELETE FROM partner_documents WHERE id=$1', [docId]);
+  await unlink(doc.file_path).catch(() => {});
+
+  res.json({ ok: true });
+});
+
+// Staff: Get conversation history for a partner
+partners.get('/api/partners/:id/messages', async (req, res) => {
+  const partnerId = intId(req.params.id);
+  if (!partnerId) return res.status(404).json({ error: 'Partner not found' });
+
+  const messages = await query(
+    'SELECT * FROM partner_messages WHERE partner_id=$1 ORDER BY created_at ASC',
+    [partnerId]
+  );
+  res.json(messages);
+});
+
+// Staff: Send CRM reply to partner with uploaded documents
+partners.post('/api/partners/:id/reply', async (req, res) => {
+  const partnerId = intId(req.params.id);
+  if (!partnerId) return res.status(404).json({ error: 'Partner not found' });
+
+  const partner = await one('SELECT * FROM partners WHERE id=$1', [partnerId]);
+  if (!partner) return res.status(404).json({ error: 'Partner not found' });
+  if (!partner.contact_email) return res.status(400).json({ error: 'Partner has no contact email on file' });
+
+  const b = req.body ?? {};
+  const subject = oneLine(b.subject || `Re: Baby Connections - ${partner.name}`, 300);
+  const messageBody = str(b.body, 10000);
+  if (!messageBody) return res.status(400).json({ error: 'Message body is required' });
+
+  // Optional: advance stage from the reply action
+  if (b.stage && PARTNER_STAGES.includes(b.stage)) {
+    await run('UPDATE partners SET stage=$1, updated_at=now() WHERE id=$2', [b.stage, partnerId]);
+  }
+
+  // Find documents to attach (all or specific ids)
+  let docRows = [];
+  if (Array.isArray(b.document_ids) && b.document_ids.length) {
+    const ids = b.document_ids.map(Number).filter(Boolean);
+    docRows = await query('SELECT * FROM partner_documents WHERE partner_id=$1 AND id=ANY($2::int[])', [partnerId, ids]);
+  } else if (b.attach_all) {
+    docRows = await query('SELECT * FROM partner_documents WHERE partner_id=$1', [partnerId]);
+  }
+
+  // Format document links in email body
+  let fullBody = messageBody;
+  const attachmentsInfo = [];
+  const mailAttachments = [];
+
+  if (docRows.length) {
+    fullBody += '\n\nAttached Documents:\n' + docRows.map((d) => {
+      const link = `${BASE_URL}/api/partners/${partnerId}/documents/${d.id}/download`;
+      attachmentsInfo.push({ id: d.id, name: d.original_name, url: link });
+      if (existsSync(d.file_path)) {
+        mailAttachments.push({ filename: d.original_name, path: d.file_path });
+      }
+      return `- ${d.original_name}: ${link}`;
+    }).join('\n');
+  }
+
+  // Send the email
+  await sendMail(partner.contact_email, subject, fullBody, { attachments: mailAttachments });
+
+  // Record outbound message in conversation history
+  const { rows } = await run(
+    `INSERT INTO partner_messages (partner_id, direction, from_email, to_email, subject, body, attachments)
+     VALUES ($1, 'outbound', $2, $3, $4, $5, $6::jsonb)
+     RETURNING *`,
+    [partnerId, STAFF_EMAIL, partner.contact_email, subject, fullBody, JSON.stringify(attachmentsInfo)]
+  );
+
+  res.json({ ok: true, message: 'Reply sent with attached documents', record: rows[0] });
 });

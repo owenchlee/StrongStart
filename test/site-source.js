@@ -181,6 +181,66 @@ try {
   assert.equal(targetProg.families_served, 11);
   assert.equal(targetProg.kits_distributed, 11);
 
+  // ---- Two-Way Document & CRM Email Messaging ----
+
+  // 15. Staff uploads a PDSA Agreement document for the partner
+  const formBoundary = '----WebKitFormBoundaryTest123';
+  const fileContent = 'PDSA Agreement: Cambridge Family Centre agrees to deliver Baby Connections in 2026.';
+  const multipartBody = `--${formBoundary}\r\nContent-Disposition: form-data; name="files"; filename="PDSA_Agreement_2026.pdf"\r\nContent-Type: application/pdf\r\n\r\n${fileContent}\r\n--${formBoundary}--\r\n`;
+
+  const uploadRes = await fetch(`${base}/api/partners/${partnerId}/documents`, {
+    method: 'POST',
+    headers: {
+      cookie,
+      'Content-Type': `multipart/form-data; boundary=${formBoundary}`
+    },
+    body: multipartBody
+  });
+  assert.equal(uploadRes.status, 200);
+  const uploadJson = await uploadRes.json();
+  assert.ok(uploadJson.ok);
+  assert.equal(uploadJson.documents.length, 1);
+  const docId = uploadJson.documents[0].id;
+  assert.equal(uploadJson.documents[0].original_name, 'PDSA_Agreement_2026.pdf');
+
+  // 16. Staff replies to partner via CRM attaching the document
+  const replyRes = await postStaff(`/api/partners/${partnerId}/reply`, {
+    subject: 'Welcome to Baby Connections - PDSA Agreement Attached',
+    body: 'Hi Morgan, please review and sign the attached agreement.',
+    stage: 'pdsa_review',
+    document_ids: [docId]
+  });
+  assert.equal(replyRes.status, 200);
+  assert.ok(replyRes.body.ok);
+
+  // Verify outgoing email logged in outbox and partner_messages
+  const crmOutMail = await one("SELECT * FROM outbox WHERE to_email='morgan@example.org' AND subject LIKE '%PDSA Agreement Attached%'");
+  assert.ok(crmOutMail, 'Outbox logged CRM reply');
+  assert.ok(crmOutMail.body.includes('PDSA_Agreement_2026.pdf'));
+  assert.ok(crmOutMail.body.includes(`/api/partners/${partnerId}/documents/${docId}/download`));
+
+  // 17. Facilitator/Partner replies directly in their email
+  const replyInbound = await postPublic('/api/inbound-email', {
+    from: 'Morgan Smith <morgan@example.org>',
+    subject: 'Re: Welcome to Baby Connections - PDSA Agreement Attached',
+    body: 'Thank you! We have reviewed the agreement and are ready to proceed.'
+  });
+  assert.equal(replyInbound.status, 200);
+
+  // Verify conversation history in CRM contains both staff reply and partner inbound email
+  const msgs = await (await getStaff(`/api/partners/${partnerId}/messages`)).json();
+  assert.ok(msgs.length >= 2, 'Conversation thread has both outbound and inbound messages');
+  const lastMsg = msgs[msgs.length - 1];
+  assert.equal(lastMsg.direction, 'inbound');
+  assert.equal(lastMsg.from_email, 'morgan@example.org');
+  assert.ok(lastMsg.body.includes('reviewed the agreement'));
+
+  // 18. Partner downloads document from the link
+  const dlRes = await fetch(`${base}/api/partners/${partnerId}/documents/${docId}/download`);
+  assert.equal(dlRes.status, 200);
+  const dlText = await dlRes.text();
+  assert.equal(dlText, fileContent);
+
   console.log('All SiTE SOURCE Phase 1 & Phase 2 checks passed successfully!');
 } finally {
   server.close();

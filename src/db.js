@@ -4,6 +4,7 @@
 import { mkdirSync } from 'node:fs';
 
 mkdirSync('data/uploads', { recursive: true });
+mkdirSync('data/partner_docs', { recursive: true });
 
 const url = process.env.TIGER_DATABASE_URL;
 export const dbBackend = url ? 'tiger' : 'pglite';
@@ -191,7 +192,34 @@ CREATE TABLE IF NOT EXISTS training_registrations (
   UNIQUE(training_session_id, facilitator_id)
 );
 
+-- Partner Documents (PDSA agreements, onboarding packets, templates)
+CREATE TABLE IF NOT EXISTS partner_documents (
+  id SERIAL PRIMARY KEY,
+  partner_id INTEGER NOT NULL REFERENCES partners(id) ON DELETE CASCADE,
+  filename TEXT NOT NULL,
+  original_name TEXT NOT NULL,
+  mime_type TEXT,
+  file_size INTEGER,
+  file_path TEXT NOT NULL,
+  uploaded_by TEXT DEFAULT 'staff',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Partner Conversation Messages (Two-way CRM messaging)
+CREATE TABLE IF NOT EXISTS partner_messages (
+  id SERIAL PRIMARY KEY,
+  partner_id INTEGER NOT NULL REFERENCES partners(id) ON DELETE CASCADE,
+  direction TEXT NOT NULL, -- 'outbound' (staff sent) or 'inbound' (partner replied)
+  from_email TEXT NOT NULL,
+  to_email TEXT NOT NULL,
+  subject TEXT,
+  body TEXT NOT NULL,
+  attachments JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- New columns (also applied to databases created before this version)
+ALTER TABLE inbound_emails ADD COLUMN IF NOT EXISTS partner_id INTEGER REFERENCES partners(id) ON DELETE SET NULL;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS token TEXT;
 UPDATE programs SET token = replace(gen_random_uuid()::text,'-','') WHERE token IS NULL;
 ALTER TABLE programs ALTER COLUMN token SET DEFAULT replace(gen_random_uuid()::text,'-','');
