@@ -14,9 +14,12 @@ dashboard.get('/api/overview', async (_req, res) => {
   const n = async (sql) => (await one(sql)).n;
   res.json({
     aiEnabled,
+    partners: await n('SELECT COUNT(*)::int n FROM partners'),
+    activePartners: await n("SELECT COUNT(*)::int n FROM partners WHERE stage='active'"),
     facilitators: await n('SELECT COUNT(*)::int n FROM facilitators'),
     openOrders: await n("SELECT COUNT(*)::int n FROM orders WHERE status IN ('ordered','shipped')"),
     programs: await n('SELECT COUNT(*)::int n FROM programs'),
+    completedPrograms: await n("SELECT COUNT(*)::int n FROM programs WHERE status='completed'"),
     feedbackResponses: await n('SELECT COUNT(*)::int n FROM feedback'),
     needsReview: await n('SELECT COUNT(*)::int n FROM feedback WHERE needs_review=true'),
   });
@@ -31,10 +34,19 @@ async function programRows(q) {
   if (isDate(q.to)) { params.push(q.to); where.push(`${when} <= $${params.length}`); }
   const fid = intOrNull(q.facilitator);
   if (fid != null) { params.push(fid); where.push(`p.facilitator_id = $${params.length}`); }
-  return query(`SELECT p.*, f.name AS facilitator, f.email, f.organization,
+  const pid = intOrNull(q.partner);
+  if (pid != null) { params.push(pid); where.push(`(p.partner_id = $${params.length} OR f.partner_id = $${params.length})`); }
+  const status = typeof q.status === 'string' && ['scheduled', 'in_progress', 'completed', 'cancelled'].includes(q.status) ? q.status : null;
+  if (status) { params.push(status); where.push(`p.status = $${params.length}`); }
+
+  return query(`SELECT p.*, f.name AS facilitator, f.email, COALESCE(part.name, f.organization) AS partner_name,
       COALESCE(s.responses,0)::int AS responses, ROUND(s.avg_rating::numeric,2)::float8 AS avg_rating,
-      COALESCE(s.needs_review,0)::int AS needs_review
-    FROM programs p JOIN facilitators f ON f.id=p.facilitator_id
+      COALESCE(s.needs_review,0)::int AS needs_review,
+      pc.id AS completion_id, pc.families_served, pc.kits_distributed, pc.submitted_at AS completion_date
+    FROM programs p
+    JOIN facilitators f ON f.id=p.facilitator_id
+    LEFT JOIN partners part ON part.id=COALESCE(p.partner_id, f.partner_id)
+    LEFT JOIN program_completions pc ON pc.program_id=p.id
     LEFT JOIN (SELECT program_id, COUNT(*) AS responses, AVG(rating) AS avg_rating,
                       COUNT(*) FILTER (WHERE needs_review) AS needs_review
                FROM feedback GROUP BY program_id) s ON s.program_id=p.id
@@ -134,7 +146,7 @@ function sendCsv(res, name, body) {
 dashboard.get('/api/export/programs.csv', async (req, res) => {
   const rows = await programRows(req.query);
   sendCsv(res, 'programs.csv', toCsv(
-    ['id', 'name', 'location', 'facilitator', 'email', 'organization', 'start_date', 'end_date', 'projected_participants', 'responses', 'avg_rating', 'needs_review', 'created_at'], rows));
+    ['id', 'name', 'location', 'facilitator', 'email', 'partner_name', 'delivery_format', 'status', 'start_date', 'end_date', 'projected_participants', 'families_served', 'kits_distributed', 'responses', 'avg_rating', 'needs_review', 'created_at'], rows));
 });
 dashboard.get('/api/export/feedback.csv', async (_req, res) => {
   const rows = await query(`SELECT fb.id, p.name AS program, f.name AS facilitator, fb.source, fb.rating, fb.would_recommend,

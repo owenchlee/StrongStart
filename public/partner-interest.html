@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/style.css">
+  <title>Partner with Baby Connections | Expression of Interest</title>
+</head>
+<body class="public">
+  <header class="site-head simple">
+    <div class="in">
+      <p class="brand">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <circle class="a" cx="12" cy="17" r="9"/>
+          <circle class="b" cx="21" cy="17" r="9"/>
+        </svg>
+        <span>Baby Connections <small>Strong Start SiTE SOURCE</small></span>
+      </p>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="card" id="box">
+      <h1>Partner with Baby Connections</h1>
+      <p class="muted">
+        We partner with community organizations, libraries, early learning centres, and health providers to empower parents and babies. Submit your Expression of Interest below to begin the partnership journey.
+      </p>
+
+      <div id="successCard" hidden>
+        <div class="done-icon" style="color:var(--ok);margin:var(--s4) 0 var(--s2)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px" aria-hidden="true">
+            <path d="M5 12.5l4.5 4.5L19 7.5"/>
+          </svg>
+        </div>
+        <h2>Thank you for your interest!</h2>
+        <p id="successMsg">Our Program Coordinator has received your submission and will contact you for an initial discovery conversation.</p>
+        <p><a href="/" class="btn sec">Return to Home</a></p>
+      </div>
+
+      <form id="eoiForm" novalidate>
+        <h2>Organization Information</h2>
+        <label>Organization / Agency Name <span aria-hidden="true">*</span>
+          <input name="organization" id="orgName" maxlength="200" required autocomplete="organization" placeholder="e.g. Waterloo EarlyON Centre">
+        </label>
+        <label>Communities / Region Served
+          <input name="communities_served" id="commServed" maxlength="500" placeholder="e.g. Kitchener-Waterloo, Cambridge, Township of Woolwich">
+        </label>
+
+        <h2>Primary Contact Person</h2>
+        <div class="row">
+          <label>Contact Name
+            <input name="contact_name" id="contactName" maxlength="120" autocomplete="name" placeholder="Full name">
+          </label>
+          <label>Email Address <span aria-hidden="true">*</span>
+            <input type="email" name="contact_email" id="contactEmail" maxlength="254" required autocomplete="email" placeholder="contact@example.org">
+          </label>
+        </div>
+        <label>Phone Number
+          <input type="tel" name="contact_phone" id="contactPhone" maxlength="50" autocomplete="tel" placeholder="(519) 555-0123">
+        </label>
+
+        <h2>Program Delivery Goals</h2>
+        <label>Tell us about your organization and plans for Baby Connections
+          <textarea name="notes" id="notes" rows="4" maxlength="3000" placeholder="Describe the families you support, anticipated number of sessions or families, potential facilitators, or any questions you have."></textarea>
+        </label>
+
+        <p class="err" id="err" role="alert" hidden></p>
+        <button type="submit" id="submitBtn">Submit Expression of Interest</button>
+      </form>
+    </div>
+  </main>
+
+  <script>
+    const form = document.getElementById('eoiForm');
+    const errBox = document.getElementById('err');
+    const successCard = document.getElementById('successCard');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      errBox.hidden = true;
+      errBox.textContent = '';
+
+      const name = document.getElementById('orgName').value.trim();
+      const email = document.getElementById('contactEmail').value.trim();
+
+      if (!name) {
+        errBox.textContent = 'Please enter your organization name.';
+        errBox.hidden = false;
+        document.getElementById('orgName').focus();
+        return;
+      }
+      if (!email || !email.includes('@')) {
+        errBox.textContent = 'Please enter a valid contact email address.';
+        errBox.hidden = false;
+        document.getElementById('contactEmail').focus();
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting…';
+
+      try {
+        const payload = {
+          name,
+          contact_email: email,
+          contact_name: document.getElementById('contactName').value.trim(),
+          contact_phone: document.getElementById('contactPhone').value.trim(),
+          communities_served: document.getElementById('commServed').value.trim(),
+          notes: document.getElementById('notes').value.trim()
+        };
+
+        const res = await fetch('/api/partners/interest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to submit expression of interest.');
+        }
+
+        form.hidden = true;
+        successCard.hidden = false;
+        if (data.message) {
+          document.getElementById('successMsg').textContent = data.message;
+        }
+      } catch (err) {
+        errBox.textContent = err.message || 'Something went wrong. Please check your connection.';
+        errBox.hidden = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Expression of Interest';
+      }
+    };
+  </script>
+</body>
+</html>

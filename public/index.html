@@ -2,12 +2,12 @@
 <link rel="stylesheet" href="/style.css"><title>Baby Connections Dashboard</title></head><body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-head"><div class="in"><h1 class="brand"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle class="a" cx="12" cy="17" r="9"/><circle class="b" cx="21" cy="17" r="9"/></svg><span>Baby Connections <small>Strong Start staff</small></span></h1>
-<nav aria-label="Dashboard sections"><button data-t="orders" class="on">Orders</button><button data-t="programs">Programs &amp; feedback</button><button data-t="outstanding">Outstanding surveys</button><button data-t="review">Review queue</button><button data-t="trends">Trends</button><button data-t="rollup">Rollup</button><button data-t="emails">Emails</button><button data-t="staff" id="staffTab" hidden>Staff</button><a href="/compose.html">Compose email</a></nav>
+<nav aria-label="Dashboard sections"><button data-t="partners">Partners</button><button data-t="orders" class="on">Orders</button><button data-t="programs">Programs &amp; feedback</button><button data-t="outstanding">Outstanding surveys</button><button data-t="review">Review queue</button><button data-t="trends">Trends</button><button data-t="rollup">Rollup</button><button data-t="emails">Emails</button><button data-t="staff" id="staffTab" hidden>Staff</button><a href="/compose.html">Compose email</a></nav>
 <div class="who"><span class="muted" id="who"></span><button class="sec sm" onclick="logout()">Sign out</button></div></div></header>
 <main class="wide" id="main" tabindex="-1">
 <h2 class="page-title" id="pageTitle">Orders</h2>
 <div class="stats" id="stats" role="group" aria-label="Program overview"></div>
-<section id="orders"></section><section id="programs" hidden></section><section id="outstanding" hidden></section><section id="review" hidden></section><section id="trends" hidden></section><section id="rollup" hidden></section><section id="emails" hidden></section><section id="staff" hidden></section>
+<section id="partners" hidden></section><section id="orders"></section><section id="programs" hidden></section><section id="outstanding" hidden></section><section id="review" hidden></section><section id="trends" hidden></section><section id="rollup" hidden></section><section id="emails" hidden></section><section id="staff" hidden></section>
 </main>
 <script>
 const $ = (s) => document.querySelector(s);
@@ -30,7 +30,7 @@ async function logout() { await fetch('/auth/logout', { method: 'POST' }); locat
 const date = (s) => (s ? String(s).slice(0, 10) : '–');
 const num = (n, d = 2) => (n == null ? '–' : +Number(n).toFixed(d));
 const enc = encodeURIComponent;
-const TABS = ['orders', 'programs', 'outstanding', 'review', 'trends', 'rollup', 'emails', 'staff'];
+const TABS = ['partners', 'orders', 'programs', 'outstanding', 'review', 'trends', 'rollup', 'emails', 'staff'];
 let tab = 'orders';
 document.querySelectorAll('nav button').forEach((b) => (b.onclick = () => { tab = b.dataset.t; refresh(); }));
 
@@ -49,11 +49,235 @@ async function refresh() {
   document.querySelectorAll('nav button').forEach((b) => { const on = b.dataset.t === tab; b.classList.toggle('on', on); if (on) { b.setAttribute('aria-current', 'page'); b.scrollIntoView({ block: 'nearest', inline: 'center' }); $('#pageTitle').textContent = b.textContent; } else b.removeAttribute('aria-current'); });
   TABS.forEach((t) => ($('#' + t).hidden = t !== tab));
   const o = await j('/api/overview');
-  $('#stats').innerHTML = [['Facilitators', o.facilitators], ['Open orders', o.openOrders], ['Programs', o.programs], ['Feedback responses', o.feedbackResponses], ['Needs review', o.needsReview]]
+  $('#stats').innerHTML = [
+    ['Partners', o.partners || 0],
+    ['Active partners', o.activePartners || 0],
+    ['Facilitators', o.facilitators],
+    ['Open orders', o.openOrders],
+    ['Programs', o.programs],
+    ['Completed programs', o.completedPrograms || 0],
+    ['Feedback responses', o.feedbackResponses],
+    ['Needs review', o.needsReview]
+  ]
     .map(([l, n]) => `<div class="stat${l === 'Needs review' && Number(n) > 0 ? ' attn' : ''}"><b>${esc(n)}</b><span class="muted">${l}</span></div>`).join('')
     + `<div class="stat"><b>${o.aiEnabled ? 'On' : 'Off'}</b><span class="muted">AI handwriting</span></div>`;
-  await { orders, programs, outstanding, review, trends, rollup, emails, staff }[tab]();
+  await { partners: renderPartners, orders, programs, outstanding, review, trends, rollup, emails, staff }[tab]();
   enhanceTables();
+}
+
+// ---- Partners (Phase 1) ----
+let partnerFilterStage = '';
+const STAGE_LABELS = {
+  expression_of_interest: 'Expression of Interest',
+  initial_contact: 'Initial Contact',
+  discovery: 'Discovery',
+  pdsa_review: 'PDSA Review',
+  pdsa_signed: 'PDSA Signed',
+  active: 'Active Partner',
+  inactive: 'Inactive'
+};
+
+async function renderPartners() {
+  const [pipeline, partnerList] = await Promise.all([
+    j('/api/partners/pipeline'),
+    j('/api/partners' + (partnerFilterStage ? '?stage=' + enc(partnerFilterStage) : ''))
+  ]);
+  const stages = pipeline.stages || Object.keys(STAGE_LABELS);
+
+  $('#partners').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--s2);margin-bottom:var(--s3)">
+      <div style="display:flex;gap:var(--s2);flex-wrap:wrap">
+        <a class="btn sec sm" href="/partner-interest.html" target="_blank" rel="noopener">Open Public EOI Form</a>
+        <button class="sm sec" id="copyEoiBtn" onclick="navigator.clipboard.writeText(location.origin + '/partner-interest.html').then(() => alert('Public EOI link copied to clipboard!'))">Copy EOI Link</button>
+      </div>
+      <button class="sm" onclick="$('#addPartnerDetails').open = true; $('#addPartnerDetails').scrollIntoView({behavior:'smooth'})">+ New Partner</button>
+    </div>
+
+    <div class="stats" style="margin-bottom:var(--s4);grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
+      ${stages.map((st) => `
+        <div class="stat${partnerFilterStage === st ? ' attn' : ''}" style="cursor:pointer" onclick="setPartnerFilter('${st}')">
+          <b>${pipeline.counts[st] || 0}</b>
+          <span class="muted">${STAGE_LABELS[st] || st}</span>
+        </div>
+      `).join('')}
+      <div class="stat${!partnerFilterStage ? ' attn' : ''}" style="cursor:pointer" onclick="setPartnerFilter('')">
+        <b>${pipeline.total || 0}</b>
+        <span class="muted">All Partners</span>
+      </div>
+    </div>
+
+    <details class="card wide-card" id="addPartnerDetails" style="margin-bottom:var(--s4)">
+      <summary><b>Add Partner Organization</b></summary>
+      <form id="newPartnerForm" style="margin-top:var(--s3)">
+        <div class="row">
+          <label>Organization Name *<input id="npName" required maxlength="200" placeholder="e.g. Cambridge Community Health"></label>
+          <label>Stage
+            <select id="npStage">
+              ${stages.map((s) => `<option value="${s}">${STAGE_LABELS[s] || s}</option>`).join('')}
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Contact Name<input id="npContact" maxlength="120"></label>
+          <label>Contact Email<input id="npEmail" type="email" maxlength="254"></label>
+          <label>Contact Phone<input id="npPhone" maxlength="50"></label>
+        </div>
+        <label>Communities Served<input id="npCommunities" maxlength="500" placeholder="e.g. Cambridge, North Dumfries"></label>
+        <label>Notes / Context<textarea id="npNotes" rows="2" maxlength="5000"></textarea></label>
+        <p><button type="submit" class="sm">Save Partner</button> <span id="npMsg" class="err"></span></p>
+      </form>
+    </details>
+
+    <div class="tbl">
+      <table>
+        <tr>
+          <th>Organization</th>
+          <th>Contact</th>
+          <th>Communities</th>
+          <th>Stage</th>
+          <th>PDSA Agreement</th>
+          <th>Facilitators &amp; Programs</th>
+          <th>Actions</th>
+        </tr>
+        ${(partnerList || []).map((p) => `
+          <tr>
+            <td><b>${esc(p.name)}</b></td>
+            <td>${esc(p.contact_name || '')}<br><span class="muted">${esc(p.contact_email || p.contact_phone || '–')}</span></td>
+            <td>${esc(p.communities_served || '–')}</td>
+            <td>
+              <select onchange="updatePartnerStage(${p.id}, this.value)" style="min-height:32px;padding:2px 6px;font-size:var(--fs-sm)">
+                ${stages.map((st) => `<option value="${st}" ${st === p.stage ? 'selected' : ''}>${STAGE_LABELS[st] || st}</option>`).join('')}
+              </select>
+            </td>
+            <td>
+              <span class="pill ${p.pdsa_status === 'executed' || p.stage === 'active' ? 'st-on' : 'st-off'}">${esc(p.pdsa_status || 'pending')}</span>
+              ${p.pdsa_expiry_date ? `<br><small class="muted">Expires ${date(p.pdsa_expiry_date)}</small>` : ''}
+            </td>
+            <td class="muted">${p.facilitator_count || 0} facilitators<br>${p.program_count || 0} programs</td>
+            <td>
+              <button class="sm sec" onclick="viewPartner(${p.id})">Details</button>
+            </td>
+          </tr>
+        `).join('') || '<tr><td colspan="7" class="muted">No partners found.</td></tr>'}
+      </table>
+    </div>
+    <div id="partnerDetailBox"></div>
+  `;
+
+  $('#newPartnerForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const name = $('#npName').value.trim();
+    if (!name) return ($('#npMsg').textContent = 'Organization name is required');
+    const r = await jsonPost('/api/partners', {
+      name,
+      stage: $('#npStage').value,
+      contact_name: $('#npContact').value.trim(),
+      contact_email: $('#npEmail').value.trim(),
+      contact_phone: $('#npPhone').value.trim(),
+      communities_served: $('#npCommunities').value.trim(),
+      notes: $('#npNotes').value.trim()
+    });
+    if (r.error) $('#npMsg').textContent = r.error;
+    else refresh();
+  };
+}
+
+function setPartnerFilter(st) {
+  partnerFilterStage = st;
+  refresh();
+}
+
+async function updatePartnerStage(id, stage) {
+  await j(`/api/partners/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ stage })
+  });
+  refresh();
+}
+
+async function viewPartner(id) {
+  const p = await j(`/api/partners/${id}`);
+  if (p.error) return alert(p.error);
+
+  $('#partnerDetailBox').innerHTML = `
+    <div class="card wide-card" style="margin-top:var(--s4);border:2px solid var(--primary)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <h3 style="margin:0 0 var(--s1)">${esc(p.name)}</h3>
+          <p class="muted" style="margin:0"><b>Communities:</b> ${esc(p.communities_served || 'Not specified')}</p>
+        </div>
+        <button class="sm sec" onclick="$('#partnerDetailBox').innerHTML = ''">Close</button>
+      </div>
+
+      <div class="row" style="margin-top:var(--s3)">
+        <div><b>Contact:</b> ${esc(p.contact_name || '–')} &bull; ${esc(p.contact_email || '–')} &bull; ${esc(p.contact_phone || '–')}</div>
+        <div><b>Stage:</b> <span class="pill st-ordered">${esc(p.stage)}</span></div>
+      </div>
+
+      <div style="margin-top:var(--s3);background:var(--surface-2);padding:var(--s3);border-radius:var(--r-md)">
+        <h4 style="margin:0 0 var(--s2)">Program Delivery &amp; Support Agreement (PDSA)</h4>
+        <div class="row">
+          <label>Status
+            <select id="pdetPdsaStatus">
+              <option value="pending" ${p.pdsa_status === 'pending' ? 'selected' : ''}>Pending</option>
+              <option value="issued" ${p.pdsa_status === 'issued' ? 'selected' : ''}>Issued</option>
+              <option value="signed" ${p.pdsa_status === 'signed' ? 'selected' : ''}>Signed</option>
+              <option value="executed" ${p.pdsa_status === 'executed' ? 'selected' : ''}>Executed</option>
+              <option value="expired" ${p.pdsa_status === 'expired' ? 'selected' : ''}>Expired</option>
+            </select>
+          </label>
+          <label>Date Issued<input type="date" id="pdetIssued" value="${date(p.pdsa_issued_date)}"></label>
+          <label>Date Executed<input type="date" id="pdetExecuted" value="${date(p.pdsa_executed_date)}"></label>
+          <label>Expiry Date<input type="date" id="pdetExpiry" value="${date(p.pdsa_expiry_date)}"></label>
+        </div>
+      </div>
+
+      <div style="margin-top:var(--s3)">
+        <label>Relationship Notes / Follow-ups
+          <textarea id="pdetNotes" rows="3">${esc(p.notes || '')}</textarea>
+        </label>
+        <p><button class="sm" onclick="savePartnerDetails(${p.id})">Save Agreement &amp; Notes</button></p>
+      </div>
+
+      <h4>Linked Facilitators (${(p.facilitators || []).length})</h4>
+      ${(p.facilitators || []).map((f) => `<div>&bull; <b>${esc(f.name || f.email)}</b> (${esc(f.email)})</div>`).join('') || '<p class="muted">No facilitators linked yet.</p>'}
+      <div style="margin-top:var(--s2);display:flex;gap:var(--s2);align-items:flex-end">
+        <label style="margin:0;flex:1">Link facilitator by email
+          <input id="linkFacEmail" type="email" placeholder="facilitator@example.org">
+        </label>
+        <button class="sm sec" onclick="linkFacToPartner(${p.id})">Link Facilitator</button>
+      </div>
+
+      <h4 style="margin-top:var(--s4)">Programs (${(p.programs || []).length})</h4>
+      ${(p.programs || []).map((pr) => `<div>&bull; <b>${esc(pr.name)}</b> &bull; ${date(pr.start_date)} &rarr; ${date(pr.end_date)} &bull; ${pr.feedback_count || 0} feedback responses</div>`).join('') || '<p class="muted">No programs delivered under this partner yet.</p>'}
+    </div>
+  `;
+  $('#partnerDetailBox').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function savePartnerDetails(id) {
+  await j(`/api/partners/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      pdsa_status: $('#pdetPdsaStatus').value,
+      pdsa_issued_date: $('#pdetIssued').value || null,
+      pdsa_executed_date: $('#pdetExecuted').value || null,
+      pdsa_expiry_date: $('#pdetExpiry').value || null,
+      notes: $('#pdetNotes').value
+    })
+  });
+  alert('Partner updated successfully');
+  viewPartner(id);
+}
+
+async function linkFacToPartner(partnerId) {
+  const email = $('#linkFacEmail').value.trim();
+  if (!email) return alert('Enter facilitator email');
+  const r = await jsonPost(`/api/partners/${partnerId}/facilitators`, { email });
+  if (r.error) alert(r.error);
+  else { alert(r.message); viewPartner(partnerId); }
 }
 
 // ---- Orders ----
@@ -78,25 +302,99 @@ async function orders() {
 async function ship(id) { await j(`/api/orders/${id}/ship`, { method: 'POST' }); refresh(); }
 
 // ---- Programs ----
-const pf = { from: '', to: '', facilitator: '' };
+const pf = { from: '', to: '', facilitator: '', partner: '', status: '' };
 const pfQuery = () => new URLSearchParams(Object.entries(pf).filter(([, v]) => v)).toString();
 async function programs() {
-  const [rows, ru] = await Promise.all([j('/api/programs?' + pfQuery()), j('/api/rollup')]);
+  const [rows, ru, partnerList] = await Promise.all([
+    j('/api/programs?' + pfQuery()),
+    j('/api/rollup'),
+    j('/api/partners')
+  ]);
   const facs = ru.byFacilitator || [];
   const qs = pfQuery();
   $('#programs').innerHTML = `<form class="filters" id="pfForm">
-    <label>From<input type="date" id="pfFrom" value="${esc(pf.from)}"></label><label>To<input type="date" id="pfTo" value="${esc(pf.to)}"></label>
-    <label>Facilitator<select id="pfFac"><option value="">All</option>${facs.map((f) => `<option value="${Number(f.id)}" ${String(f.id) === pf.facilitator ? 'selected' : ''}>${esc(f.name || f.email)}</option>`).join('')}</select></label>
+    <label>From<input type="date" id="pfFrom" value="${esc(pf.from)}"></label>
+    <label>To<input type="date" id="pfTo" value="${esc(pf.to)}"></label>
+    <label>Partner
+      <select id="pfPartner">
+        <option value="">All Partners</option>
+        ${(partnerList || []).map((pt) => `<option value="${Number(pt.id)}" ${String(pt.id) === pf.partner ? 'selected' : ''}>${esc(pt.name)}</option>`).join('')}
+      </select>
+    </label>
+    <label>Facilitator
+      <select id="pfFac">
+        <option value="">All Facilitators</option>
+        ${facs.map((f) => `<option value="${Number(f.id)}" ${String(f.id) === pf.facilitator ? 'selected' : ''}>${esc(f.name || f.email)}</option>`).join('')}
+      </select>
+    </label>
+    <label>Status
+      <select id="pfStatus">
+        <option value="">All Statuses</option>
+        <option value="scheduled" ${pf.status === 'scheduled' ? 'selected' : ''}>Scheduled</option>
+        <option value="in_progress" ${pf.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+        <option value="completed" ${pf.status === 'completed' ? 'selected' : ''}>Completed</option>
+      </select>
+    </label>
     <button>Apply</button><button type="button" class="sec" id="pfClear">Clear</button>
     <a class="btn sec" href="/api/export/programs.csv${qs ? '?' + qs : ''}">Export CSV</a></form>
-  <div class="tbl"><table><tr><th>Program</th><th>Facilitator</th><th>Dates</th><th>Responses</th><th>Avg rating</th><th>Links</th><th></th></tr>
-  ${rows.map((p) => { const t = enc(p.token); return `<tr><td>${esc(p.name)}<br><span class="muted">${esc(p.location || '')}</span></td><td>${esc(p.facilitator || p.email)}</td>
-    <td class="muted">${date(p.start_date)} → ${date(p.end_date)}</td><td>${esc(p.responses)}${p.projected_participants ? ` / ${esc(p.projected_participants)}` : ''}${p.needs_review ? ` <span class="pill st-review">${esc(p.needs_review)} to review</span>` : ''}</td>
-    <td>${num(p.avg_rating)}</td><td><a href="/feedback/${t}" target="_blank" rel="noopener">form</a> · <a href="/upload/${t}" target="_blank" rel="noopener">upload photos</a> · <a href="/sheet/${t}" target="_blank" rel="noopener">QR sheet</a> · <a href="/api/programs/${t}/qr.png" target="_blank" rel="noopener">QR image</a></td>
-    <td><button class="sm sec" onclick="report(${Number(p.id)})">Report</button></td></tr>`; }).join('') || '<tr><td colspan=7 class="muted">No programs match. They are created when a facilitator submits an order form.</td></tr>'}
+  <div class="tbl"><table><tr><th>Program</th><th>Partner &amp; Facilitator</th><th>Format &amp; Dates</th><th>Status</th><th>Responses</th><th>Avg rating</th><th>Links</th><th>Actions</th></tr>
+  ${rows.map((p) => {
+    const t = enc(p.token);
+    const isCompleted = Boolean(p.completion_id) || p.status === 'completed';
+    const formatLabel = p.delivery_format === 'virtual' ? 'Virtual' : p.delivery_format === 'hybrid' ? 'Hybrid' : 'In-Person';
+    return `<tr>
+      <td><b>${esc(p.name)}</b><br><span class="muted">${esc(p.location || p.community_served || '')}</span></td>
+      <td>${esc(p.partner_name || '–')}<br><span class="muted">${esc(p.facilitator || p.email)}</span></td>
+      <td><span class="pill st-off">${formatLabel}</span><br><span class="muted">${date(p.start_date)} &rarr; ${date(p.end_date)}</span></td>
+      <td><span class="pill ${isCompleted ? 'st-on' : 'st-off'}">${isCompleted ? 'Completed' : esc(p.status || 'scheduled')}</span></td>
+      <td>${esc(p.responses)}${p.projected_participants ? ` / ${esc(p.projected_participants)}` : ''}${p.needs_review ? ` <span class="pill st-review">${esc(p.needs_review)} to review</span>` : ''}</td>
+      <td>${num(p.avg_rating)}</td>
+      <td><a href="/feedback/${t}" target="_blank" rel="noopener">form</a> &bull; <a href="/upload/${t}" target="_blank" rel="noopener">upload photos</a> &bull; <a href="/sheet/${t}" target="_blank" rel="noopener">QR sheet</a> &bull; <a href="/complete/${t}" target="_blank" rel="noopener">completion form</a></td>
+      <td style="white-space:nowrap">
+        <button class="sm sec" onclick="report(${Number(p.id)})">Feedback Report</button>
+        ${isCompleted ? `<button class="sm" onclick="viewCompletion(${Number(p.id)})" style="margin-left:4px">Completion</button>` : ''}
+      </td></tr>`;
+  }).join('') || '<tr><td colspan=8 class="muted">No programs match your filter.</td></tr>'}
   </table></div><div id="report"></div>`;
-  $('#pfForm').onsubmit = (e) => { e.preventDefault(); pf.from = $('#pfFrom').value; pf.to = $('#pfTo').value; pf.facilitator = $('#pfFac').value; refresh(); };
-  $('#pfClear').onclick = () => { pf.from = pf.to = pf.facilitator = ''; refresh(); };
+
+  $('#pfForm').onsubmit = (e) => {
+    e.preventDefault();
+    pf.from = $('#pfFrom').value;
+    pf.to = $('#pfTo').value;
+    pf.partner = $('#pfPartner').value;
+    pf.facilitator = $('#pfFac').value;
+    pf.status = $('#pfStatus').value;
+    refresh();
+  };
+  $('#pfClear').onclick = () => {
+    pf.from = pf.to = pf.partner = pf.facilitator = pf.status = '';
+    refresh();
+  };
+}
+
+async function viewCompletion(programId) {
+  const c = await j(`/api/programs/${programId}/completion`);
+  if (c.error) return alert(c.error);
+  $('#report').innerHTML = `
+    <div class="card wide-card" style="border:2px solid var(--ok);margin-top:var(--s4)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <h3 style="margin:0 0 var(--s1)">Completion Report: ${esc(c.program_name)}</h3>
+          <p class="muted" style="margin:0">Submitted by <b>${esc(c.facilitator_name || c.facilitator_email)}</b> on ${date(c.submitted_at)}</p>
+        </div>
+        <button class="sm sec" onclick="$('#report').innerHTML = ''">Close</button>
+      </div>
+      <div class="stats" style="margin:var(--s3) 0">
+        <div class="stat"><b>${esc(c.families_served ?? '–')}</b><span class="muted">Families served</span></div>
+        <div class="stat"><b>${esc(c.kits_distributed ?? '–')}</b><span class="muted">Kits distributed</span></div>
+        <div class="stat"><b>Yes</b><span class="muted">Program concluded</span></div>
+      </div>
+      ${c.reflections ? `<h4>Facilitator Reflections</h4><p>${esc(c.reflections)}</p>` : ''}
+      ${c.success_stories ? `<h4>Success Stories &amp; Parent Quotes</h4><p>${esc(c.success_stories)}</p>` : ''}
+      ${c.challenges ? `<h4>Challenges / Suggestions</h4><p>${esc(c.challenges)}</p>` : ''}
+    </div>
+  `;
+  $('#report').scrollIntoView({ behavior: 'smooth' });
 }
 
 async function report(id) {

@@ -143,14 +143,21 @@ orders.post('/api/order-form/:token', async (req, res) => {
   const fname = oneLine(b.facilitator_name, 120);
   const notes = str(b.notes, 2000) || null;
   const projected = Math.min(Math.floor(Number(program.projected_participants)) || 0, 100000) || null;
+  const deliveryFormat = ['in_person', 'virtual', 'hybrid'].includes(program.delivery_format) ? program.delivery_format : 'in_person';
+  const sessionSchedule = str(program.session_schedule, 200) || null;
+  const externalRegUrl = str(program.external_registration_url, 500) || null;
+  const communityServed = oneLine(program.community_served, 200) || null;
+
+  const existingFac = await one('SELECT partner_id FROM facilitators WHERE id=$1', [o.facilitator_id]);
+  const partnerId = existingFac?.partner_id || null;
 
   const programId = await tx(async (q) => {
     const claim = await q.run("UPDATE orders SET status='ordered', shipping_address=$1, requested_date=$2, notes=$3, ordered_at=now() WHERE id=$4 AND status='form_sent' RETURNING id",
       [address, requested, notes, o.id]);
     if (!claim.rows.length) return null;
     if (fname) await q.run('UPDATE facilitators SET name=$1 WHERE id=$2', [fname, o.facilitator_id]);
-    const { rows } = await q.run('INSERT INTO programs (facilitator_id,name,location,start_date,end_date,projected_participants) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
-      [o.facilitator_id, pname, oneLine(program.location, 200) || null, dateOrNull(program.start_date), dateOrNull(program.end_date), projected]);
+    const { rows } = await q.run('INSERT INTO programs (facilitator_id,name,location,start_date,end_date,projected_participants,delivery_format,session_schedule,external_registration_url,community_served,partner_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id',
+      [o.facilitator_id, pname, oneLine(program.location, 200) || null, dateOrNull(program.start_date), dateOrNull(program.end_date), projected, deliveryFormat, sessionSchedule, externalRegUrl, communityServed, partnerId]);
     await q.run('UPDATE orders SET program_id=$1 WHERE id=$2', [rows[0].id, o.id]);
     for (const l of lines) await q.run('INSERT INTO order_items (order_id,item,qty) VALUES ($1,$2,$3)', [o.id, l.item, l.qty]);
     return rows[0].id;
@@ -304,7 +311,7 @@ orders.get('/received/:token', async (req, res) => {
       const fac = await one('SELECT * FROM facilitators WHERE id=$1', [o.facilitator_id]);
       const prog = o.program_id ? await one('SELECT * FROM programs WHERE id=$1', [o.program_id]) : null;
       await sendMail(fac.email, 'Thanks, kits received',
-        `Hi ${fac.name || 'there'},\n\nThanks for confirming your kits arrived.${prog ? `\n\nFor parent feedback, share this QR/link at the end of your program:\n${BASE_URL}/feedback/${prog.token}\nPrint a QR sheet to hand out:\n${BASE_URL}/sheet/${prog.token}\nPrinted paper forms? Photograph and upload them here:\n${BASE_URL}/upload/${prog.token}` : ''}\n\nBaby Connections team`);
+        `Hi ${fac.name || 'there'},\n\nThanks for confirming your kits arrived.${prog ? `\n\nFor parent feedback, share this QR/link at the end of your program:\n${BASE_URL}/feedback/${prog.token}\nPrint a QR sheet to hand out:\n${BASE_URL}/sheet/${prog.token}\nPrinted paper forms? Photograph and upload them here:\n${BASE_URL}/upload/${prog.token}\n\nWhen your program concludes, submit your completion report here:\n${BASE_URL}/complete/${prog.token}` : ''}\n\nBaby Connections team`);
       await sendMail(STAFF_EMAIL, `Order #${o.id} received by facilitator`, `${fac.name || fac.email} confirmed receipt of order #${o.id}.`);
     }
   }

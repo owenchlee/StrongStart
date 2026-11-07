@@ -8,7 +8,18 @@
 <label>Your name<input name="facilitator_name" maxlength="120" autocomplete="name" required></label>
 <h2>Your program</h2>
 <label>Program name<input name="pname" maxlength="200" required></label>
+<div class="row">
+  <label>Delivery format <span class="muted">(optional)</span>
+    <select name="delivery_format">
+      <option value="in_person">In-Person</option>
+      <option value="virtual">Virtual</option>
+      <option value="hybrid">Hybrid</option>
+    </select>
+  </label>
+  <label>Community served <span class="muted">(optional)</span><input name="community_served" maxlength="200" placeholder="e.g. Waterloo, Cambridge"></label>
+</div>
 <label>Location <span class="muted">(optional)</span><input name="location" maxlength="200"></label>
+<label>Session schedule <span class="muted">(optional)</span><input name="session_schedule" maxlength="200" placeholder="e.g. Tuesdays 10:00 - 11:30 AM (6 weeks)"></label>
 <div class="row"><label>Start date <span class="muted">(optional)</span><input type="date" name="start_date"></label><label>End date <span class="muted">(optional)</span><input type="date" name="end_date"></label></div>
 <label>Projected number of participants <span class="muted">(optional)</span><input type="number" inputmode="numeric" min="1" max="100000" name="projected" id="proj"></label>
 <h2>Kits needed</h2><div id="items" role="group" aria-label="Kits needed"></div>
@@ -89,7 +100,16 @@ f.onsubmit = async (e) => {
   const go = $('#go'); go.disabled = true; go.textContent = 'Submitting…';
   const body = {
     facilitator_name: f.facilitator_name.value,
-    program: { name: f.pname.value, location: f.location.value, start_date: f.start_date.value, end_date: f.end_date.value, projected_participants: f.projected.value },
+    program: {
+      name: f.pname.value,
+      location: f.location.value,
+      start_date: f.start_date.value,
+      end_date: f.end_date.value,
+      projected_participants: f.projected.value,
+      delivery_format: f.delivery_format ? f.delivery_format.value : 'in_person',
+      session_schedule: f.session_schedule ? f.session_schedule.value : '',
+      community_served: f.community_served ? f.community_served.value : ''
+    },
     items: qtyInputs().map((i) => ({ item: i.dataset.item, qty: i.value })),
     shipping_address: f.shipping_address.value, requested_date: f.requested_date.value, notes: f.notes.value,
   };
