@@ -8,13 +8,19 @@ const dir = mkdtempSync(join(tmpdir(), 'ss-'));
 process.env.DB_PATH = join(dir, 'test.db');
 delete process.env.ANTHROPIC_API_KEY; // exercise the no-AI path
 delete process.env.SMTP_HOST;
+process.env.AUTH_DEV_LOGIN = '1';
+process.env.STAFF_ADMIN_EMAILS = 'staff@example.org';
 
 const { app } = await import('../src/server.js');
 const { db } = await import('../src/db.js');
 const server = app.listen(0);
 const base = `http://localhost:${server.address().port}`;
+// Staff routes need a login; public routes work with or without it.
+const login = await fetch(`${base}/auth/dev-login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'staff@example.org' }) });
+const cookie = login.headers.getSetCookie()[0].split(';')[0];
+const get = (u, init = {}) => fetch(base + u, { ...init, headers: { cookie, ...init.headers } });
 const post = (u, body, method = 'POST') =>
-  fetch(base + u, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) }));
+  fetch(base + u, { method, headers: { 'Content-Type': 'application/json', cookie }, body: JSON.stringify(body) }).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) }));
 
 try {
   // 1. facilitator email arrives -> order form link emailed
@@ -56,11 +62,11 @@ try {
   const up = await fetch(`${base}/api/feedback/${programId}/photos`, { method: 'POST', body: fd }).then((x) => x.json());
   assert.equal(up.results[0].needsReview, true);
   const fbId = up.results[0].id;
-  assert.equal((await fetch(`${base}/api/feedback/${fbId}/image`)).status, 200);
+  assert.equal((await get(`/api/feedback/${fbId}/image`)).status, 200);
   assert.equal((await post(`/api/feedback/${fbId}`, { rating: 4, would_recommend: true, most_valued: 'Songs', suggestions: '' }, 'PATCH')).status, 200);
 
   // 5. report
-  const rep = await fetch(`${base}/api/programs/${programId}/report`).then((x) => x.json());
+  const rep = await get(`/api/programs/${programId}/report`).then((x) => x.json());
   assert.equal(rep.responses, 3);
   assert.deepEqual(rep.bySource, { qr: 2, photo: 1 });
   assert.equal(rep.avgRating, 4);

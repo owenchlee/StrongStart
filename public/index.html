@@ -1,7 +1,8 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/style.css"><title>Baby Connections Dashboard</title></head><body>
 <header><div class="in"><h1>Baby Connections</h1>
-<nav><button data-t="orders" class="on">Orders</button><button data-t="programs">Programs &amp; feedback</button><button data-t="review">Review queue</button><button data-t="emails">Emails</button></nav></div></header>
+<nav><button data-t="orders" class="on">Orders</button><button data-t="programs">Programs &amp; feedback</button><button data-t="review">Review queue</button><button data-t="emails">Emails</button></nav>
+<span class="muted" id="who"></span><button class="sec sm" onclick="logout()">Sign out</button></div></header>
 <main class="wide">
 <div class="stats" id="stats"></div>
 <section id="orders"></section><section id="programs" hidden></section><section id="review" hidden></section><section id="emails" hidden></section>
@@ -9,7 +10,12 @@
 <script>
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const j = (u, o) => fetch(u, o).then((r) => r.json());
+const j = (u, o) => fetch(u, o).then((r) => {
+  if (r.status === 401) { location.href = '/login.html'; throw new Error('signed out'); }
+  return r.json();
+});
+fetch('/api/me').then((r) => r.json()).then((m) => { if (m.staff) $('#who').textContent = m.staff.name || m.staff.email; });
+async function logout() { await fetch('/auth/logout', { method: 'POST' }); location.href = '/login.html'; }
 const date = (s) => (s ? s.slice(0, 10) : '–');
 let tab = 'orders';
 document.querySelectorAll('nav button').forEach((b) => (b.onclick = () => { tab = b.dataset.t; refresh(); }));

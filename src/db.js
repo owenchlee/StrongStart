@@ -43,6 +43,17 @@ CREATE TABLE IF NOT EXISTS outbox (
   id INTEGER PRIMARY KEY, to_email TEXT, subject TEXT, body TEXT, delivered INTEGER DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+-- Staff allow-list: signing in (Google or dev login) only works for an active email listed here.
+CREATE TABLE IF NOT EXISTS staff (
+  id INTEGER PRIMARY KEY, email TEXT UNIQUE NOT NULL COLLATE NOCASE, name TEXT,
+  role TEXT DEFAULT 'staff', active INTEGER DEFAULT 1,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP, last_login_at TEXT
+);
+-- Server-side sessions; id is the SHA-256 of the cookie value, so a leaked DB can't be replayed.
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY, staff_id INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+  expires_at INTEGER NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 `);
 
 export const KIT_ITEMS = ['Participant Kits', 'Facilitator Kits', 'Facilitator Manuals', 'Replacement Materials'];
