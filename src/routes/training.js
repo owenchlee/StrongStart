@@ -3,7 +3,32 @@ import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
 import { query, one, run, tx } from '../db.js';
-import { sendMail, STAFF_EMAIL, BASE_URL } from '../mailer.js';
+// Import Outlook helper
+import { createOutlookEvent } from '../msgraph.js';
+
+// Helper: generate meeting slots for a new training session
+// Creates 30‑minute slots in a configurable window (default: 5 days before & after session date)
+async function generateSlotsForSession(sessionId, { sessionDate, daysBefore = 2, daysAfter = 2, slotDurationMins = 30 }) {
+  const start = new Date(sessionDate);
+  start.setUTCDate(start.getUTCDate() - daysBefore);
+  start.setUTCHours(9, 0, 0, 0); // start at 09:00 UTC (adjust as needed)
+  const end = new Date(sessionDate);
+  end.setUTCDate(end.getUTCDate() + daysAfter);
+  end.setUTCHours(17, 0, 0, 0); // end at 17:00 UTC
+
+  const slots = [];
+  for (let ts = new Date(start); ts < end; ts.setUTCMinutes(ts.getUTCMinutes() + slotDurationMins)) {
+    const slotStart = new Date(ts);
+    const slotEnd = new Date(ts);
+    slotEnd.setUTCMinutes(slotEnd.getUTCMinutes() + slotDurationMins);
+    slots.push(`(${sessionId}, '${slotStart.toISOString()}', '${slotEnd.toISOString()}')`);
+  }
+  if (slots.length) {
+    const sql = `INSERT INTO training_meeting_slots (session_id, slot_start, slot_end) VALUES ${slots.join(', ')}`;
+    await run(sql);
+  }
+}
+
 
 export const trainingRouter = Router();
 
@@ -107,7 +132,9 @@ trainingRouter.post('/api/training/register', async (req, res) => {
 
   res.json({
     ok: true,
-    message: 'Registration successful! Confirmation details have been emailed to you.'
+    message: 'Registration successful! Confirmation details have been emailed to you.',
+    facilitator_id: result.fac.id,
+    session_id: sessionId
   });
 });
 
@@ -131,7 +158,120 @@ trainingRouter.get('/api/certificates/:code', async (req, res) => {
   res.json(cert);
 });
 
-// Staff: Create training session
+// Public: List available meeting slots for a training session
+trainingRouter.get('/api/training/:sessionId/slots', async (req, res) => {
+  const sessionId = intId(req.params.sessionId);
+  if (!sessionId) return res.status(400).json({ error: 'Invalid session id' });
+  const rows = await query(
+    `SELECT id, slot_start, slot_end FROM training_meeting_slots WHERE session_id=$1 AND booked_by IS NULL ORDER BY slot_start ASC`,
+    [sessionId]
+  );
+  res.json(rows);
+});
+
+// Staff: List all slots (including booked) for admin view
+trainingRouter.get('/api/training/:sessionId/admin/slots', async (req, res) => {
+  const sessionId = intId(req.params.sessionId);
+  if (!sessionId) return res.status(400).json({ error: 'Invalid session id' });
+  const rows = await query(
+    `SELECT id, slot_start, slot_end, booked_by, outlook_event_id FROM training_meeting_slots WHERE session_id=$1 ORDER BY slot_start ASC`,
+    [sessionId]
+  );
+  res.json(rows);
+});
+
+// Staff: Add a new meeting slot for a session (admin UI)
+trainingRouter.post('/api/training/:sessionId/admin/slots', async (req, res) => {
+  const sessionId = intId(req.params.sessionId);
+  const { slot_start, slot_end } = req.body;
+  if (!sessionId || !slot_start || !slot_end) {
+    return res.status(400).json({ error: 'sessionId, slot_start and slot_end required' });
+  }
+  const start = new Date(slot_start);
+  const end = new Date(slot_end);
+  if (isNaN(start) || isNaN(end) || start >= end) {
+    return res.status(400).json({ error: 'Invalid slot times' });
+  }
+  await run(
+    `INSERT INTO training_meeting_slots (session_id, slot_start, slot_end) VALUES ($1, $2, $3)`,
+    [sessionId, start.toISOString(), end.toISOString()]
+  );
+  res.json({ ok: true, message: 'Slot added' });
+});
+trainingRouter.get('/api/training/:sessionId/slots', async (req, res) => {
+  const sessionId = intId(req.params.sessionId);
+  if (!sessionId) return res.status(400).json({ error: 'Invalid session id' });
+  const rows = await query(
+    `SELECT id, slot_start, slot_end FROM training_meeting_slots WHERE session_id=$1 AND booked_by IS NULL ORDER BY slot_start ASC`,
+    [sessionId]
+  );
+  res.json(rows);
+});
+
+// Public: Book a meeting slot and create Outlook event
+trainingRouter.post('/api/training/:sessionId/book-slot', async (req, res) => {
+  const sessionId = intId(req.params.sessionId);
+  const { slotId, facilitator_id } = req.body;
+  if (!sessionId || !slotId || !facilitator_id) {
+    return res.status(400).json({ error: 'sessionId, slotId and facilitator_id required' });
+  }
+
+  const slot = await one(`
+    SELECT id, slot_start, slot_end FROM training_meeting_slots
+    WHERE id = $1 AND session_id = $2 AND booked_by IS NULL FOR UPDATE`,
+    [slotId, sessionId]
+  );
+  if (!slot) return res.status(409).json({ error: 'Slot already taken or not found' });
+
+  const fac = await one('SELECT name, email FROM facilitators WHERE id = $1', [facilitator_id]);
+  if (!fac) return res.status(404).json({ error: 'Facilitator not found' });
+
+  try {
+    const outlookId = await createOutlookEvent({
+      subject: `Training meeting – ${fac.name}`,
+      startUtc: slot.slot_start.toISOString(),
+      endUtc: slot.slot_end.toISOString(),
+      attendees: [{ email: fac.email, name: fac.name }],
+    });
+    await run(
+      `UPDATE training_meeting_slots SET booked_by = $1, outlook_event_id = $2 WHERE id = $3`,
+      [facilitator_id, outlookId, slotId]
+    );
+    res.json({ ok: true, message: 'Meeting scheduled and Outlook event created' });
+  } catch (e) {
+    console.error('Outlook event creation failed →', e);
+    res.status(500).json({ error: 'Failed to create Outlook event' });
+  }
+});
+
+// Staff: Create training session (now also generate meeting slots)
+trainingRouter.post('/api/training/sessions', async (req, res) => {
+  const b = req.body ?? {};
+  const title = oneLine(b.title, 200);
+  const trainer = oneLine(b.trainer_name, 120) || 'Strong Start Staff';
+  const sessionDate = dateOrNull(b.session_date);
+  const sessionTime = oneLine(b.session_time, 50) || '10:00 AM - 12:00 PM';
+  const deliveryType = b.delivery_type === 'in_person' ? 'in_person' : 'online';
+  const locationDetails = str(b.location_details, 500) || (deliveryType === 'online' ? 'Zoom (link sent upon registration)' : 'Strong Start Waterloo Centre');
+  const capacity = Math.max(1, Math.min(500, Number(b.capacity) || 25));
+
+  if (!title || !sessionDate) {
+    return res.status(400).json({ error: 'Session title and valid session date are required' });
+  }
+
+  const { rows } = await run(
+    `INSERT INTO training_sessions (title, trainer_name, session_date, session_time, delivery_type, location_details, capacity)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING *`,
+    [title, trainer, sessionDate, sessionTime, deliveryType, locationDetails, capacity]
+  );
+
+  const newSession = rows[0];
+  // Auto‑generate meeting slots for the new session
+  await generateSlotsForSession(newSession.id, { sessionDate: newSession.session_date });
+
+  res.json(newSession);
+});
 trainingRouter.post('/api/training/sessions', async (req, res) => {
   const b = req.body ?? {};
   const title = oneLine(b.title, 200);

@@ -75,7 +75,7 @@ export async function currentStaff(req) {
 // of public routes (see WORKLOAD.md "Who can access what"). New API routes are protected automatically.
 const PUBLIC_API = [
   ['POST', /^\/api\/inbound-email\/?$/],              // email provider webhook (add a shared secret separately)
-  ['GET', /^\/api\/order-form\/[^/]+\/?$/], ['POST', /^\/api\/order-form\/[^/]+\/?$/],
+  ['GET', /^\/api\/me$/], ['POST', /^\/api\/order-form\/[^/]+\/?$/],
   ['POST', /^\/api\/feedback\/[^/]+\/?$/],            // parent feedback form
   ['POST', /^\/api\/feedback\/[^/]+\/photos\/?$/],    // facilitator photo upload
   ['GET', /^\/api\/programs\/[^/]+\/public\/?$/],
