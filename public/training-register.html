@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/style.css">
+  <title>Facilitator Training Registration | Baby Connections</title>
+</head>
+<body class="public">
+  <header class="site-head simple">
+    <div class="in">
+      <p class="brand">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <circle class="a" cx="12" cy="17" r="9"/>
+          <circle class="b" cx="21" cy="17" r="9"/>
+        </svg>
+        <span>Baby Connections <small>Facilitator Onboarding &amp; Training</small></span>
+      </p>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="card" id="box">
+      <h1>Facilitator Training Registration</h1>
+      <p class="muted">
+        Welcome! Before leading your first Baby Connections sessions, facilitators complete our comprehensive training workshop. Select an upcoming session below to register.
+      </p>
+
+      <div id="confirmedCard" hidden>
+        <div class="done-icon" style="color:var(--ok);margin:var(--s4) 0 var(--s2)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px" aria-hidden="true">
+            <path d="M5 12.5l4.5 4.5L19 7.5"/>
+          </svg>
+        </div>
+        <h2>Registration Confirmed!</h2>
+        <p id="confirmedMsg" class="muted"></p>
+        <p><a href="/resources" class="btn">Explore Knowledge Centre</a></p>
+      </div>
+
+      <form id="trainForm" novalidate>
+        <h2>1. Select Training Session</h2>
+        <div id="sessionList" role="radiogroup" aria-label="Available training sessions">
+          <p class="muted" id="loadingSessions">Loading available sessions…</p>
+        </div>
+
+        <h2>2. Facilitator Details</h2>
+        <div class="row">
+          <label>Full Name <span aria-hidden="true">*</span>
+            <input name="name" id="facName" required maxlength="120" autocomplete="name" placeholder="First and last name">
+          </label>
+          <label>Email Address <span aria-hidden="true">*</span>
+            <input type="email" name="email" id="facEmail" required maxlength="254" autocomplete="email" placeholder="facilitator@example.org">
+          </label>
+        </div>
+        <div class="row">
+          <label>Phone Number
+            <input type="tel" name="phone" id="facPhone" maxlength="50" autocomplete="tel" placeholder="(519) 555-0144">
+          </label>
+          <label>Program Partner / Organization
+            <input name="organization" id="facOrg" maxlength="200" placeholder="e.g. Waterloo Public Library">
+          </label>
+        </div>
+
+        <p class="err" id="err" role="alert" hidden></p>
+        <button type="submit" id="submitBtn">Complete Registration</button>
+      </form>
+    </div>
+  </main>
+
+  <script>
+    const form = document.getElementById('trainForm');
+    const sessionList = document.getElementById('sessionList');
+    const errBox = document.getElementById('err');
+    const submitBtn = document.getElementById('submitBtn');
+    const confirmedCard = document.getElementById('confirmedCard');
+
+    fetch('/api/training/sessions')
+      .then(async (r) => {
+        const list = await r.json().catch(() => []);
+        if (!list.length) {
+          sessionList.innerHTML = '<p class="muted">No upcoming training sessions are currently scheduled. Please check back soon or contact staff.</p>';
+          return;
+        }
+
+        sessionList.innerHTML = list.map((s, idx) => `
+          <label class="card" style="display:flex;gap:var(--s3);align-items:flex-start;margin:var(--s2) 0;cursor:pointer;background:var(--surface-2)">
+            <input type="radio" name="session_id" value="${s.id}" ${idx === 0 ? 'checked' : ''} style="margin-top:4px">
+            <div style="flex:1">
+              <b>${s.title}</b> &bull; <span class="pill st-ordered">${s.delivery_type === 'online' ? 'Online' : 'In-Person'}</span><br>
+              <span class="muted">${s.session_date ? s.session_date.slice(0, 10) : '–'} &bull; ${s.session_time || '10:00 AM'}</span><br>
+              <small class="muted">Trainer: ${s.trainer_name || 'Staff'} &bull; ${s.location_details || ''}</small>
+            </div>
+          </label>
+        `).join('');
+      })
+      .catch(() => {
+        sessionList.innerHTML = '<p class="err">Could not load training sessions. Please reload.</p>';
+      });
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      errBox.hidden = true;
+      errBox.textContent = '';
+
+      const selRadio = document.querySelector('input[name="session_id"]:checked');
+      if (!selRadio) {
+        errBox.textContent = 'Please choose a training session.';
+        errBox.hidden = false;
+        return;
+      }
+
+      const name = document.getElementById('facName').value.trim();
+      const email = document.getElementById('facEmail').value.trim();
+
+      if (!name) {
+        errBox.textContent = 'Please enter your name.';
+        errBox.hidden = false;
+        document.getElementById('facName').focus();
+        return;
+      }
+      if (!email || !email.includes('@')) {
+        errBox.textContent = 'Please enter a valid email address.';
+        errBox.hidden = false;
+        document.getElementById('facEmail').focus();
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Registering…';
+
+      try {
+        const payload = {
+          training_session_id: Number(selRadio.value),
+          name,
+          email,
+          phone: document.getElementById('facPhone').value.trim(),
+          organization: document.getElementById('facOrg').value.trim()
+        };
+
+        const res = await fetch('/api/training/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Failed to complete registration.');
+
+        form.hidden = true;
+        confirmedCard.hidden = false;
+        document.getElementById('confirmedMsg').textContent =
+          `We have sent your confirmation email to ${email}. Upon workshop completion, your digital certificate and resources access will activate automatically!`;
+      } catch (err) {
+        errBox.textContent = err.message || 'Error completing registration.';
+        errBox.hidden = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Complete Registration';
+      }
+    };
+  </script>
+</body>
+</html>

@@ -117,6 +117,80 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires_at BIGINT NOT NULL, created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Partners lifecycle management (EOI -> Discovery -> PDSA -> Active -> Inactive)
+CREATE TABLE IF NOT EXISTS partners (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  contact_name TEXT,
+  contact_email TEXT,
+  contact_phone TEXT,
+  communities_served TEXT,
+  stage TEXT DEFAULT 'expression_of_interest',
+  notes TEXT,
+  pdsa_status TEXT DEFAULT 'pending',
+  pdsa_issued_date DATE,
+  pdsa_executed_date DATE,
+  pdsa_expiry_date DATE,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS partners_stage_idx ON partners(stage);
+
+-- Facilitators and programs linked to partners
+ALTER TABLE facilitators ADD COLUMN IF NOT EXISTS partner_id INTEGER REFERENCES partners(id) ON DELETE SET NULL;
+ALTER TABLE facilitators ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE facilitators ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+ALTER TABLE facilitators ADD COLUMN IF NOT EXISTS certified BOOLEAN DEFAULT false;
+ALTER TABLE facilitators ADD COLUMN IF NOT EXISTS certification_date DATE;
+ALTER TABLE facilitators ADD COLUMN IF NOT EXISTS certificate_code TEXT;
+
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS partner_id INTEGER REFERENCES partners(id) ON DELETE SET NULL;
+
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS partner_id INTEGER REFERENCES partners(id) ON DELETE SET NULL;
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS delivery_format TEXT DEFAULT 'in_person';
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS session_schedule TEXT;
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS external_registration_url TEXT;
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS community_served TEXT;
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'scheduled';
+
+-- Facilitator program completion reporting (reflections, challenges, actual counts)
+CREATE TABLE IF NOT EXISTS program_completions (
+  id SERIAL PRIMARY KEY,
+  program_id INTEGER UNIQUE NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+  facilitator_id INTEGER REFERENCES facilitators(id) ON DELETE SET NULL,
+  families_served INTEGER,
+  kits_distributed INTEGER,
+  completion_confirmed BOOLEAN DEFAULT true,
+  reflections TEXT,
+  success_stories TEXT,
+  challenges TEXT,
+  submitted_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Training Sessions and Registrations (Requirements §4)
+CREATE TABLE IF NOT EXISTS training_sessions (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  trainer_name TEXT,
+  session_date DATE NOT NULL,
+  session_time TEXT,
+  delivery_type TEXT DEFAULT 'online', -- online / in_person
+  location_details TEXT,
+  capacity INTEGER DEFAULT 25,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS training_registrations (
+  id SERIAL PRIMARY KEY,
+  training_session_id INTEGER REFERENCES training_sessions(id) ON DELETE CASCADE,
+  facilitator_id INTEGER REFERENCES facilitators(id) ON DELETE CASCADE,
+  status TEXT DEFAULT 'registered', -- registered, attended, completed, cancelled
+  certificate_code TEXT UNIQUE,
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(training_session_id, facilitator_id)
+);
+
 -- New columns (also applied to databases created before this version)
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS token TEXT;
 UPDATE programs SET token = replace(gen_random_uuid()::text,'-','') WHERE token IS NULL;
@@ -176,3 +250,22 @@ if (isTimescale) {
 }
 
 export const KIT_ITEMS = ['Participant Kits', 'Facilitator Kits', 'Facilitator Manuals', 'Replacement Materials'];
+export const PARTNER_STAGES = [
+  'expression_of_interest',
+  'initial_contact',
+  'discovery',
+  'pdsa_review',
+  'pdsa_signed',
+  'active',
+  'inactive',
+];
+export const PROGRAM_DELIVERY_FORMATS = ['in_person', 'virtual', 'hybrid'];
+export const USER_ROLES = [
+  'root',
+  'admin',
+  'support',
+  'staff',
+  'partner_admin',
+  'site_coordinator',
+  'facilitator',
+];

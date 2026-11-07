@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/style.css">
+  <title>Knowledge Centre &amp; Facilitator Resources | Baby Connections</title>
+  <style>
+    .cat-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      padding: var(--s4);
+      margin: var(--s4) 0;
+    }
+    .res-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--s3);
+      padding: var(--s3) 0;
+      border-bottom: 1px solid var(--line);
+      flex-wrap: wrap;
+    }
+    .res-item:last-child { border-bottom: 0; }
+  </style>
+</head>
+<body class="public">
+  <header class="site-head simple">
+    <div class="in">
+      <p class="brand">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <circle class="a" cx="12" cy="17" r="9"/>
+          <circle class="b" cx="21" cy="17" r="9"/>
+        </svg>
+        <span>Baby Connections <small>Knowledge Centre &amp; Resource Hub</small></span>
+      </p>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="card" id="box">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--s2)">
+        <div>
+          <h1 style="margin:0 0 var(--s1)">Facilitator Knowledge Centre</h1>
+          <p class="muted" style="margin:0">Access promotional materials, delivery guides, lesson plans, videos, and evaluation tools.</p>
+        </div>
+        <a href="/training/register" class="btn sec sm">Training Workshops</a>
+      </div>
+
+      <div id="contentArea" style="margin-top:var(--s4)">
+        <p class="muted">Loading resources catalog…</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const contentArea = document.getElementById('contentArea');
+
+    fetch('/api/resources')
+      .then((r) => r.json())
+      .then((data) => {
+        const cats = data.categories || [];
+        contentArea.innerHTML = cats.map((c) => `
+          <div class="cat-card" id="${c.id}">
+            <h2 style="margin:0 0 var(--s1);color:var(--primary-text);font-size:var(--fs-xl)">${c.title}</h2>
+            <p class="muted" style="margin:0 0 var(--s3)">${c.description}</p>
+
+            ${c.id === 'faq' ? `
+              <div style="display:flex;flex-direction:column;gap:var(--s2)">
+                ${c.items.map((faq) => `
+                  <details class="card" style="background:var(--surface-2);margin:0">
+                    <summary><b>${faq.title}</b></summary>
+                    <p style="margin:var(--s2) 0 0">${faq.answer}</p>
+                  </details>
+                `).join('')}
+              </div>
+            ` : `
+              <div>
+                ${c.items.map((it) => `
+                  <div class="res-item">
+                    <div style="flex:1;min-width:240px">
+                      <b>${it.title}</b> <span class="pill st-ordered">${it.format} ${it.size ? `&bull; ${it.size}` : ''} ${it.duration ? `&bull; ${it.duration}` : ''}</span><br>
+                      <span class="muted" style="font-size:var(--fs-sm)">${it.description}</span>
+                    </div>
+                    <div>
+                      ${it.url.startsWith('http') ?
+                        `<a href="${it.url}" target="_blank" rel="noopener" class="btn sec sm">Watch Video</a>` :
+                        `<a href="#" onclick="alert('Downloading: ' + ${JSON.stringify(it.title)} + '\\n(In production, this downloads the actual file asset).'); return false;" class="btn sm">Download</a>`
+                      }
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        `).join('');
+      })
+      .catch(() => {
+        contentArea.innerHTML = '<p class="err">Failed to load Knowledge Centre resources.</p>';
+      });
+  </script>
+</body>
+</html>

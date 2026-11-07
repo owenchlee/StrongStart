@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env src/server.js",
     "dev": "node --watch --env-file-if-exists=.env src/server.js",
-    "test": "node test/smoke.js && node test/auth.js && node test/auth-off.js && node test/a.js && node test/b.js && node test/c.js",
+    "test": "node test/smoke.js && node test/auth.js && node test/auth-off.js && node test/a.js && node test/b.js && node test/c.js && node test/site-source.js",
     "staff": "node --env-file-if-exists=.env src/scripts/add-staff.js"
   },
   "engines": {

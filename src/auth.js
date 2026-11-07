@@ -21,7 +21,7 @@ export const googleEnabled = Boolean(CLIENT_ID && CLIENT_SECRET);
 // Staff login is OFF unless REQUIRE_AUTH=1 (temporary: the dashboard is open to anyone who can reach the server).
 // Turn it back on before deploying anywhere public. The login code below is unchanged and still tested.
 export const authRequired = process.env.REQUIRE_AUTH === '1';
-const LOCAL_STAFF = { id: 0, email: 'staff@local', name: 'Staff (login off)', role: 'admin' };
+const LOCAL_STAFF = { id: 0, email: 'staff@local', name: 'Staff (login off)', role: 'admin', partner_id: null };
 if (!authRequired) console.warn('[auth] WARNING: staff login is OFF (set REQUIRE_AUTH=1 to enable). Do not expose this server publicly.');
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
@@ -63,7 +63,10 @@ async function startSession(res, staff) {
 export async function currentStaff(req) {
   const t = cookies(req)[COOKIE];
   if (!t) return undefined;
-  return one(`SELECT st.id, st.email, st.name, st.role FROM sessions s JOIN staff st ON st.id=s.staff_id
+  return one(`SELECT st.id, st.email, st.name, st.role, st.partner_id, p.name AS partner_name
+              FROM sessions s
+              JOIN staff st ON st.id=s.staff_id
+              LEFT JOIN partners p ON p.id=st.partner_id
               WHERE s.id=$1 AND s.expires_at > $2 AND st.active=true`, [sha(t), Date.now()]);
 }
 
@@ -79,6 +82,13 @@ const PUBLIC_API = [
   ['GET', /^\/api\/programs\/[^/]+\/qr\.png$/],
   ['POST', /^\/api\/feedback\/[^/]+\/voice\/?$/],   // parent voice answer (rate limited by its route)
   ['GET', /^\/api\/tts\/?$/],                         // read-aloud audio for the public feedback form
+  ['POST', /^\/api\/partners\/interest\/?$/],         // prospective partner expression of interest
+  ['GET', /^\/api\/programs\/[^/]+\/completion-form\/?$/], // facilitator completion form details
+  ['POST', /^\/api\/programs\/[^/]+\/completion\/?$/],     // facilitator completion report submission
+  ['GET', /^\/api\/training\/sessions\/?$/],               // public list of available training sessions
+  ['POST', /^\/api\/training\/register\/?$/],              // self-service facilitator training registration
+  ['GET', /^\/api\/certificates\/[^/]+\/?$/],              // digital certificate verification
+  ['GET', /^\/api\/resources\/?$/],                        // resources hub data
 ];
 const isDashboardPage = (p) => /^\/(index\.html|compose\.html)?$/i.test(p);
 const isApi = (p) => /^\/api(\/|$)/i.test(p);

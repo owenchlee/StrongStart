@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/style.css">
+  <title>Baby Connections® Facilitator Certificate</title>
+  <style>
+    .cert-frame {
+      border: 8px double var(--primary);
+      border-radius: var(--r-lg);
+      padding: var(--s6);
+      text-align: center;
+      background: var(--surface);
+      box-shadow: var(--shadow-2);
+      max-width: 800px;
+      margin: 0 auto;
+      position: relative;
+    }
+    .cert-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: var(--primary-soft);
+      color: var(--primary);
+      margin-bottom: var(--s3);
+    }
+    .cert-title {
+      font-size: var(--fs-2xl);
+      color: var(--primary-text);
+      letter-spacing: .02em;
+      margin: var(--s2) 0;
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+    .cert-recipient {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--ink);
+      border-bottom: 2px solid var(--clay);
+      display: inline-block;
+      padding: 0 var(--s4) var(--s1);
+      margin: var(--s3) 0 var(--s2);
+    }
+    .cert-meta {
+      font-size: var(--fs-md);
+      color: var(--muted);
+      margin: var(--s2) 0 var(--s4);
+      line-height: 1.6;
+    }
+    .cert-code {
+      font-family: monospace;
+      font-size: var(--fs-sm);
+      letter-spacing: .1em;
+      color: var(--muted);
+      background: var(--surface-2);
+      padding: var(--s1) var(--s3);
+      border-radius: var(--r-pill);
+      display: inline-block;
+    }
+    .cert-actions {
+      display: flex;
+      gap: var(--s2);
+      justify-content: center;
+      margin-top: var(--s5);
+      flex-wrap: wrap;
+    }
+    @media print {
+      body { background: white !important; }
+      header, .cert-actions, .skip { display: none !important; }
+      .cert-frame { border: 6px double #0e6560 !important; box-shadow: none !important; }
+    }
+  </style>
+</head>
+<body class="public">
+  <header class="site-head simple">
+    <div class="in">
+      <p class="brand">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <circle class="a" cx="12" cy="17" r="9"/>
+          <circle class="b" cx="21" cy="17" r="9"/>
+        </svg>
+        <span>Baby Connections <small>Official Credential</small></span>
+      </p>
+    </div>
+  </header>
+
+  <main id="main">
+    <div id="loadingBox" class="card" style="text-align:center;padding:var(--s6)">
+      <p class="muted">Verifying certificate credentials…</p>
+    </div>
+
+    <div id="certBox" class="cert-frame" hidden>
+      <div class="cert-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:40px;height:40px" aria-hidden="true">
+          <circle cx="12" cy="8" r="7"/>
+          <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+        </svg>
+      </div>
+
+      <div class="muted" style="text-transform:uppercase;letter-spacing:.1em;font-size:var(--fs-sm);font-weight:600">
+        Certificate of Completion
+      </div>
+      <h1 class="cert-title">Baby Connections® Facilitator</h1>
+      <p class="muted" style="margin:0">This is to officially certify that</p>
+
+      <div class="cert-recipient" id="recipName"></div>
+
+      <div class="cert-meta">
+        has successfully completed the comprehensive training workshop for the<br>
+        <b>Baby Connections® Early Literacy Program</b><br>
+        <span id="orgLine"></span>
+      </div>
+
+      <div class="row" style="margin-top:var(--s4);justify-content:center;gap:var(--s6)">
+        <div>
+          <small class="muted">Date Completed</small><br>
+          <strong id="compDate">–</strong>
+        </div>
+        <div>
+          <small class="muted">Trainer</small><br>
+          <strong id="trainerName">–</strong>
+        </div>
+      </div>
+
+      <div style="margin-top:var(--s5)">
+        <span class="cert-code">Credential ID: <span id="certCodeDisplay"></span></span>
+      </div>
+
+      <div class="cert-actions">
+        <button class="sm" onclick="window.print()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Print / Save as PDF
+        </button>
+        <a id="linkedinBtn" class="btn sec sm" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px" aria-hidden="true"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>
+          Add to LinkedIn Profile
+        </a>
+        <a href="/resources" class="btn sec sm">Access Knowledge Centre</a>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const code = location.pathname.split('/').pop().toUpperCase();
+    const loadingBox = document.getElementById('loadingBox');
+    const certBox = document.getElementById('certBox');
+
+    fetch('/api/certificates/' + encodeURIComponent(code))
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          loadingBox.innerHTML = `
+            <h2 class="err" style="margin:0 0 var(--s2)">Invalid or Expired Certificate</h2>
+            <p class="muted">${d.error || 'The credential ID could not be found.'}</p>
+          `;
+          return;
+        }
+
+        loadingBox.hidden = true;
+        certBox.hidden = false;
+
+        document.getElementById('recipName').textContent = d.facilitator_name || d.facilitator_email;
+        if (d.partner_name || d.organization) {
+          document.getElementById('orgLine').textContent = `In partnership with ${d.partner_name || d.organization}`;
+        }
+        document.getElementById('compDate').textContent = d.completed_at ? d.completed_at.slice(0, 10) : (d.session_date ? d.session_date.slice(0, 10) : '–');
+        document.getElementById('trainerName').textContent = d.trainer_name || 'Strong Start Staff';
+        document.getElementById('certCodeDisplay').textContent = d.certificate_code;
+
+        // Build LinkedIn Add-To-Profile URL
+        const liParams = new URLSearchParams({
+          startTask: 'CERTIFICATION_NAME',
+          name: 'Baby Connections Facilitator',
+          organizationName: 'Strong Start Charitable Organization',
+          issueYear: d.completed_at ? new Date(d.completed_at).getFullYear() : new Date().getFullYear(),
+          issueMonth: d.completed_at ? new Date(d.completed_at).getMonth() + 1 : new Date().getMonth() + 1,
+          certUrl: location.href,
+          certId: d.certificate_code
+        });
+        document.getElementById('linkedinBtn').href = 'https://www.linkedin.com/profile/add?' + liParams.toString();
+      })
+      .catch(() => {
+        loadingBox.innerHTML = '<p class="err">Failed to connect to verification server.</p>';
+      });
+  </script>
+</body>
+</html>

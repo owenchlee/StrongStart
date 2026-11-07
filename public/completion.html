@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/style.css">
+  <title>Program Completion Report | Baby Connections</title>
+</head>
+<body class="public">
+  <header class="site-head simple">
+    <div class="in">
+      <p class="brand">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <circle class="a" cx="12" cy="17" r="9"/>
+          <circle class="b" cx="21" cy="17" r="9"/>
+        </svg>
+        <span>Baby Connections <small>Program Completion Report</small></span>
+      </p>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="card" id="box">
+      <h1 id="pageHeading">Baby Connections Program Completion</h1>
+      <p class="muted" id="statusMsg" role="status">Loading program details…</p>
+
+      <div id="summaryCard" class="card" style="background:var(--surface-2);margin:var(--s3) 0" hidden>
+        <h2 style="font-size:var(--fs-md);margin-top:0" id="progName">Program</h2>
+        <p class="muted" style="margin:0" id="progMeta"></p>
+      </div>
+
+      <div id="alreadySubmittedCard" hidden>
+        <div class="done-icon" style="color:var(--ok);margin:var(--s4) 0 var(--s2)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px" aria-hidden="true">
+            <path d="M5 12.5l4.5 4.5L19 7.5"/>
+          </svg>
+        </div>
+        <h2>Completion report already submitted</h2>
+        <p id="submittedDetails" class="muted"></p>
+      </div>
+
+      <form id="completionForm" hidden novalidate>
+        <h2>Delivery Outcomes</h2>
+        <div class="row">
+          <label>Families Served <span aria-hidden="true">*</span>
+            <input type="number" inputmode="numeric" min="0" max="100000" id="familiesServed" name="families_served" required placeholder="0">
+          </label>
+          <label>Kits Distributed to Families <span aria-hidden="true">*</span>
+            <input type="number" inputmode="numeric" min="0" max="100000" id="kitsDistributed" name="kits_distributed" required placeholder="0">
+          </label>
+        </div>
+        <p class="muted" id="kitsHint" style="font-size:var(--fs-sm);margin-top:var(--s1)"></p>
+
+        <h2>Facilitator Reflections</h2>
+        <label>What went well? Any key observations or reflections?
+          <textarea id="reflections" name="reflections" rows="3" maxlength="5000" placeholder="e.g. Parents especially loved the singing and sensory play with the scarves…"></textarea>
+        </label>
+
+        <label>Success Stories &amp; Parent Quotes
+          <textarea id="successStories" name="success_stories" rows="3" maxlength="5000" placeholder="e.g. One mom shared that she began reading to her 3-month-old every night after session two…"></textarea>
+        </label>
+
+        <label>Challenges or Suggestions for Strong Start
+          <textarea id="challenges" name="challenges" rows="3" maxlength="5000" placeholder="e.g. Could use more French-language board books in future kits…"></textarea>
+        </label>
+
+        <label style="display:flex;align-items:flex-start;gap:var(--s2);margin:var(--s4) 0;font-weight:500;cursor:pointer">
+          <input type="checkbox" id="confirmCheckbox" name="completion_confirmed" required style="margin-top:3px">
+          <span>I confirm that this Baby Connections program series has concluded and these details are accurate.</span>
+        </label>
+
+        <p class="err" id="err" role="alert" hidden></p>
+        <button type="submit" id="submitBtn">Submit Completion Report</button>
+      </form>
+    </div>
+  </main>
+
+  <script>
+    const token = location.pathname.split('/').pop();
+    const $ = (s) => document.querySelector(s);
+    const form = $('#completionForm');
+    const errBox = $('#err');
+    const statusMsg = $('#statusMsg');
+    const submitBtn = $('#submitBtn');
+
+    fetch('/api/programs/' + encodeURIComponent(token) + '/completion-form')
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          statusMsg.textContent = d.error || 'Could not load program details.';
+          return;
+        }
+
+        statusMsg.hidden = true;
+        const prog = d.program;
+        $('#summaryCard').hidden = false;
+        $('#progName').textContent = prog.name;
+        $('#progMeta').innerHTML = `
+          <b>Facilitator:</b> ${d.facilitator?.name || d.facilitator?.email || 'N/A'}<br>
+          <b>Location:</b> ${prog.location || 'Not specified'}<br>
+          <b>Dates:</b> ${prog.startDate ? prog.startDate.slice(0, 10) : '–'} &rarr; ${prog.endDate ? prog.endDate.slice(0, 10) : '–'}<br>
+          <b>Projected Participants:</b> ${prog.projectedParticipants || '–'} &bull; <b>Total Kits Shipped:</b> ${d.kitsShipped || 0}
+        `;
+
+        if (d.alreadySubmitted) {
+          $('#alreadySubmittedCard').hidden = false;
+          const c = d.completion;
+          $('#submittedDetails').innerHTML = `
+            Submitted on ${c.submitted_at ? c.submitted_at.slice(0, 10) : '–'}.<br>
+            <b>Families Served:</b> ${c.families_served ?? '–'}<br>
+            <b>Kits Distributed:</b> ${c.kits_distributed ?? '–'}
+          `;
+          return;
+        }
+
+        if (prog.projectedParticipants) {
+          $('#familiesServed').value = prog.projectedParticipants;
+        }
+        if (d.kitsShipped) {
+          $('#kitsDistributed').value = d.kitsShipped;
+          $('#kitsHint').textContent = `Total kits shipped for this program: ${d.kitsShipped}`;
+        }
+
+        form.hidden = false;
+      })
+      .catch(() => {
+        statusMsg.textContent = 'Could not load completion form. Please check your connection and reload.';
+      });
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      errBox.hidden = true;
+      errBox.textContent = '';
+
+      if (!$('#confirmCheckbox').checked) {
+        errBox.textContent = 'Please check the box confirming that this program has concluded.';
+        errBox.hidden = false;
+        $('#confirmCheckbox').focus();
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting…';
+
+      try {
+        const payload = {
+          families_served: Number($('#familiesServed').value) || 0,
+          kits_distributed: Number($('#kitsDistributed').value) || 0,
+          completion_confirmed: true,
+          reflections: $('#reflections').value.trim(),
+          success_stories: $('#successStories').value.trim(),
+          challenges: $('#challenges').value.trim()
+        };
+
+        const res = await fetch('/api/programs/' + encodeURIComponent(token) + '/completion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to submit completion report.');
+        }
+
+        form.hidden = true;
+        $('#alreadySubmittedCard').hidden = false;
+        $('#alreadySubmittedCard').querySelector('h2').textContent = 'Thank you for submitting your completion report!';
+        $('#submittedDetails').textContent = 'Your program reflections and counts have been recorded and shared with the Strong Start team.';
+      } catch (err) {
+        errBox.textContent = err.message || 'Something went wrong. Please check your connection.';
+        errBox.hidden = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Completion Report';
+      }
+    };
+  </script>
+</body>
+</html>
