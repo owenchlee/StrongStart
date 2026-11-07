@@ -6,7 +6,6 @@
 <div class="who"><button type="button" class="sec sm profile" id="profileBtn" aria-haspopup="true" aria-expanded="false" aria-controls="profileMenu"><span class="avatar" id="av" aria-hidden="true"></span><span id="who"></span><svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button><div class="menu-pop" id="profileMenu" hidden><p class="menu-h">Preferences</p><fieldset><legend>Appearance</legend><label class="opt"><input type="radio" name="theme" value="system"> System</label><label class="opt"><input type="radio" name="theme" value="light"> Light</label><label class="opt"><input type="radio" name="theme" value="dark"> Dark</label></fieldset><button type="button" class="sec sm" id="signout" onclick="logout()">Sign out</button></div></div></div></header>
 <main class="wide" id="main" tabindex="-1">
 <h2 class="page-title" id="pageTitle">Orders</h2>
-<div class="stats" id="stats" role="group" aria-label="Program overview"></div>
 <section id="partners" hidden></section><section id="training" hidden></section><section id="orders" hidden></section><section id="programs" hidden></section><section id="outstanding" hidden></section><section id="review" hidden></section><section id="trends" hidden></section><section id="rollup" hidden></section><section id="emails" hidden></section><section id="staff" hidden></section>
     <section id="userforms" hidden>
   <h2>User Forms</h2>
@@ -61,8 +60,11 @@ function enhanceTables() {
 async function refresh() {
   document.querySelectorAll('nav button').forEach((b) => { const on = b.dataset.t === tab; b.classList.toggle('on', on); if (on) { b.setAttribute('aria-current', 'page'); b.scrollIntoView({ block: 'nearest', inline: 'center' }); $('#pageTitle').textContent = b.textContent; } else b.removeAttribute('aria-current'); });
   TABS.forEach((t) => ($('#' + t).hidden = t !== tab));
-  const o = await j('/api/overview');
-  $('#stats').innerHTML = [
+  // The overview bar exists only on the Partners tab; on every other tab it is removed from the page.
+  $('#stats')?.remove();
+  const o = tab === 'partners' ? await j('/api/overview') : null;
+  if (o) $('#pageTitle').insertAdjacentHTML('afterend', '<div class="stats" id="stats" role="group" aria-label="Program overview"></div>');
+  if (o) $('#stats').innerHTML = [
     ['Partners', o.partners || 0],
     ['Active partners', o.activePartners || 0],
     ['Facilitators', o.facilitators],
