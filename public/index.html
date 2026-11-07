@@ -1,0 +1,92 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/style.css"><title>Baby Connections Dashboard</title></head><body>
+<header><div class="in"><h1>Baby Connections</h1>
+<nav><button data-t="orders" class="on">Orders</button><button data-t="programs">Programs &amp; feedback</button><button data-t="review">Review queue</button><button data-t="emails">Emails</button></nav></div></header>
+<main class="wide">
+<div class="stats" id="stats"></div>
+<section id="orders"></section><section id="programs" hidden></section><section id="review" hidden></section><section id="emails" hidden></section>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const j = (u, o) => fetch(u, o).then((r) => r.json());
+const date = (s) => (s ? s.slice(0, 10) : '–');
+let tab = 'orders';
+document.querySelectorAll('nav button').forEach((b) => (b.onclick = () => { tab = b.dataset.t; refresh(); }));
+
+async function refresh() {
+  document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('on', b.dataset.t === tab));
+  ['orders', 'programs', 'review', 'emails'].forEach((t) => ($('#' + t).hidden = t !== tab));
+  const o = await j('/api/overview');
+  $('#stats').innerHTML = [['Facilitators', o.facilitators], ['Open orders', o.openOrders], ['Programs', o.programs], ['Feedback responses', o.feedbackResponses], ['Needs review', o.needsReview]]
+    .map(([l, n]) => `<div class="stat"><b>${n}</b><span class="muted">${l}</span></div>`).join('')
+    + `<div class="stat"><b>${o.aiEnabled ? 'On' : 'Off'}</b><span class="muted">AI handwriting</span></div>`;
+  await { orders, programs, review, emails }[tab]();
+}
+
+async function orders() {
+  const rows = await j('/api/orders');
+  $('#orders').innerHTML = `
+  <details class="card wide-card"><summary><b>Simulate an email from a facilitator</b> <span class="muted">(until your email provider's webhook is connected)</span></summary>
+    <div class="row"><label>From<input id="se" type="email" placeholder="facilitator@example.org"></label><label>Name<input id="sn"></label></div>
+    <label>Subject<input id="ss" value="Kits for our next program"></label><label>Message<textarea id="sb" rows="2">Hi, we're running Baby Connections this fall and need kits.</textarea></label>
+    <p><button id="sim">Receive email</button> <span id="simmsg" class="muted"></span></p></details>
+  <div class="tbl"><table><tr><th>#</th><th>Facilitator</th><th>Program</th><th>Kits</th><th>Status</th><th>Dates</th><th></th></tr>
+  ${rows.map((r) => `<tr><td>${r.id}</td><td>${esc(r.facilitator || '')}<br><span class="muted">${esc(r.email)}</span></td><td>${esc(r.program || '–')}</td>
+    <td>${r.items.map((i) => `${i.qty} × ${esc(i.item)}`).join('<br>') || '–'}</td><td><span class="pill">${r.status.replace('_', ' ')}</span></td>
+    <td class="muted">ordered ${date(r.ordered_at)}<br>shipped ${date(r.shipped_at)}<br>received ${date(r.received_at)}</td>
+    <td>${r.status === 'ordered' ? `<button class="sm" onclick="ship(${r.id})">Mark shipped</button>` : r.status === 'form_sent' ? `<a class="muted" href="/order/${r.token}" target="_blank">form link</a>` : ''}</td></tr>`).join('') || '<tr><td colspan=7 class="muted">No orders yet.</td></tr>'}
+  </table></div>`;
+  $('#sim').onclick = async () => {
+    const r = await j('/api/inbound-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from: $('#se').value, name: $('#sn').value, subject: $('#ss').value, body: $('#sb').value }) });
+    $('#simmsg').textContent = r.error || 'Received. Order form emailed (see Emails tab).'; if (!r.error) refresh();
+  };
+}
+async function ship(id) { await j(`/api/orders/${id}/ship`, { method: 'POST' }); refresh(); }
+
+async function programs() {
+  const rows = await j('/api/programs');
+  $('#programs').innerHTML = `<div class="tbl"><table><tr><th>Program</th><th>Facilitator</th><th>Dates</th><th>Responses</th><th>Avg rating</th><th>Links</th><th></th></tr>
+  ${rows.map((p) => `<tr><td>${esc(p.name)}<br><span class="muted">${esc(p.location || '')}</span></td><td>${esc(p.facilitator || p.email)}</td>
+    <td class="muted">${date(p.start_date)} → ${date(p.end_date)}</td><td>${p.responses}${p.projected_participants ? ` / ${p.projected_participants}` : ''}${p.needs_review ? ` <span class="warn">(${p.needs_review} to review)</span>` : ''}</td>
+    <td>${p.avg_rating ?? '–'}</td><td><a href="/feedback/${p.id}" target="_blank">form</a> · <a href="/upload/${p.id}" target="_blank">upload photos</a> · <a href="/api/programs/${p.id}/qr.png" target="_blank">QR</a></td>
+    <td><button class="sm sec" onclick="report(${p.id})">Report</button></td></tr>`).join('') || '<tr><td colspan=7 class="muted">No programs yet. They are created when a facilitator submits an order form.</td></tr>'}
+  </table></div><div id="report"></div>`;
+}
+
+async function report(id) {
+  const r = await j(`/api/programs/${id}/report`);
+  const max = Math.max(1, ...r.ratingDistribution.map((d) => d.count));
+  $('#report').innerHTML = `<div class="card wide-card"><h1>${esc(r.program.name)} – feedback report</h1>
+  <div class="stats"><div class="stat"><b>${r.responses}</b><span class="muted">responses (${r.bySource.qr} online, ${r.bySource.photo} paper)</span></div>
+   <div class="stat"><b>${r.responseRate == null ? '–' : r.responseRate + '%'}</b><span class="muted">response rate</span></div>
+   <div class="stat"><b>${r.avgRating ?? '–'}</b><span class="muted">avg rating / 5</span></div>
+   <div class="stat"><b>${r.recommendPct == null ? '–' : r.recommendPct + '%'}</b><span class="muted">would recommend</span></div></div>
+  ${r.summary ? `<h2>Summary</h2><p>${esc(r.summary)}</p>` : '<p class="muted">Set ANTHROPIC_API_KEY to add an automatic written summary.</p>'}
+  <h2>Ratings</h2>${r.ratingDistribution.map((d) => `<div class="row" style="align-items:center"><span style="flex:0 0 30px">${d.rating}★</span><div style="flex:1"><div class="bar" style="width:${(d.count / max) * 100}%;min-width:2px"></div></div><span style="flex:0 0 30px">${d.count}</span></div>`).join('')}
+  <h2>Parent comments</h2>${r.comments.map((c) => `<div class="quote">${c.most_valued ? `<b>Valued:</b> ${esc(c.most_valued)}<br>` : ''}${c.suggestions ? `<b>Suggestion:</b> ${esc(c.suggestions)}` : ''} <span class="muted">(${c.source}${c.needs_review ? ', unreviewed' : ''})</span></div>`).join('') || '<p class="muted">No written comments yet.</p>'}</div>`;
+  $('#report').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function review() {
+  const rows = await j('/api/review-queue');
+  $('#review').innerHTML = rows.map((r) => `<div class="card wide-card" data-id="${r.id}"><b>${esc(r.program)}</b> <span class="muted">#${r.id}</span>
+   <div class="row"><div style="flex:0 0 240px"><a href="/api/feedback/${r.id}/image" target="_blank"><img class="thumb" src="/api/feedback/${r.id}/image"></a></div>
+   <div style="flex:2"><div class="row"><label>Rating (1-5)<input class="rt" type="number" min="1" max="5" value="${r.rating ?? ''}"></label>
+   <label>Recommend<select class="rc"><option value="">?</option><option value="1" ${r.would_recommend === 1 ? 'selected' : ''}>Yes</option><option value="0" ${r.would_recommend === 0 ? 'selected' : ''}>No</option></select></label></div>
+   <label>Valued most<textarea class="mv" rows="2">${esc(r.most_valued)}</textarea></label><label>Suggestions<textarea class="sg" rows="2">${esc(r.suggestions)}</textarea></label>
+   <p><button class="sm" onclick="saveFb(${r.id}, this)">Confirm &amp; save</button></p></div></div></div>`).join('') || '<p class="muted">Nothing to review.</p>';
+}
+async function saveFb(id, btn) {
+  const c = btn.closest('.card'), rc = c.querySelector('.rc').value;
+  await j('/api/feedback/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rating: c.querySelector('.rt').value, would_recommend: rc === '' ? null : rc === '1', most_valued: c.querySelector('.mv').value, suggestions: c.querySelector('.sg').value }) });
+  refresh();
+}
+
+async function emails() {
+  const e = await j('/api/emails');
+  $('#emails').innerHTML = `<h2>Outbox (sent by the system)</h2><div class="tbl"><table><tr><th>When</th><th>To</th><th>Subject</th><th></th></tr>${e.outbox.map((m) => `<tr><td class="muted">${m.created_at}</td><td>${esc(m.to_email)}</td><td>${esc(m.subject)}</td><td>${m.delivered ? '<span class="ok">sent</span>' : '<span class="muted">logged only</span>'}</td></tr><tr><td></td><td colspan=3 class="muted" style="white-space:pre-wrap">${esc(m.body)}</td></tr>`).join('')}</table></div>
+  <h2>Inbound from facilitators</h2><div class="tbl"><table><tr><th>When</th><th>From</th><th>Subject</th></tr>${e.inbound.map((m) => `<tr><td class="muted">${m.received_at}</td><td>${esc(m.from_email)}</td><td>${esc(m.subject)}</td></tr>`).join('')}</table></div>`;
+}
+refresh();
+</script></body></html>

@@ -1,0 +1,49 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/style.css"><title>Kit Order Form</title></head><body>
+<main><div class="card" id="box"><h1>Baby Connections kit order</h1><p class="muted" id="hi">Loading…</p>
+<form id="f" hidden>
+<label>Your name<input name="facilitator_name" required></label>
+<h2>Your program</h2>
+<label>Program name<input name="pname" required></label>
+<label>Location<input name="location"></label>
+<div class="row"><label>Start date<input type="date" name="start_date"></label><label>End date<input type="date" name="end_date"></label></div>
+<label>Projected number of participants<input type="number" min="1" name="projected" id="proj"></label>
+<h2>Kits needed</h2><div id="items"></div>
+<p class="muted" id="rec"></p>
+<h2>Delivery</h2>
+<label>Shipping address<textarea name="shipping_address" rows="3" required></textarea></label>
+<label>Requested delivery date<input type="date" name="requested_date"></label>
+<label>Notes<textarea name="notes" rows="2"></textarea></label>
+<p class="err" id="err"></p><button>Submit order</button></form></div></main>
+<script>
+const token = location.pathname.split('/').pop();
+const $ = (s) => document.querySelector(s);
+const f = $('#f');
+fetch('/api/order-form/' + token).then(async (r) => {
+  const d = await r.json();
+  if (!r.ok) return ($('#hi').textContent = d.error);
+  if (d.status !== 'form_sent') return ($('#hi').textContent = 'This order has already been submitted. Thank you!');
+  $('#hi').textContent = 'Ordering as ' + (d.name || d.email);
+  if (d.name) f.facilitator_name.value = d.name;
+  $('#items').innerHTML = d.kitItems.map((k) => `<div class="row" style="align-items:center"><span>${k}</span><input type="number" min="0" value="0" data-item="${k}"></div>`).join('');
+  f.hidden = false;
+});
+$('#proj').oninput = () => {
+  const n = +$('#proj').value;
+  $('#rec').textContent = n ? `Suggestion: ${n} participant kits, 1 facilitator kit and 1 manual.` : '';
+  if (n) { const set = (k, v) => { const e = document.querySelector(`[data-item="${k}"]`); if (e && +e.value === 0) e.value = v; }; set('Participant Kits', n); set('Facilitator Kits', 1); set('Facilitator Manuals', 1); }
+};
+f.onsubmit = async (e) => {
+  e.preventDefault(); $('#err').textContent = '';
+  const body = {
+    facilitator_name: f.facilitator_name.value,
+    program: { name: f.pname.value, location: f.location.value, start_date: f.start_date.value, end_date: f.end_date.value, projected_participants: f.projected.value },
+    items: [...document.querySelectorAll('[data-item]')].map((i) => ({ item: i.dataset.item, qty: i.value })),
+    shipping_address: f.shipping_address.value, requested_date: f.requested_date.value, notes: f.notes.value,
+  };
+  const r = await fetch('/api/order-form/' + token, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json();
+  if (!r.ok) return ($('#err').textContent = d.error);
+  $('#box').innerHTML = '<h1>Order received</h1><p>Thank you! A confirmation email is on its way, and we\'ll email you again when your kits ship.</p>';
+};
+</script></body></html>

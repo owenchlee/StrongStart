@@ -1,0 +1,25 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/style.css"><title>Upload Paper Feedback</title></head><body>
+<main><div class="card"><h1>Upload paper feedback forms</h1><p class="muted" id="sub">Loading…</p>
+<form id="f" hidden>
+<label>Photos of completed forms (one form per photo)<input type="file" name="photos" accept="image/*" multiple capture="environment" required></label>
+<p class="muted">Lay each form flat in good light. We read the handwriting automatically; anything unclear is flagged for a quick human check.</p>
+<p class="err" id="err"></p><button id="go">Upload &amp; read forms</button></form>
+<div id="out"></div></div></main>
+<script>
+const id = location.pathname.split('/').pop(), $ = (s) => document.querySelector(s), f = $('#f');
+fetch(`/api/programs/${id}/public`).then(async (r) => {
+  if (!r.ok) return ($('#sub').textContent = 'Program not found.');
+  $('#sub').textContent = (await r.json()).name; f.hidden = false;
+});
+f.onsubmit = async (e) => {
+  e.preventDefault(); $('#go').disabled = true; $('#go').textContent = 'Reading handwriting…'; $('#err').textContent = '';
+  const r = await fetch(`/api/feedback/${id}/photos`, { method: 'POST', body: new FormData(f) });
+  const d = await r.json(); $('#go').disabled = false; $('#go').textContent = 'Upload & read forms';
+  if (!r.ok) return ($('#err').textContent = d.error);
+  const flagged = d.results.filter((x) => x.needsReview).length;
+  $('#out').innerHTML = `<p class="ok">${d.results.length} form(s) saved.</p>` +
+    (flagged ? `<p class="warn">${flagged} need a quick review${d.aiEnabled ? '' : ' (AI handwriting reading is not configured yet)'}.</p>` : '');
+  f.reset();
+};
+</script></body></html>

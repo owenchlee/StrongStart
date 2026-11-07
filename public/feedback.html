@@ -1,0 +1,31 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/style.css"><title>Parent Feedback</title></head><body>
+<main><div class="card" id="box"><h1>Baby Connections feedback</h1><p class="muted" id="sub">Loading…</p>
+<form id="f" hidden>
+<label>How helpful was the program?</label>
+<div class="stars" role="radiogroup">
+ <label><input type="radio" name="rating" value="1" required><span>1</span></label><label><input type="radio" name="rating" value="2"><span>2</span></label>
+ <label><input type="radio" name="rating" value="3"><span>3</span></label><label><input type="radio" name="rating" value="4"><span>4</span></label>
+ <label><input type="radio" name="rating" value="5"><span>5</span></label></div>
+<p class="muted">1 = not helpful, 5 = very helpful</p>
+<label>Would you recommend it to another parent?</label>
+<div class="row"><label><input type="radio" name="rec" value="yes" style="width:auto"> Yes</label><label><input type="radio" name="rec" value="no" style="width:auto"> No</label></div>
+<label>What did you value most?<textarea name="most_valued" rows="3"></textarea></label>
+<label>Any suggestions?<textarea name="suggestions" rows="3"></textarea></label>
+<p class="err" id="err"></p><button>Send feedback</button></form></div></main>
+<script>
+const id = location.pathname.split('/').pop(), $ = (s) => document.querySelector(s), f = $('#f');
+fetch(`/api/programs/${id}/public`).then(async (r) => {
+  if (!r.ok) return ($('#sub').textContent = 'Program not found.');
+  const p = await r.json(); $('#sub').textContent = p.name + ' – thank you for sharing your thoughts. It takes about a minute and is anonymous.'; f.hidden = false;
+});
+f.onsubmit = async (e) => {
+  e.preventDefault();
+  const rec = f.rec.value;
+  const r = await fetch('/api/feedback/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rating: f.rating.value, would_recommend: rec || null, most_valued: f.most_valued.value, suggestions: f.suggestions.value }) });
+  const d = await r.json();
+  if (!r.ok) return ($('#err').textContent = d.error);
+  $('#box').innerHTML = '<h1>Thank you!</h1><p>Your feedback helps us improve Baby Connections for every family.</p>';
+};
+</script></body></html>
