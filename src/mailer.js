@@ -53,7 +53,7 @@ export async function sendMail(to, subject, body, opts = {}) {
     return;
   }
   try {
-    await transport.sendMail({ from: FROM, to, subject, text: body, html });
+    await transport.sendMail({ from: FROM, to, subject, text: body, html, attachments: opts.attachments });
     try { await run('UPDATE outbox SET delivered=1 WHERE id=$1', [id]); }
     catch { await run('UPDATE outbox SET delivered=true WHERE id=$1', [id]).catch(() => {}); } // integer or boolean column
   } catch (e) {

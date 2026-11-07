@@ -197,7 +197,11 @@ async function updatePartnerStage(id, stage) {
 }
 
 async function viewPartner(id) {
-  const p = await j(`/api/partners/${id}`);
+  const [p, docs, msgs] = await Promise.all([
+    j(`/api/partners/${id}`),
+    j(`/api/partners/${id}/documents`).catch(() => []),
+    j(`/api/partners/${id}/messages`).catch(() => [])
+  ]);
   if (p.error) return alert(p.error);
 
   $('#partnerDetailBox').innerHTML = `
@@ -211,10 +215,11 @@ async function viewPartner(id) {
       </div>
 
       <div class="row" style="margin-top:var(--s3)">
-        <div><b>Contact:</b> ${esc(p.contact_name || '–')} &bull; ${esc(p.contact_email || '–')} &bull; ${esc(p.contact_phone || '–')}</div>
-        <div><b>Stage:</b> <span class="pill st-ordered">${esc(p.stage)}</span></div>
+        <div><b>Contact:</b> ${esc(p.contact_name || '–')} &bull; <a href="mailto:${esc(p.contact_email)}">${esc(p.contact_email || '–')}</a> &bull; ${esc(p.contact_phone || '–')}</div>
+        <div><b>Current Stage:</b> <span class="pill st-ordered">${esc(p.stage)}</span></div>
       </div>
 
+      <!-- PDSA Agreement Section -->
       <div style="margin-top:var(--s3);background:var(--surface-2);padding:var(--s3);border-radius:var(--r-md)">
         <h4 style="margin:0 0 var(--s2)">Program Delivery &amp; Support Agreement (PDSA)</h4>
         <div class="row">
@@ -235,12 +240,104 @@ async function viewPartner(id) {
 
       <div style="margin-top:var(--s3)">
         <label>Relationship Notes / Follow-ups
-          <textarea id="pdetNotes" rows="3">${esc(p.notes || '')}</textarea>
+          <textarea id="pdetNotes" rows="2">${esc(p.notes || '')}</textarea>
         </label>
         <p><button class="sm" onclick="savePartnerDetails(${p.id})">Save Agreement &amp; Notes</button></p>
       </div>
 
-      <h4>Linked Facilitators (${(p.facilitators || []).length})</h4>
+      <!-- Uploaded Documents & Agreements -->
+      <div style="margin-top:var(--s4);padding-top:var(--s3);border-top:1px solid var(--line)">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--s2)">
+          <h4 style="margin:0">Partner Documents &amp; Agreements (${docs.length})</h4>
+          <div>
+            <input type="file" id="pUploadInput" multiple style="display:none" onchange="uploadPartnerDocs(${p.id})">
+            <button class="sm" onclick="$('#pUploadInput').click()">+ Upload Document (PDF / Agreement)</button>
+          </div>
+        </div>
+        <div class="tbl" style="margin-top:var(--s2)">
+          <table>
+            <tr><th>Document Name</th><th>Uploaded By</th><th>Date</th><th>Size</th><th>Actions</th></tr>
+            ${docs.map((d) => `
+              <tr>
+                <td><b>${esc(d.original_name)}</b></td>
+                <td><span class="pill st-off">${esc(d.uploaded_by)}</span></td>
+                <td class="muted">${date(d.created_at)}</td>
+                <td class="muted">${d.file_size ? Math.round(d.file_size / 1024) + ' KB' : '–'}</td>
+                <td>
+                  <a class="btn sm sec" href="/api/partners/${p.id}/documents/${d.id}/download" target="_blank" rel="noopener">Download</a>
+                  <button class="sm sec" onclick="deletePartnerDoc(${p.id}, ${d.id})" style="color:var(--err);margin-left:4px">Delete</button>
+                </td>
+              </tr>
+            `).join('') || '<tr><td colspan="5" class="muted">No documents uploaded yet. Upload PDSA agreements, onboarding packs, or certificates here.</td></tr>'}
+          </table>
+        </div>
+      </div>
+
+      <!-- Two-Way CRM Conversation Timeline -->
+      <div style="margin-top:var(--s4);padding-top:var(--s3);border-top:1px solid var(--line)">
+        <h4 style="margin:0 0 var(--s2)">Conversation History &amp; Replies (${msgs.length})</h4>
+        <div style="display:flex;flex-direction:column;gap:var(--s3);max-height:350px;overflow-y:auto;padding-right:var(--s2)">
+          ${msgs.map((m) => `
+            <div class="card" style="margin:0;border-left:4px solid ${m.direction === 'inbound' ? 'var(--ok)' : 'var(--primary)'};background:var(--surface-2)">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:var(--fs-sm)">
+                <b>${m.direction === 'inbound' ? `<span style="color:var(--ok)">&larr; Inbound Email from ${esc(m.from_email)}</span>` : `<span style="color:var(--primary)">&rarr; Staff Sent to ${esc(m.to_email)}</span>`}</b>
+                <span class="muted">${date(m.created_at)} ${String(m.created_at).slice(11, 16)}</span>
+              </div>
+              <div style="margin-top:var(--s1);font-weight:600">${esc(m.subject || 'No Subject')}</div>
+              <div style="margin-top:var(--s1);white-space:pre-wrap;font-size:var(--fs-sm);line-height:1.5">${esc(m.body)}</div>
+              ${Array.isArray(m.attachments) && m.attachments.length ? `
+                <div style="margin-top:var(--s2);display:flex;gap:var(--s2);flex-wrap:wrap">
+                  ${m.attachments.map((at) => `<a class="pill st-on" href="${esc(at.url)}" target="_blank" rel="noopener" style="text-decoration:none">&bull; ${esc(at.name)}</a>`).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `).join('') || '<p class="muted">No messages yet. Send an email below or receive replies from the partner.</p>'}
+        </div>
+
+        <!-- CRM Reply Box -->
+        <div style="margin-top:var(--s4);background:var(--surface);border:1px solid var(--primary);border-radius:var(--r-md);padding:var(--s3)">
+          <h4 style="margin:0 0 var(--s2);color:var(--primary-text)">Reply to Partner / Facilitator</h4>
+          <label>Subject
+            <input id="crmReplySubject" value="Re: Baby Connections Partnership - ${esc(p.name)}">
+          </label>
+          <label>Message
+            <textarea id="crmReplyBody" rows="4" placeholder="Type your message to ${esc(p.contact_name || p.contact_email)}…"></textarea>
+          </label>
+
+          ${docs.length ? `
+            <div style="margin-top:var(--s2)">
+              <small><b>Attach Uploaded Documents:</b></small>
+              <div style="display:flex;gap:var(--s3);flex-wrap:wrap;margin-top:var(--s1)">
+                ${docs.map((d) => `
+                  <label style="display:inline-flex;align-items:center;gap:4px;margin:0;font-weight:normal;font-size:var(--fs-sm);cursor:pointer">
+                    <input type="checkbox" class="crmDocCheckbox" value="${d.id}" checked>
+                    ${esc(d.original_name)}
+                  </label>
+                `).join('')}
+              </div>
+            </div>
+          ` : '<p class="muted" style="font-size:var(--fs-sm);margin:var(--s1) 0">No documents uploaded yet to attach.</p>'}
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:var(--s3);flex-wrap:wrap;gap:var(--s2)">
+            <label style="margin:0;display:flex;align-items:center;gap:var(--s2);font-weight:normal">
+              <span>Advance stage to:</span>
+              <select id="crmReplyStage" style="min-height:32px;padding:2px 6px">
+                <option value="">Keep current (${esc(p.stage)})</option>
+                <option value="initial_contact">Initial Contact</option>
+                <option value="discovery">Discovery</option>
+                <option value="pdsa_review">PDSA Review</option>
+                <option value="pdsa_signed">PDSA Signed</option>
+                <option value="active">Active Partner</option>
+              </select>
+            </label>
+            <button class="sm" id="crmSendBtn" onclick="sendPartnerReply(${p.id})">Send Email &amp; Documents</button>
+          </div>
+          <p id="crmReplyMsg" style="margin:var(--s2) 0 0" class="muted"></p>
+        </div>
+      </div>
+
+      <!-- Linked Facilitators & Programs -->
+      <h4 style="margin-top:var(--s5)">Linked Facilitators (${(p.facilitators || []).length})</h4>
       ${(p.facilitators || []).map((f) => `<div>&bull; <b>${esc(f.name || f.email)}</b> (${esc(f.email)})</div>`).join('') || '<p class="muted">No facilitators linked yet.</p>'}
       <div style="margin-top:var(--s2);display:flex;gap:var(--s2);align-items:flex-end">
         <label style="margin:0;flex:1">Link facilitator by email
@@ -254,6 +351,62 @@ async function viewPartner(id) {
     </div>
   `;
   $('#partnerDetailBox').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function uploadPartnerDocs(partnerId) {
+  const input = $('#pUploadInput');
+  if (!input.files || !input.files.length) return;
+  const formData = new FormData();
+  for (const f of input.files) formData.append('files', f);
+
+  const res = await fetch(`/api/partners/${partnerId}/documents`, {
+    method: 'POST',
+    body: formData
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) alert(data.error || 'Upload failed');
+  else viewPartner(partnerId);
+}
+
+async function deletePartnerDoc(partnerId, docId) {
+  if (!confirm('Are you sure you want to remove this document?')) return;
+  await j(`/api/partners/${partnerId}/documents/${docId}`, { method: 'DELETE' });
+  viewPartner(partnerId);
+}
+
+async function sendPartnerReply(partnerId) {
+  const subject = $('#crmReplySubject').value.trim();
+  const body = $('#crmReplyBody').value.trim();
+  const stage = $('#crmReplyStage').value;
+  const msgEl = $('#crmReplyMsg');
+  const btn = $('#crmSendBtn');
+
+  if (!body) return alert('Please enter a message body');
+
+  const selectedDocs = [...document.querySelectorAll('.crmDocCheckbox:checked')].map((c) => Number(c.value));
+
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  msgEl.textContent = '';
+
+  try {
+    const res = await jsonPost(`/api/partners/${partnerId}/reply`, {
+      subject,
+      body,
+      stage: stage || undefined,
+      document_ids: selectedDocs
+    });
+
+    if (res.error) throw new Error(res.error);
+
+    alert('Email sent successfully with attached documents!');
+    viewPartner(partnerId);
+    refresh();
+  } catch (err) {
+    alert(err.message || 'Failed to send reply');
+    btn.disabled = false;
+    btn.textContent = 'Send Email & Documents';
+  }
 }
 
 async function savePartnerDetails(id) {

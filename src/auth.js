@@ -89,6 +89,7 @@ const PUBLIC_API = [
   ['POST', /^\/api\/training\/register\/?$/],              // self-service facilitator training registration
   ['GET', /^\/api\/certificates\/[^/]+\/?$/],              // digital certificate verification
   ['GET', /^\/api\/resources\/?$/],                        // resources hub data
+  ['GET', /^\/api\/partners\/\d+\/documents\/\d+\/download\/?$/], // document download for partners/facilitators
 ];
 const isDashboardPage = (p) => /^\/(index\.html|compose\.html)?$/i.test(p);
 const isApi = (p) => /^\/api(\/|$)/i.test(p);

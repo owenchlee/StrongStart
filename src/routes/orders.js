@@ -99,13 +99,30 @@ orders.post('/api/inbound-email', async (req, res) => {
   const hints = parseHints(m.subject, m.body);
 
   const t = token();
+  const matchedPartner = await one(
+    `SELECT p.id FROM partners p WHERE lower(p.contact_email) = $1
+     UNION
+     SELECT f.partner_id AS id FROM facilitators f WHERE lower(f.email) = $1 AND f.partner_id IS NOT NULL
+     LIMIT 1`,
+    [m.email]
+  );
+
+  if (matchedPartner?.id) {
+    await run(
+      `INSERT INTO partner_messages (partner_id, direction, from_email, to_email, subject, body)
+       VALUES ($1, 'inbound', $2, $3, $4, $5)`,
+      [matchedPartner.id, m.email, STAFF_EMAIL, m.subject, m.body]
+    );
+  }
+
   const { fac, orderId } = await tx(async (q) => {
-    await q.run('INSERT INTO facilitators (email, name) VALUES ($1,$2) ON CONFLICT(email) DO UPDATE SET name=COALESCE(facilitators.name, excluded.name)', [m.email, m.name]);
+    await q.run('INSERT INTO facilitators (email, name, partner_id) VALUES ($1,$2,$3) ON CONFLICT(email) DO UPDATE SET name=COALESCE(facilitators.name, excluded.name), partner_id=COALESCE(facilitators.partner_id, excluded.partner_id)',
+      [m.email, m.name, matchedPartner?.id || null]);
     const fac = await q.one('SELECT * FROM facilitators WHERE email=$1', [m.email]);
     // Step 2: create an order and reply with its personal order-form link.
     const { rows } = await q.run('INSERT INTO orders (token, facilitator_id) VALUES ($1,$2) RETURNING id', [t, fac.id]);
-    await q.run('INSERT INTO inbound_emails (facilitator_id, from_email, subject, body, order_id, hints) VALUES ($1,$2,$3,$4,$5,$6::jsonb)',
-      [fac.id, m.email, m.subject, m.body, rows[0].id, JSON.stringify(hints)]);
+    await q.run('INSERT INTO inbound_emails (facilitator_id, from_email, subject, body, order_id, hints, partner_id) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7)',
+      [fac.id, m.email, m.subject, m.body, rows[0].id, JSON.stringify(hints), matchedPartner?.id || null]);
     return { fac, orderId: rows[0].id };
   });
 
