@@ -1,9 +1,9 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/style.css"><title>Baby Connections Dashboard</title></head><body>
+<link rel="stylesheet" href="/style.css"><script src="/theme.js"></script><title>Baby Connections Dashboard</title></head><body>
 <a class="skip" href="#main">Skip to content</a>
-<header class="site-head"><div class="in"><h1 class="brand"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle class="a" cx="12" cy="17" r="9"/><circle class="b" cx="21" cy="17" r="9"/></svg><span>Baby Connections <small>Strong Start staff</small></span></h1>
+<header class="site-head"><div class="in"><h1 class="brand"><img class="logo logo-light" src="/img/strong-start-logo.png" alt="Strong Start, a children's literacy charity"><img class="logo logo-dark" src="/img/strong-start-logo-dark.png" alt="" aria-hidden="true"><span class="app">Baby Connections<small>Staff</small></span></h1>
 <nav aria-label="Dashboard sections"><button data-t="partners">Partners</button><button data-t="orders" class="on">Orders</button><button data-t="programs">Programs &amp; feedback</button><button data-t="outstanding">Outstanding surveys</button><button data-t="review">Review queue</button><button data-t="trends">Trends</button><button data-t="rollup">Rollup</button><button data-t="emails">Emails</button><button data-t="staff" id="staffTab" hidden>Staff</button><a href="/compose.html">Compose email</a></nav>
-<div class="who"><span class="muted" id="who"></span><button class="sec sm" onclick="logout()">Sign out</button></div></div></header>
+<div class="who"><button type="button" class="sec sm profile" id="profileBtn" aria-haspopup="true" aria-expanded="false" aria-controls="profileMenu"><span class="avatar" id="av" aria-hidden="true"></span><span id="who"></span><svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button><div class="menu-pop" id="profileMenu" hidden><p class="menu-h">Preferences</p><fieldset><legend>Appearance</legend><label class="opt"><input type="radio" name="theme" value="system"> System</label><label class="opt"><input type="radio" name="theme" value="light"> Light</label><label class="opt"><input type="radio" name="theme" value="dark"> Dark</label></fieldset><button type="button" class="sec sm" id="signout" onclick="logout()">Sign out</button></div></div></div></header>
 <main class="wide" id="main" tabindex="-1">
 <h2 class="page-title" id="pageTitle">Orders</h2>
 <div class="stats" id="stats" role="group" aria-label="Program overview"></div>
@@ -22,8 +22,8 @@ const jsonPost = (u, b, method = 'POST') => j(u, { method, headers: { 'Content-T
 let me = null;
 fetch('/api/me').then((r) => r.json()).then((m) => {
   if (!m.staff) { location.href = '/login.html'; return; }
-  me = m.staff; $('#who').textContent = m.staff.name || m.staff.email;
-  if (m.authDisabled) document.querySelector('.who button').hidden = true; // no sign-out while login is off
+  me = m.staff; $('#who').textContent = m.staff.name || m.staff.email; $('#av').textContent = ($('#who').textContent.trim()[0] || '?').toUpperCase();
+  if (m.authDisabled) $('#signout').hidden = true; // no sign-out while login is off
   $('#staffTab').hidden = m.staff.role !== 'admin';
 });
 async function logout() { await fetch('/auth/logout', { method: 'POST' }); location.href = '/login.html'; }
