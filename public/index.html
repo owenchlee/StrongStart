@@ -2,12 +2,22 @@
 <link rel="stylesheet" href="/style.css"><script src="/theme.js"></script><title>Baby Connections Dashboard</title></head><body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-head"><div class="in"><h1 class="brand"><img class="logo logo-light" src="/img/strong-start-logo.png" alt="Strong Start, a children's literacy charity"><img class="logo logo-dark" src="/img/strong-start-logo-dark.png" alt="" aria-hidden="true"><span class="app">Baby Connections<small>Staff</small></span></h1>
-<nav aria-label="Dashboard sections"><button data-t="partners">Partners</button><button data-t="orders" class="on">Orders</button><button data-t="programs">Programs &amp; feedback</button><button data-t="outstanding">Outstanding surveys</button><button data-t="review">Review queue</button><button data-t="trends">Trends</button><button data-t="rollup">Rollup</button><button data-t="emails">Emails</button><button data-t="staff" id="staffTab" hidden>Staff</button><a href="/compose.html">Compose email</a></nav>
+<nav aria-label="Dashboard sections"><button data-t="partners">Partners</button><button data-t="training">Training</button><button data-t="orders" class="on">Orders</button><button data-t="programs">Programs &amp; feedback</button><button data-t="outstanding">Outstanding surveys</button><button data-t="review">Review queue</button><button data-t="trends">Trends</button><button data-t="rollup">Rollup</button><button data-t="emails">Emails</button><button data-t="staff" id="staffTab" hidden>Staff</button><a href="/resources" target="_blank" rel="noopener">Knowledge Centre</a><a href="/compose.html">Compose email</a><button data-t="userforms">User Forms</button></nav>
 <div class="who"><button type="button" class="sec sm profile" id="profileBtn" aria-haspopup="true" aria-expanded="false" aria-controls="profileMenu"><span class="avatar" id="av" aria-hidden="true"></span><span id="who"></span><svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button><div class="menu-pop" id="profileMenu" hidden><p class="menu-h">Preferences</p><fieldset><legend>Appearance</legend><label class="opt"><input type="radio" name="theme" value="system"> System</label><label class="opt"><input type="radio" name="theme" value="light"> Light</label><label class="opt"><input type="radio" name="theme" value="dark"> Dark</label></fieldset><button type="button" class="sec sm" id="signout" onclick="logout()">Sign out</button></div></div></div></header>
 <main class="wide" id="main" tabindex="-1">
 <h2 class="page-title" id="pageTitle">Orders</h2>
 <div class="stats" id="stats" role="group" aria-label="Program overview"></div>
-<section id="partners" hidden></section><section id="orders"></section><section id="programs" hidden></section><section id="outstanding" hidden></section><section id="review" hidden></section><section id="trends" hidden></section><section id="rollup" hidden></section><section id="emails" hidden></section><section id="staff" hidden></section>
+<section id="partners" hidden></section><section id="training" hidden></section><section id="orders" hidden></section><section id="programs" hidden></section><section id="outstanding" hidden></section><section id="review" hidden></section><section id="trends" hidden></section><section id="rollup" hidden></section><section id="emails" hidden></section><section id="staff" hidden></section>
+    <section id="userforms" hidden>
+  <h2>User Forms</h2>
+  <div class="form-list">
+    <a class="btn sec sm" href="/partner-interest.html" target="_blank" rel="noopener">Public EOI Form</a>
+    <a class="btn sec sm" href="/order.html" target="_blank" rel="noopener">Order Form</a>
+    <a class="btn sec sm" href="/completion.html" target="_blank" rel="noopener">Program Completion Form</a>
+    <a class="btn sec sm" href="/training-register.html" target="_blank" rel="noopener">Training Registration Form</a>
+    <a class="btn sec sm" href="/feedback.html" target="_blank" rel="noopener">Feedback Form</a>
+  </div>
+</section>
 </main>
 <script>
 const $ = (s) => document.querySelector(s);
@@ -30,7 +40,7 @@ async function logout() { await fetch('/auth/logout', { method: 'POST' }); locat
 const date = (s) => (s ? String(s).slice(0, 10) : '–');
 const num = (n, d = 2) => (n == null ? '–' : +Number(n).toFixed(d));
 const enc = encodeURIComponent;
-const TABS = ['partners', 'orders', 'programs', 'outstanding', 'review', 'trends', 'rollup', 'emails', 'staff'];
+const TABS = ['partners', 'orders', 'programs', 'outstanding', 'review', 'trends', 'rollup', 'emails', 'staff', 'userforms'];
 let tab = 'orders';
 document.querySelectorAll('nav button').forEach((b) => (b.onclick = () => { tab = b.dataset.t; refresh(); }));
 
@@ -76,6 +86,15 @@ const STAGE_LABELS = {
   active: 'Active Partner',
   inactive: 'Inactive'
 };
+const STAGE_COLORS = {
+  expression_of_interest: '#6c9',
+  initial_contact: '#9c6',
+  discovery: '#69c',
+  pdsa_review: '#c96',
+  pdsa_signed: '#c69',
+  active: '#6c9',
+  inactive: '#999'
+};
 
 async function renderPartners() {
   const [pipeline, partnerList] = await Promise.all([
@@ -87,15 +106,15 @@ async function renderPartners() {
   $('#partners').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--s2);margin-bottom:var(--s3)">
       <div style="display:flex;gap:var(--s2);flex-wrap:wrap">
-        <a class="btn sec sm" href="/partner-interest.html" target="_blank" rel="noopener">Open Public EOI Form</a>
-        <button class="sm sec" id="copyEoiBtn" onclick="navigator.clipboard.writeText(location.origin + '/partner-interest.html').then(() => alert('Public EOI link copied to clipboard!'))">Copy EOI Link</button>
+        
+        
       </div>
       <button class="sm" onclick="$('#addPartnerDetails').open = true; $('#addPartnerDetails').scrollIntoView({behavior:'smooth'})">+ New Partner</button>
     </div>
 
     <div class="stats" style="margin-bottom:var(--s4);grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
       ${stages.map((st) => `
-        <div class="stat${partnerFilterStage === st ? ' attn' : ''}" style="cursor:pointer" onclick="setPartnerFilter('${st}')">
+        <div class="stat${partnerFilterStage === st ? ' attn' : ''}" style="cursor:pointer;color:#fff;background:${STAGE_COLORS[st] || '#777'};" onclick="setPartnerFilter('${st}')">
           <b>${pipeline.counts[st] || 0}</b>
           <span class="muted">${STAGE_LABELS[st] || st}</span>
         </div>
@@ -216,11 +235,11 @@ async function viewPartner(id) {
 
       <div class="row" style="margin-top:var(--s3)">
         <div><b>Contact:</b> ${esc(p.contact_name || '–')} &bull; <a href="mailto:${esc(p.contact_email)}">${esc(p.contact_email || '–')}</a> &bull; ${esc(p.contact_phone || '–')}</div>
-        <div><b>Current Stage:</b> <span class="pill st-ordered">${esc(p.stage)}</span></div>
+        <div><b>Current Stage:</b> <span class="pill" style="background:${STAGE_COLORS[p.stage] || '#777'};color:#fff;">${esc(p.stage)}</span></div>
       </div>
 
       <!-- PDSA Agreement Section -->
-      <div style="margin-top:var(--s3);background:var(--surface-2);padding:var(--s3);border-radius:var(--r-md)">
+      <div style="${p.stage === 'pdsa_review' ? 'margin-top:var(--s3);background:var(--surface-2);padding:var(--s3);border-radius:var(--r-md)' : 'display:none'}">
         <h4 style="margin:0 0 var(--s2)">Program Delivery &amp; Support Agreement (PDSA)</h4>
         <div class="row">
           <label>Status
