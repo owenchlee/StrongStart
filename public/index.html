@@ -666,7 +666,6 @@ function orderEditor(r) {
 }
 async function orders() {
   const rows = await j('/api/orders');
-<<<<<<< HEAD
   const list = Array.isArray(rows) ? rows : [];
   if (editOrder && !list.some((r) => r.id === editOrder && r.status === 'ordered')) editOrder = null;
   $('#orders').innerHTML = `<p class="notice" role="status" data-tabmsg></p>
@@ -685,26 +684,6 @@ async function orders() {
     <td><span class="pill st-${esc(r.status)}">${esc(String(r.status).replace('_', ' '))}</span></td>
     <td class="muted">ordered ${date(r.ordered_at)}<br>shipped ${date(r.shipped_at)}<br>received ${date(r.received_at)}</td>
     <td><div class="row-actions">${orderActions(r)}</div></td></tr>${editOrder === r.id ? orderEditor(r) : ''}`).join('') || '<tr><td colspan=8 class="muted">No orders yet.</td></tr>'}
-=======
-  $('#orders').innerHTML = `
-  <details class="card wide-card"><summary><b>Simulate an email from a facilitator</b> <span class="muted">(until your email provider's webhook is connected)</span></summary>
-    <div class="row"><label>From<input id="se" type="email" placeholder="facilitator@example.org" autocomplete="off"></label><label>Name<input id="sn"></label></div>
-    <label>Subject<input id="ss" value="Kits for our next program"></label><label>Message<textarea id="sb" rows="2">Hi, we're running Baby Connections this fall and need kits.</textarea></label>
-    <p><button id="sim">Receive email</button> <span id="simmsg" class="muted"></span></p></details>
-  <div class="tbl"><table><tr><th>#</th><th>Facilitator</th><th>Program</th><th>Kits</th><th>Status</th><th>Dates</th><th></th></tr>
-  ${(Array.isArray(rows) ? rows : []).map((r) => `<tr><td>${esc(r.id)}</td><td>${esc(r.facilitator || '')}<br><span class="muted">${esc(r.email)}</span></td><td>${esc(r.program || '–')}</td>
-    <td>${(r.items || []).map((i) => `${esc(i.qty)} × ${esc(i.item)}`).join('<br>') || '–'}</td><td>
-  <span class="pill st-${esc(r.status)}">${esc(String(r.status).replace('_', ' '))}</span>
-  <select onchange="setStatus(${r.id}, this)" class="status-select" style="margin-left:4px;">
-    <option value="form_sent" ${r.status==='form_sent' ? 'selected' : ''}>Request Received</option>
-    <option value="ordered" ${r.status==='ordered' ? 'selected' : ''}>Processing</option>
-    <option value="shipped" ${r.status==='shipped' ? 'selected' : ''}>Sent</option>
-    <option value="received" ${r.status==='received' ? 'selected' : ''}>Delivered</option>
-  </select>
-</td>
-    <td class="muted">ordered ${date(r.ordered_at)}<br>shipped ${date(r.shipped_at)}<br>received ${date(r.received_at)}</td>
-    <td>${r.status === 'form_sent' ? `<a class="muted" href="/order/${enc(r.token)}" target="_blank" rel="noopener">form link</a>` : ''}</td></tr>`).join('') || '<tr><td colspan=7 class="muted">No orders yet.</td></tr>'}
->>>>>>> frontend
   </table></div>`;
   $('#sim').onclick = async () => {
     const email = $('#se').value.trim();
@@ -757,22 +736,6 @@ async function remindAll(btn) {
   await refresh();
   tell(r.error || `Sent ${plural(r.sent || 0, 'reminder')}.`, r.error ? 'err' : 'ok');
 }
-<<<<<<< HEAD
-=======
-async function setStatus(id, sel) {
-  const status = sel.value;
-  if (!status) return;
-  let res;
-  if (status === 'shipped') {
-    // Use the ship endpoint so packing-slip email is sent and shipped_at is set
-    res = await j(`/api/orders/${id}/ship`, { method: 'POST' });
-  } else {
-    res = await jsonPost(`/api/orders/${id}/status`, { status }, 'PATCH');
-  }
-  if (res.error) { alert(res.error); sel.value = sel.dataset.prev || ''; return; }
-  refresh();
-}
->>>>>>> frontend
 
 // ---- Programs ----
 const pf = { from: '', to: '', facilitator: '', partner: '', status: '' };
