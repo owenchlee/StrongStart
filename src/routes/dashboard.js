@@ -61,7 +61,7 @@ dashboard.get('/api/programs/:id/report', async (req, res) => {
 
 dashboard.get('/api/review-queue', async (_req, res) => {
   res.json(await query(`SELECT f.id, f.program_id, f.source, f.rating, f.would_recommend, f.most_valued, f.suggestions,
-      f.raw_text, f.image_path, f.image_url, f.language, f.translated_text, f.audio_transcript, f.needs_review, f.created_at,
+      f.raw_text, f.image_path, f.image_url, f.language, f.translated_text, f.summary, f.audio_transcript, f.needs_review, f.created_at,
       p.name AS program
     FROM feedback f JOIN programs p ON p.id=f.program_id WHERE f.needs_review=true ORDER BY f.id`));
 });

@@ -7,6 +7,7 @@
   function apply() { var p = get(); root.setAttribute('data-theme', p === 'system' ? (mq && mq.matches ? 'dark' : 'light') : p); }
   function set(p) { try { if (p === 'system') localStorage.removeItem(KEY); else localStorage.setItem(KEY, p); } catch (e) {} apply(); }
   apply();
+  window.bcTheme = { get: get, set: set };
   if (mq && mq.addEventListener) mq.addEventListener('change', function () { if (get() === 'system') apply(); });
 
   document.addEventListener('DOMContentLoaded', function () {

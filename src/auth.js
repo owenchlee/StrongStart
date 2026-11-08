@@ -75,7 +75,7 @@ export async function currentStaff(req) {
 // of public routes (see WORKLOAD.md "Who can access what"). New API routes are protected automatically.
 const PUBLIC_API = [
   ['POST', /^\/api\/inbound-email\/?$/],              // email provider webhook (add a shared secret separately)
-  ['GET', /^\/api\/me$/], ['POST', /^\/api\/order-form\/[^/]+\/?$/],
+  ['GET', /^\/api\/order-form\/[^/]+\/?$/], ['POST', /^\/api\/order-form\/[^/]+\/?$/],
   ['POST', /^\/api\/feedback\/[^/]+\/?$/],            // parent feedback form
   ['POST', /^\/api\/feedback\/[^/]+\/photos\/?$/],    // facilitator photo upload
   ['GET', /^\/api\/programs\/[^/]+\/public\/?$/],
@@ -88,10 +88,12 @@ const PUBLIC_API = [
   ['GET', /^\/api\/training\/sessions\/?$/],               // public list of available training sessions
   ['POST', /^\/api\/training\/register\/?$/],              // self-service facilitator training registration
   ['GET', /^\/api\/certificates\/[^/]+\/?$/],              // digital certificate verification
+  ['GET', /^\/api\/meet\/[^/]+\/?$/], ['POST', /^\/api\/meet\/[^/]+\/choose\/?$/], // partner "let us meet" scheduling page
+  ['GET', /^\/api\/transcribe\/?$/], ['POST', /^\/api\/transcribe\/?$/], // voice typing (rate limited by its route)
   ['GET', /^\/api\/resources\/?$/],                        // resources hub data
   ['GET', /^\/api\/partners\/\d+\/documents\/\d+\/download\/?$/], // document download for partners/facilitators
 ];
-const isDashboardPage = (p) => /^\/(index\.html|compose\.html)?$/i.test(p);
+const isDashboardPage = (p) => /^\/(index\.html|compose\.html|profile\.html)?$/i.test(p);
 const isApi = (p) => /^\/api(\/|$)/i.test(p);
 
 export async function requireStaff(req, res, next) {

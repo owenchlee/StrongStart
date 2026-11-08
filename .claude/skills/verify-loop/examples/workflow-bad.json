@@ -1,0 +1,49 @@
+{
+  "nodes": [
+    {
+      "id": "start",
+      "type": "entry"
+    },
+    {
+      "id": "planner",
+      "type": "agent"
+    },
+    {
+      "id": "coder",
+      "type": "agent"
+    },
+    {
+      "id": "human_review",
+      "type": "human"
+    },
+    {
+      "id": "deploy",
+      "type": "exit"
+    }
+  ],
+  "edges": [
+    {
+      "from": "start",
+      "to": "planner"
+    },
+    {
+      "from": "planner",
+      "to": "coder"
+    },
+    {
+      "from": "coder",
+      "to": "human_review"
+    },
+    {
+      "from": "human_review",
+      "to": "deploy"
+    },
+    {
+      "from": "coder",
+      "to": "deploy"
+    }
+  ],
+  "requireHuman": [
+    "deploy"
+  ]
+}

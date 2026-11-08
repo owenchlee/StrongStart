@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/style.css"><script src="/theme.js"></script>
+  <title>Schedule your training | Baby Connections</title>
+  <style>
+    #box { max-width: 62rem; margin-inline: auto; }
+    .legend { display: flex; flex-wrap: wrap; gap: var(--s4); margin: var(--s3) 0; font-size: var(--fs-sm); }
+    .legend span { display: inline-flex; align-items: center; gap: var(--s2); }
+    .sw { width: 1.1rem; height: 1.1rem; border: 1px solid var(--line-strong); display: inline-block; }
+    .sw.free { background: color-mix(in srgb, var(--ok, #1a7f37) 18%, var(--surface)); }
+    .sw.sel { background: var(--ok, #1a7f37); border-color: var(--ok, #1a7f37); }
+    .sw.off { background: repeating-linear-gradient(45deg, transparent 0 4px, var(--line, #ddd) 4px 5px); }
+
+    .pager { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); margin: var(--s3) 0 var(--s2); }
+    .pager b { font-size: var(--fs-md); }
+    .sched { display: grid; grid-template-columns: 3.4rem repeat(var(--cols), minmax(0, 1fr)); user-select: none; -webkit-user-select: none; }
+    .sched .hd { position: sticky; top: 0; text-align: center; padding: var(--s2) 0; background: var(--surface); border: 0; border-bottom: 1px solid var(--line-strong);
+      font: inherit; font-size: var(--fs-sm); line-height: 1.25; color: inherit; cursor: pointer; min-height: 0; border-radius: 0; box-shadow: none; text-transform: none; letter-spacing: 0; font-weight: 600; display: block; }
+    .sched .hd small { display: block; font-weight: 400; color: var(--muted); }
+    .sched .hd:hover { background: var(--surface-2, var(--surface)); }
+    .sched .t { font-size: var(--fs-xs, .75rem); color: var(--muted); text-align: right; padding-right: var(--s2); height: 1.6rem; line-height: 0; transform: translateY(-1px); }
+    .sched .t.hr { line-height: 1; }
+    .cell { height: 1.6rem; border: 0; border-left: 1px solid var(--line, #ddd); border-bottom: 1px dotted var(--line, #ddd); padding: 0; margin: 0; min-height: 0; border-radius: 0; box-shadow: none; touch-action: none; display: block; width: 100%; }
+    .cell.hr { border-top: 1px solid var(--line-strong, #aaa); }
+    .cell.off { background: repeating-linear-gradient(45deg, transparent 0 4px, var(--line, #ddd) 4px 5px); }
+    .cell.free { background: color-mix(in srgb, var(--ok, #1a7f37) 18%, var(--surface)); cursor: pointer; }
+    .cell.free:hover { background: color-mix(in srgb, var(--ok, #1a7f37) 35%, var(--surface)); }
+    .cell.free[aria-pressed="true"] { background: var(--ok, #1a7f37); }
+    .cell.free[aria-pressed="true"]::after { content: "✓"; color: #fff; font-size: .8rem; line-height: 1; }
+    .cell.free:focus-visible { outline: 3px solid var(--focus, #0055a5); outline-offset: -3px; position: relative; z-index: 1; }
+    .summary { margin: var(--s3) 0; min-height: 1.5em; }
+  </style>
+</head>
+<body class="public">
+  <header class="site-head simple"><div class="in"><p class="brand">
+    <img class="logo logo-light" src="/img/strong-start-logo.png" alt="Strong Start, a children's literacy charity"><img class="logo logo-dark" src="/img/strong-start-logo-dark.png" alt="" aria-hidden="true"><span class="app">Baby Connections<small>Schedule your training</small></span>
+  </p></div></header>
+
+  <main id="main">
+    <div class="card" id="box"><p class="muted">Loading…</p></div>
+  </main>
+
+  <script>
+    const token = location.pathname.split('/').pop();
+    const box = document.getElementById('box');
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const myTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const picked = new Set();
+
+    const dayKey = (d) => d.toLocaleDateString('en-CA'); // local YYYY-MM-DD
+    const minutesOf = (d) => d.getHours() * 60 + d.getMinutes();
+    const fmtTime = (d) => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const fmtFull = (d) => d.toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+    function showDone(m) {
+      const when = new Date(m.start).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' });
+      box.innerHTML = `
+        <h1>You're booked</h1>
+        <p><b>${esc(when)}</b> <span class="muted">(${esc(myTz)})</span></p>
+        ${m.meet_link ? `<p><a class="btn" href="${esc(m.meet_link)}" target="_blank" rel="noopener">Open Google Meet</a></p><p class="muted">A calendar invitation has also been emailed to you.</p>`
+                      : `<p class="muted">We'll email you a video link shortly. A confirmation is on its way to your inbox.</p>`}`;
+    }
+
+    function render(d) {
+      if (d.status === 'scheduled') return showDone(d.meeting);
+      if (!d.slots.length) { box.innerHTML = '<h1>No times available right now</h1><p class="muted">Please contact Strong Start and we\'ll find a time with you.</p>'; return; }
+
+      // slots -> {iso, date, day, min}; the grid is days (columns) x time of day (rows) in the visitor's own time zone
+      const step = d.slot_minutes;
+      const slots = d.slots.map((iso) => { const dt = new Date(iso); return { iso, dt, day: dayKey(dt), min: minutesOf(dt) }; });
+      const days = [...new Set(slots.map((s) => s.day))];
+      const minMin = Math.min(...slots.map((s) => s.min)), maxMin = Math.max(...slots.map((s) => s.min));
+      const rows = Math.round((maxMin - minMin) / step) + 1;
+      const byCell = new Map(slots.map((s) => [s.day + '|' + Math.round((s.min - minMin) / step), s]));
+      const dayLabel = (k) => { const dt = new Date(k + 'T12:00:00'); return { wd: dt.toLocaleDateString(undefined, { weekday: 'short' }), md: dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }; };
+      const perPage = () => (window.innerWidth < 640 ? 3 : 7);
+      let page = 0;
+
+      box.innerHTML = `
+        <h1>Pick your times${d.partner_name ? ' &ndash; ' + esc(d.partner_name) : ''}</h1>
+        <p class="muted">${esc(d.host_name)}'s open times are shaded green, shown in your time zone (${esc(myTz)}). <b>Click or drag</b> across every time that works for you. We'll book the earliest one we both have and email you a Google Meet link. Each meeting is ${step} minutes.</p>
+        <label>Your name <input id="nm" maxlength="120" value="${esc(d.invitee_name)}" autocomplete="name"></label>
+        <div class="legend" aria-hidden="true"><span><i class="sw free"></i>${esc(d.host_name)} is free</span><span><i class="sw sel"></i>You're free</span><span><i class="sw off"></i>Not offered</span></div>
+        <div class="pager"><button type="button" class="sec sm" id="prev">&larr; Earlier</button><b id="range" aria-live="polite"></b><button type="button" class="sec sm" id="next">Later &rarr;</button></div>
+        <div id="grid" role="group" aria-label="Available times. Each green cell is a ${step}-minute slot you can toggle."></div>
+        <p class="summary" id="summary" role="status" aria-live="polite"></p>
+        <p class="err" id="err" role="alert" hidden></p>
+        <p><button id="go" disabled>Book the earliest overlap</button> <button type="button" class="sec" id="clear" hidden>Clear</button></p>`;
+
+      const grid = document.getElementById('grid');
+
+      function summary() {
+        const sorted = [...picked].sort();
+        document.getElementById('go').disabled = !sorted.length;
+        document.getElementById('clear').hidden = !sorted.length;
+        document.getElementById('summary').innerHTML = sorted.length
+          ? `<b>${sorted.length}</b> time${sorted.length > 1 ? 's' : ''} selected. We'll book the earliest: <b>${esc(fmtFull(new Date(sorted[0])))}</b>`
+          : '<span class="muted">Nothing selected yet.</span>';
+      }
+
+      function draw() {
+        const n = perPage();
+        page = Math.max(0, Math.min(page, Math.ceil(days.length / n) - 1));
+        const vis = days.slice(page * n, page * n + n);
+        document.getElementById('prev').disabled = page === 0;
+        document.getElementById('next').disabled = (page + 1) * n >= days.length;
+        const a = dayLabel(vis[0]), b = dayLabel(vis[vis.length - 1]);
+        document.getElementById('range').textContent = vis.length > 1 ? `${a.md} – ${b.md}` : a.md;
+        let h = `<div class="sched" style="--cols:${vis.length}"><div></div>`;
+        for (const k of vis) { const l = dayLabel(k); h += `<button type="button" class="hd" data-day="${k}" title="Toggle the whole day">${l.wd}<small>${l.md}</small></button>`; }
+        for (let r = 0; r < rows; r++) {
+          const min = minMin + r * step, hour = min % 60 === 0;
+          const label = hour ? new Date(2000, 0, 1, Math.floor(min / 60), min % 60).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
+          h += `<div class="t ${hour ? 'hr' : ''}">${esc(label)}</div>`;
+          for (const k of vis) {
+            const s = byCell.get(k + '|' + r);
+            h += s ? `<button type="button" class="cell free ${hour ? 'hr' : ''}" data-s="${s.iso}" aria-pressed="${picked.has(s.iso)}" aria-label="${esc(fmtFull(s.dt))}"></button>`
+                   : `<div class="cell off ${hour ? 'hr' : ''}" aria-hidden="true"></div>`;
+          }
+        }
+        grid.innerHTML = h + '</div>';
+      }
+
+      // click / drag painting: the first cell decides whether the drag selects or clears
+      let painting = null; // true = select, false = clear
+      const setCell = (el, on) => {
+        const s = el.dataset.s;
+        if (on) picked.add(s); else picked.delete(s);
+        el.setAttribute('aria-pressed', on);
+      };
+      const cellAt = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.classList && el.classList.contains('free') ? el : null; };
+      grid.addEventListener('pointerdown', (e) => {
+        const el = e.target.closest('.free'); if (!el || e.button > 0) return;
+        e.preventDefault();
+        painting = el.getAttribute('aria-pressed') !== 'true';
+        setCell(el, painting); summary();
+      });
+      grid.addEventListener('pointermove', (e) => {
+        if (painting === null) return;
+        const el = cellAt(e.clientX, e.clientY);
+        if (el && (el.getAttribute('aria-pressed') === 'true') !== painting) { setCell(el, painting); summary(); }
+      });
+      const stop = () => { painting = null; };
+      window.addEventListener('pointerup', stop); window.addEventListener('pointercancel', stop);
+      // keyboard (Enter/Space fire a click with detail 0; real pointer clicks are handled above)
+      grid.addEventListener('click', (e) => {
+        const el = e.target.closest('.free');
+        if (el && e.detail === 0) { setCell(el, el.getAttribute('aria-pressed') !== 'true'); summary(); return; }
+        const hd = e.target.closest('.hd');
+        if (hd) {
+          const cells = [...grid.querySelectorAll(`.free`)].filter((c) => dayKey(new Date(c.dataset.s)) === hd.dataset.day);
+          const all = cells.every((c) => c.getAttribute('aria-pressed') === 'true');
+          cells.forEach((c) => setCell(c, !all)); summary();
+        }
+      });
+
+      document.getElementById('prev').onclick = () => { page--; draw(); };
+      document.getElementById('next').onclick = () => { page++; draw(); };
+      document.getElementById('clear').onclick = () => { picked.clear(); draw(); summary(); };
+      let lastN = perPage();
+      window.addEventListener('resize', () => { if (perPage() !== lastN) { lastN = perPage(); page = 0; draw(); } });
+
+      document.getElementById('go').onclick = async () => {
+        const go = document.getElementById('go'), err = document.getElementById('err');
+        go.disabled = true; err.hidden = true;
+        const r = await fetch('/api/meet/' + token + '/choose', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slots: [...picked], name: document.getElementById('nm').value }) });
+        const body = await r.json().catch(() => ({}));
+        if (r.ok) return showDone(body.meeting);
+        if (body.refresh) { picked.clear(); return load(); }
+        err.textContent = body.error || 'Something went wrong.'; err.hidden = false; go.disabled = false;
+      };
+
+      draw(); summary();
+    }
+
+    async function load() {
+      const r = await fetch('/api/meet/' + token);
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { box.innerHTML = `<h1>Link not available</h1><p class="muted">${esc(d.error || 'Something went wrong.')}</p>`; return; }
+      render(d);
+    }
+    load();
+  </script>
+<script src="/dictate.js" defer></script>
+</body>
+</html>

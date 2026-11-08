@@ -14,16 +14,23 @@ export function __setCloudinaryForTests(fake) {
 const slug = (s) => String(s).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
 
 // Handwriting-friendly derived version (the original asset is kept untouched as `originalUrl`).
-const READABLE = [
+// `tilt` = degrees clockwise to straighten the page (see deskew.js); 0 leaves orientation alone.
+// Grayscale + brightness lift + contrast makes pen ink stand out and the page read like a scan, even from dim,
+// yellowish phone lighting (the old contrast-only chain left dim photos dark). Tuned by eye on test photos.
+const readable = (tilt = 0) => [
   { angle: 'exif' },                                       // auto-orient from phone EXIF data
+  ...(tilt ? [{ angle: tilt, background: 'white' }] : []), // straighten a slanted page
   { width: 2000, height: 2000, crop: 'limit' },            // cap size, never upscale
-  { effect: 'improve' },                                   // automatic colour/contrast improvement
-  { effect: 'sharpen:100' },
+  { effect: 'grayscale' },
+  { effect: 'auto_brightness:100' },
+  { effect: 'brightness:20' },
+  { effect: 'contrast:50' },
+  { effect: 'unsharp_mask:150' },
   { quality: 'auto', fetch_format: 'jpg' },
 ];
 
 /** Upload a local photo; returns { url (readable version), originalUrl, publicId }. Throws on failure. */
-export async function uploadFeedbackPhoto(filePath, { programToken }) {
+export async function uploadFeedbackPhoto(filePath, { programToken, tilt = 0 }) {
   if (!cloudinaryEnabled) throw new Error('Cloudinary is not configured');
   const tok = slug(programToken);
   const r = await api.uploader.upload(filePath, {
@@ -35,7 +42,7 @@ export async function uploadFeedbackPhoto(filePath, { programToken }) {
     overwrite: false,
   });
   const url = api.url(r.public_id, {
-    secure: true, resource_type: 'image', type: 'upload', version: r.version, format: 'jpg', transformation: READABLE,
+    secure: true, resource_type: 'image', type: 'upload', version: r.version, format: 'jpg', transformation: readable(tilt),
   });
   return { url, originalUrl: r.secure_url, publicId: r.public_id };
 }

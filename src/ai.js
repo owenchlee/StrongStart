@@ -4,7 +4,7 @@ import { GoogleGenAI } from '@google/genai';
 import { readFile } from 'node:fs/promises';
 import { extname } from 'node:path';
 
-const MODEL = () => process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const MODEL = () => process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 let client = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 export let aiEnabled = !!client;
 
@@ -25,7 +25,8 @@ const FIELDS = `- "rating": integer 1-5 for how helpful the program was, or null
 - "suggestions": what the parent wrote as suggestions/comments, in the ORIGINAL language ("" if blank)
 - "raw_text": a full transcription of the text, in the original language
 - "language": ISO 639-1 code of the main language the parent wrote in (e.g. "en", "es", "fr", "ar")
-- "translated_text": if the language is not English, an English translation of the parent's comments (most_valued and suggestions); otherwise ""`;
+- "translated_text": if the language is not English, an English translation of the parent's comments (most_valued and suggestions); otherwise ""
+- "summary": 1-2 plain English sentences summarizing the key details of this form (rating, whether they would recommend, what they valued, any suggestions or concerns). Only facts present on the form; "" if nothing is written`;
 
 const FORM_SYSTEM = `You read photos of handwritten Baby Connections parent feedback forms and return JSON only. ${SAFETY}
 Fields:
@@ -48,9 +49,10 @@ const schema = (withConfidence) => ({
     raw_text: { type: 'STRING' },
     language: { type: 'STRING' },
     translated_text: { type: 'STRING' },
+    summary: { type: 'STRING' },
     ...(withConfidence && { confidence: { type: 'STRING', enum: ['high', 'medium', 'low'] } }),
   },
-  required: ['rating', 'would_recommend', 'most_valued', 'suggestions', 'raw_text', 'language', 'translated_text', ...(withConfidence ? ['confidence'] : [])],
+  required: ['rating', 'would_recommend', 'most_valued', 'suggestions', 'raw_text', 'language', 'translated_text', 'summary', ...(withConfidence ? ['confidence'] : [])],
 });
 
 const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
@@ -73,6 +75,7 @@ export function normalizeFeedback(o, { withConfidence = true } = {}) {
     raw_text: str(o.raw_text, 6000),
     language,
     translated_text: language.startsWith('en') ? '' : str(o.translated_text, 4000),
+    summary: str(o.summary, 600),
   };
   if (withConfidence) out.confidence = ['high', 'medium', 'low'].includes(o.confidence) ? o.confidence : 'low';
   return out;
