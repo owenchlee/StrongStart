@@ -1,10 +1,10 @@
 // Training Registration and Certification (Requirements §4)
 import { Router } from 'express';
-import { sendMail, STAFF_EMAIL } from '../mailer.js';
+import { sendMail, STAFF_EMAIL, BASE_URL } from '../mailer.js';
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
 import { query, one, run, tx } from '../db.js';
-import { sendMail, BASE_URL } from '../mailer.js';
+
 // Import Outlook helper
 import { createOutlookEvent } from '../msgraph.js';
 

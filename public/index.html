@@ -534,14 +534,26 @@ async function orders() {
   </select>
 </td>
     <td class="muted">ordered ${date(r.ordered_at)}<br>shipped ${date(r.shipped_at)}<br>received ${date(r.received_at)}</td>
-    <td>${r.status === 'ordered' ? `<button class="sm" onclick="ship(${Number(r.id)})">Mark shipped</button>` : r.status === 'form_sent' ? `<a class="muted" href="/order/${enc(r.token)}" target="_blank" rel="noopener">form link</a>` : ''}</td></tr>`).join('') || '<tr><td colspan=7 class="muted">No orders yet.</td></tr>'}
+    <td>${r.status === 'form_sent' ? `<a class="muted" href="/order/${enc(r.token)}" target="_blank" rel="noopener">form link</a>` : ''}</td></tr>`).join('') || '<tr><td colspan=7 class="muted">No orders yet.</td></tr>'}
   </table></div>`;
   $('#sim').onclick = async () => {
     const r = await jsonPost('/api/inbound-email', { from: $('#se').value, name: $('#sn').value, subject: $('#ss').value, body: $('#sb').value });
     $('#simmsg').textContent = r.error || 'Received. Order form emailed (see Emails tab).'; if (!r.error) refresh();
   };
 }
-async function ship(id) { await j(`/api/orders/${id}/ship`, { method: 'POST' }); refresh(); }
+async function setStatus(id, sel) {
+  const status = sel.value;
+  if (!status) return;
+  let res;
+  if (status === 'shipped') {
+    // Use the ship endpoint so packing-slip email is sent and shipped_at is set
+    res = await j(`/api/orders/${id}/ship`, { method: 'POST' });
+  } else {
+    res = await jsonPost(`/api/orders/${id}/status`, { status }, 'PATCH');
+  }
+  if (res.error) { alert(res.error); sel.value = sel.dataset.prev || ''; return; }
+  refresh();
+}
 
 // ---- Programs ----
 const pf = { from: '', to: '', facilitator: '', partner: '', status: '' };
