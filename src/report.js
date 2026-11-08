@@ -32,7 +32,7 @@ export async function programReport(programId) {
     recommendPct: rec.length ? Math.round((rec.filter((r) => r.would_recommend).length / rec.length) * 100) : null,
     comments: rows
       .filter((r) => (r.most_valued && r.most_valued.trim()) || (r.suggestions && r.suggestions.trim()))
-      .map((r) => ({ id: r.id, source: r.source, most_valued: r.most_valued, suggestions: r.suggestions, needs_review: !!r.needs_review, translated_text: r.translated_text, language: r.language })),
+      .map((r) => ({ id: r.id, source: r.source, most_valued: r.most_valued, suggestions: r.suggestions, needs_review: !!r.needs_review, translated_text: r.translated_text, summary: r.summary, language: r.language })),
     summary: summary || null,
   };
 }

@@ -40,7 +40,10 @@ async function sendOne(it) {
 }
 async function runAll(list) {
   $('#go').disabled = true; $('#retry').hidden = true; $('#bar').hidden = false; $('#bar').max = list.length; $('#bar').value = 0;
-  for (const it of list) { await sendOne(it); $('#bar').value++; }
+  // Reading handwriting takes a while per photo, so work on three at a time instead of one after another.
+  const queue = [...list];
+  const worker = async () => { for (let it; (it = queue.shift());) { await sendOne(it); $('#bar').value++; } };
+  await Promise.all(Array.from({ length: Math.min(3, list.length) }, worker));
   $('#go').disabled = false; $('#bar').hidden = true;
   const failed = items.filter((i) => i.state === 'error').length, rev = items.filter((i) => /review/.test(i.li.innerHTML)).length;
   $('#retry').hidden = !failed;

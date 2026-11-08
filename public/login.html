@@ -1,18 +1,76 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/style.css"><script src="/theme.js"></script><title>Staff sign in · Baby Connections</title></head><body class="auth">
-<header class="site-head simple"><div class="in"><p class="brand"><img class="logo logo-light" src="/img/strong-start-logo.png" alt="Strong Start, a children's literacy charity"><img class="logo logo-dark" src="/img/strong-start-logo-dark.png" alt="" aria-hidden="true"><span class="app">Baby Connections</span></p></div></header>
-<main id="main"><div class="card">
-<h1>Staff sign in</h1>
-<p class="muted">Sign in with the email address the Strong Start team added you with.</p>
-<p id="msg" class="err" role="alert" hidden></p>
-<a id="google" class="btn" href="/auth/google" hidden>Sign in with Google</a>
-<form id="dev" hidden>
-  <p class="notice warn">Development login (AUTH_DEV_LOGIN=1): no password. Never enable in production.</p>
-  <label for="email">Staff email</label><input id="email" type="email" required autocomplete="email">
-  <p><button>Sign in</button></p>
-</form>
-<p id="none" class="muted" hidden>Sign-in isn't configured yet. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (see .env.example).</p>
-</div></main>
+<link rel="stylesheet" href="/style.css"><script src="/theme.js"></script><title>Employee login · Strong Start</title>
+<style>
+  body.landing { min-height: 100vh; min-height: 100dvh; margin: 0; display: flex; flex-direction: column; color: #fff;
+    background: #0c1a2b url("/img/login-bg.jpg") center / cover no-repeat fixed; }
+  /* Darken the photo, heavier on the left where the sign-in card sits, so text stays readable. */
+  body.landing::before { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background: linear-gradient(90deg, rgba(8,20,36,.85) 0%, rgba(8,20,36,.55) 45%, rgba(8,20,36,.2) 100%); }
+  body.landing > * { position: relative; z-index: 1; }
+  .landing main { flex: 1; display: flex; align-items: center; padding: 32px clamp(16px, 6vw, 96px); max-width: none; width: 100%; margin: 0; box-sizing: border-box; justify-content: space-between; gap: clamp(24px, 5vw, 80px); }
+  .signin { width: 100%; max-width: 420px; background: #fff; color: #333; border-radius: 4px; padding: 36px 32px 32px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.35); border-top: 4px solid var(--primary, #0055a5); }
+  .signin .eyebrow { margin: 0 0 6px; font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: #5c5c5c; }
+  .signin h1 { margin: 0 0 8px; font-size: 1.75rem; line-height: 1.2; color: #0b2a4a; }
+  .signin p.lead { margin: 0 0 24px; color: #5c5c5c; line-height: 1.5; }
+  .gbtn { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 48px; box-sizing: border-box;
+    padding: 0 16px; background: #fff; color: #1f1f1f; border: 1px solid #747775; border-radius: 4px; font: inherit; font-weight: 700;
+    text-decoration: none; cursor: pointer; transition: background .15s, box-shadow .15s; }
+  .gbtn:hover { background: #f6f8fc; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  .gbtn:focus-visible, .signin button:focus-visible, .signin input:focus-visible { outline: 3px solid #b35c00; outline-offset: 2px; }
+  .gbtn svg { width: 20px; height: 20px; flex: none; }
+  body.landing .signin a.enter { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; box-sizing: border-box; background: #0055a5; color: #fff; border-radius: 4px; font-weight: 700; text-decoration: none; }
+  body.landing .signin a.enter:hover { background: #003f7c; }
+  body.landing .signin a.enter:focus-visible { outline: 3px solid #b35c00; outline-offset: 2px; }
+  body.landing .signin a.enter[hidden] { display: none; }
+  .signin .fine { margin: 18px 0 0; font-size: .8rem; color: #5c5c5c; line-height: 1.5; }
+  .signin .err { background: #fdeceb; color: #b42318; padding: 10px 12px; border-radius: 2px; margin: 0 0 16px; font-size: .9rem; }
+  .signin .notice { background: #fdf0d3; color: #8a4b00; padding: 10px 12px; margin: 0 0 12px; font-size: .85rem; }
+  .signin label { display: block; font-weight: 700; margin: 8px 0 4px; }
+  body.landing .signin input { background: #fff; color: #333; width: 100%; box-sizing: border-box; min-height: 44px; padding: 0 12px; font: inherit; border: 1px solid #8a8a8a; border-radius: 2px; }
+  body.landing .signin form button { text-transform: none; letter-spacing: normal; width: 100%; min-height: 48px; margin-top: 12px; background: var(--primary, #0055a5); color: #fff; border: 0; border-radius: 4px; font: inherit; font-weight: 700; cursor: pointer; }
+  body.landing .signin form button { background: #0055a5; color: #fff; }
+  body.landing .signin form button:hover { background: #003f7c; }
+  .brandpanel { flex: 1; max-width: 560px; }
+  .brandpanel img { width: min(100%, 440px); height: auto; display: block; margin: 0 0 28px; }
+  .brandpanel h2 { margin: 0 0 12px; font-size: clamp(2rem, 4vw, 3rem); line-height: 1.1; color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,.4); }
+  .brandpanel p { margin: 0; font-size: 1.15rem; line-height: 1.5; color: rgba(255,255,255,.9); text-shadow: 0 1px 8px rgba(0,0,0,.4); }
+  @media (max-width: 640px) {
+    body.landing::before { background: rgba(8,20,36,.72); }
+    .landing main { flex-direction: column; align-items: stretch; justify-content: center; }
+    .brandpanel { max-width: none; }
+    .brandpanel img { width: min(80%, 280px); margin-bottom: 16px; }
+    .brandpanel p { font-size: 1rem; }
+    .signin { max-width: none; }
+    .signin { padding: 28px 20px 24px; }
+  }
+</style></head>
+<body class="landing">
+<main id="main">
+  <section class="brandpanel">
+    <img src="/img/strong-start-logo-dark.png" alt="Strong Start, a children's literacy charity">
+    <h2>Strong Start</h2>
+    <p>A children's literacy charity. Staff portal for the Baby Connections program.</p>
+  </section>
+  <section class="signin" aria-labelledby="t">
+    <p class="eyebrow">Baby Connections · Staff portal</p>
+    <h1 id="t">Employee login</h1>
+    <p class="lead">Sign in with the Google account Strong Start added you with.</p>
+    <p id="msg" class="err" role="alert" hidden></p>
+    <a id="google" class="gbtn" href="/auth/google" hidden>
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Sign in with Google
+    </a>
+    <form id="dev" hidden>
+      <p class="notice">Development login (AUTH_DEV_LOGIN=1): no password. Never enable in production.</p>
+      <label for="email">Staff email</label><input id="email" type="email" required autocomplete="email">
+      <button>Sign in</button>
+    </form>
+    <p id="none" class="lead" hidden>Sign-in isn't configured yet. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (see .env.example).</p>
+    <a id="off" class="enter" href="/" hidden>Sign in</a>
+    <p class="fine">Authorized staff only. Sign-in uses Google. Need access? Ask a Strong Start admin to add your email.</p>
+  </section>
+</main>
 <script>
 const $ = (s) => document.querySelector(s);
 const errors = {
@@ -23,6 +81,7 @@ const errors = {
 const e = new URLSearchParams(location.search).get('error');
 if (e) { $('#msg').textContent = errors[e] || 'Sign-in failed.'; $('#msg').hidden = false; }
 fetch('/api/me').then((r) => r.json()).then((me) => {
+  if (me.authDisabled) { $('#off').hidden = false; return; }
   if (me.staff) return (location.href = '/');
   $('#google').hidden = !me.google; $('#dev').hidden = !me.devLogin; $('#none').hidden = me.google || me.devLogin;
 });

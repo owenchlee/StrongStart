@@ -8,9 +8,10 @@ import { mkdirSync, openSync, readSync, closeSync } from 'node:fs';
 import { unlink, rename } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
 import { query, one, run } from '../db.js';
-import { BASE_URL } from '../mailer.js';
+import { BASE_URL, escapeHtml as esc, intId, rateLimit } from '../util.js';
 import { transcribeFeedbackPhoto, aiEnabled } from '../ai.js';
 import * as cld from '../cloudinary.js';
+import { estimateTilt } from '../deskew.js';
 
 export const feedback = Router();
 
@@ -21,23 +22,6 @@ mkdirSync(UPLOAD_DIR, { recursive: true });
 const MAX_FILE = 10 * 1024 * 1024;
 const MAX_FILES = 30;
 
-// ---- tiny in-memory rate limiter (per IP + token). Exported so other routes may reuse it. ------
-export function rateLimit({ windowMs = 10 * 60 * 1000, max = 30, name = 'rl' } = {}) {
-  const hits = new Map(); // key -> { n, reset }
-  const timer = setInterval(() => { const now = Date.now(); for (const [k, v] of hits) if (v.reset < now) hits.delete(k); }, windowMs);
-  timer.unref();
-  return (req, res, next) => {
-    const key = `${name}|${req.ip}|${req.params.token || ''}`;
-    const now = Date.now();
-    let h = hits.get(key);
-    if (!h || h.reset < now) { h = { n: 0, reset: now + windowMs }; hits.set(key, h); }
-    if (++h.n > max) {
-      res.set('Retry-After', String(Math.ceil((h.reset - now) / 1000)));
-      return res.status(429).json({ error: 'Too many requests. Please wait a few minutes and try again.' });
-    }
-    next();
-  };
-}
 const limitOnline = rateLimit({ name: 'online', max: 20, windowMs: 10 * 60 * 1000 });
 const limitPhotos = rateLimit({ name: 'photos', max: 60, windowMs: 10 * 60 * 1000 });
 
@@ -97,7 +81,6 @@ feedback.get('/api/programs/:token/qr.png', async (req, res) => {
   res.set('Cache-Control', 'private, max-age=3600').type('png').send(await qrBuffer(p.token));
 });
 
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const sheetCache = new Map(); // token -> hosted sheet url (Cloudinary), best effort
 
 // Printable QR sheet for the facilitator to put up or hand out.
@@ -186,10 +169,10 @@ feedback.post('/api/feedback/:token/photos', limitPhotos, async (req, res, next)
       const mime = sniffImage(f.path);
       if (!mime) { await safeUnlink(f.path); results.push({ file: name, status: 'error', error: 'Not a valid image (jpg, png, webp or gif)' }); continue; }
 
-      let imageUrl = null, local = null, aiSource;
+      let imageUrl = null, originalUrl = null, local = null, aiSource;
       if (cld.cloudinaryEnabled) {
         try {
-          imageUrl = (await cld.uploadFeedbackPhoto(f.path, { programToken: p.token })).url;
+          ({ url: imageUrl, originalUrl } = await cld.uploadFeedbackPhoto(f.path, { programToken: p.token, tilt: await estimateTilt(f.path) }));
           aiSource = imageUrl;
           await safeUnlink(f.path);
         } catch { imageUrl = null; }
@@ -201,13 +184,25 @@ feedback.post('/api/feedback/:token/photos', limitPhotos, async (req, res, next)
       }
 
       let t = null, aiError = null;
-      try { t = await transcribeFeedbackPhoto(aiSource); } catch (e) { aiError = 'Could not read this form automatically'; console.error('[feedback] AI read failed:', e.message); }
+      try {
+        try { t = await transcribeFeedbackPhoto(aiSource); }
+        catch (e) { // enhanced version unavailable: fall back to the untouched original
+          // A quota / rate-limit error would fail the same way again and just burn more of the allowance.
+          if (!originalUrl || /\b429\b|RESOURCE_EXHAUSTED/.test(e.message)) throw e;
+          console.error('[feedback] enhanced photo read failed, retrying original:', e.message);
+          t = await transcribeFeedbackPhoto(originalUrl);
+        }
+      } catch (e) {
+        aiError = 'Could not read this form automatically';
+        const quota = /\b429\b|RESOURCE_EXHAUSTED/.test(e.message);
+        console.error('[feedback] AI read failed:', quota ? 'Gemini quota or rate limit reached (form saved for staff review)' : e.message);
+      }
       const review = !t || t.confidence === 'low' || t.rating == null || /\[illegible\]/i.test(`${t.raw_text} ${t.most_valued} ${t.suggestions}`);
       const { rows } = await run(
-        `INSERT INTO feedback (program_id, source, rating, would_recommend, most_valued, suggestions, raw_text, image_url, image_path, language, translated_text, needs_review)
-         VALUES ($1,'photo',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+        `INSERT INTO feedback (program_id, source, rating, would_recommend, most_valued, suggestions, raw_text, image_url, image_path, language, translated_text, summary, needs_review)
+         VALUES ($1,'photo',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
         [p.id, t?.rating ?? null, t?.would_recommend ?? null, t?.most_valued || '', t?.suggestions || '', t?.raw_text || '',
-          imageUrl, local ? local.slice(process.cwd().length + 1) : null, t?.language || null, t?.translated_text || null, review],
+          imageUrl, local ? local.slice(process.cwd().length + 1) : null, t?.language || null, t?.translated_text || null, t?.summary || null, review],
       );
       results.push({ id: rows[0].id, file: name, status: review ? 'needs_review' : 'saved', needsReview: review, language: t?.language || null, ...(aiError && { error: aiError }) });
     } catch (e) {
@@ -220,8 +215,6 @@ feedback.post('/api/feedback/:token/photos', limitPhotos, async (req, res, next)
 });
 
 // ---- staff only (default-deny in auth.js sets req.staff) ----------------------------------------
-const intId = (v) => (/^\d{1,9}$/.test(v) ? Number(v) : null);
-
 feedback.get('/api/feedback/:id/image', async (req, res) => {
   const id = intId(req.params.id);
   const r = id && await one('SELECT image_url, image_path FROM feedback WHERE id=$1', [id]);
@@ -250,6 +243,7 @@ feedback.patch('/api/feedback/:id', async (req, res) => {
   if ('most_valued' in b) add('most_valued', clip(b.most_valued, 2000));
   if ('suggestions' in b) add('suggestions', clip(b.suggestions, 2000));
   if ('translated_text' in b) add('translated_text', clip(b.translated_text, 4000));
+  if ('summary' in b) add('summary', clip(b.summary, 600));
   sets.push('needs_review=false');
   vals.push(id);
   const { rowCount } = await run(`UPDATE feedback SET ${sets.join(', ')} WHERE id=$${vals.length}`, vals);

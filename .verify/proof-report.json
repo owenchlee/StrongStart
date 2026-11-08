@@ -1,0 +1,42 @@
+{
+  "ok": true,
+  "claims": {
+    "c_tests": {
+      "ok": true,
+      "why": []
+    },
+    "c_todo": {
+      "ok": true,
+      "why": []
+    },
+    "c_received": {
+      "ok": true,
+      "why": []
+    },
+    "c_docs": {
+      "ok": true,
+      "why": []
+    },
+    "c_training": {
+      "ok": true,
+      "why": []
+    },
+    "c_noalert": {
+      "ok": true,
+      "why": []
+    },
+    "c_shots": {
+      "ok": true,
+      "why": []
+    },
+    "c_sim": {
+      "ok": true,
+      "why": []
+    },
+    "c_done": {
+      "ok": true,
+      "why": []
+    }
+  },
+  "problems": []
+}

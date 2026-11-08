@@ -1,0 +1,23 @@
+{
+  "claims": [
+    { "id": "c_hints", "text": "Email prefill reads 'is called X' and a one-paragraph address correctly", "evidence": ["e_a"] },
+    { "id": "c_training", "text": "Re-registering: no 409 on a full session, no second email, completion and certificate survive, turned-away people leave no record", "evidence": ["e_training"] },
+    { "id": "c_suite", "text": "Whole test suite passes with all changes", "evidence": ["e_suite"] },
+    { "id": "c_done", "text": "Second run improvements verified", "evidence": ["e_gate"], "dependsOn": ["c_hints", "c_training", "c_suite"] }
+  ],
+  "evidence": [
+    {
+      "id": "e_a", "kind": "command", "cmd": "node test/a.js",
+      "canary": { "file": "src/routes/orders.js", "find": "(?:(?:is|was)\\s+(?:called|named)|is|:|called|named)", "replace": "(?:is|:|called|named)" }
+    },
+    {
+      "id": "e_training", "kind": "command", "cmd": "node test/training.js",
+      "canaries": [
+        { "file": "src/routes/training.js", "find": "Boolean(prior) && prior.status !== 'cancelled'", "replace": "false" },
+        { "file": "src/routes/training.js", "find": "ELSE training_registrations.status END", "replace": "ELSE 'registered' END" }
+      ]
+    },
+    { "id": "e_suite", "kind": "command", "cmd": "npm test" },
+    { "id": "e_gate", "kind": "command", "cmd": "node .claude/skills/verify-loop/scripts/verify.mjs" }
+  ]
+}

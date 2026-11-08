@@ -8,15 +8,16 @@
 <form id="f" novalidate>
 <label for="to">To</label><select id="to" required><option value="">Loading…</option></select>
 <label for="subject">Subject</label><input id="subject" maxlength="200" required>
-<label for="body">Message</label><textarea id="body" rows="10" maxlength="10000" required></textarea>
+<label for="body">Message</label><textarea data-nodictate id="body" rows="10" maxlength="10000" required></textarea>
 <div class="actions">
 <button type="button" id="mic" class="sec" aria-pressed="false">Start dictating</button>
 <button type="button" id="tidy" class="sec">Tidy with AI</button>
 <span id="st" class="muted" role="status" aria-live="polite"></span>
+<progress id="bar" max="100" value="0" hidden></progress>
 </div>
 <p class="err" id="err" role="alert"></p>
 <p id="done" class="ok" role="status"></p>
-<button id="send">Send email</button>
+<div class="actions"><button id="send">Send email</button></div>
 </form></div></main>
 <script>
 const $ = (s) => document.querySelector(s);
@@ -33,6 +34,9 @@ const say = (m) => { $('#st').textContent = m; };
 api('/api/compose/facilitators').then((list) => {
   $('#to').innerHTML = '<option value="">Choose a facilitator…</option>' +
     list.map((x) => `<option value="${esc(x.id)}">${esc(x.name ? x.name + ' (' + x.email + ')' : x.email)}</option>`).join('');
+  // /compose.html?facilitator=<id> (from the dashboard) picks the recipient.
+  const pre = new URLSearchParams(location.search).get('facilitator');
+  if (pre && [...$('#to').options].some((o) => o.value === pre)) { $('#to').value = pre; $('#subject').focus(); }
 }).catch((e) => ($('#err').textContent = e.message));
 
 let rec = null, chunks = [], stream = null;
@@ -71,15 +75,32 @@ $('#mic').onclick = async () => {
   $('#mic').classList.add('rec'); $('#mic').setAttribute('aria-pressed', 'true'); $('#mic').textContent = 'Stop dictating'; say('Recording…');
 };
 
+// Same streaming tidy-up as the partner page: the text appears as it is written.
 $('#tidy').onclick = async () => {
-  const text = $('#body').value.trim();
+  const box = $('#body'), text = box.value.trim();
   if (!text) return say('Write or dictate something first.');
-  $('#tidy').disabled = true; say('Tidying…'); $('#err').textContent = '';
+  $('#tidy').disabled = true; $('#err').textContent = '';
+  const bar = $('#bar'); bar.hidden = false; bar.value = 0;
+  const pct = (n) => { bar.value = n; say('Tidying… ' + n + '%'); };
+  pct(0);
   try {
-    const d = await api('/api/compose/polish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, facilitator_id: $('#to').value }) });
-    $('#body').value = d.text; say('Tidied. Please review it before sending.');
-  } catch (e) { $('#err').textContent = e.message; say(''); }
+    const r = await fetch('/api/compose/polish-stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, facilitator_id: $('#to').value }) });
+    if (r.status === 401) { location.href = '/login.html'; return; }
+    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'AI tidy-up is not available'); }
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let out = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      out += dec.decode(value, { stream: true });
+      box.value = out;
+      pct(Math.min(95, Math.round((out.length / Math.max(text.length, 1)) * 95)));
+    }
+    if (!out.trim()) throw new Error('AI tidy-up returned nothing');
+    box.value = out.trim(); bar.value = 100; say('Tidied. Please review it before sending.');
+  } catch (e) { box.value = text; $('#err').textContent = e.message; say(''); }
   $('#tidy').disabled = false;
+  setTimeout(() => { bar.hidden = true; }, 1500);
 };
 
 $('#f').onsubmit = async (e) => {
@@ -88,14 +109,27 @@ $('#f').onsubmit = async (e) => {
   if (!$('#subject').value.trim()) return ($('#err').textContent = 'Add a subject.');
   if (!$('#body').value.trim()) return ($('#err').textContent = 'Write a message first.');
   const name = $('#to').selectedOptions[0].textContent;
-  if (!confirm('Send this email to ' + name + '?')) return;
-  const b = $('#send'); b.disabled = true; b.textContent = 'Sending…';
-  try {
-    await api('/api/compose/send', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ facilitator_id: Number($('#to').value), subject: $('#subject').value, body: $('#body').value }) });
-    $('#done').textContent = 'Sent to ' + name + '.';
-    $('#subject').value = ''; $('#body').value = ''; say('');
-  } catch (er) { $('#err').textContent = er.message; }
-  b.disabled = false; b.textContent = 'Send email';
+  const b = $('#send');
+  if (b.nextElementSibling) return; // already asking
+  // Ask once, inline, before sending.
+  const ask = document.createElement('span');
+  ask.className = 'inline-confirm'; ask.setAttribute('role', 'group'); ask.setAttribute('aria-label', 'Send this email to ' + name + '?');
+  ask.innerHTML = `<span>Send this email to ${esc(name)}?</span><button type="button" class="sm">Yes, send</button><button type="button" class="sm sec">No</button>`;
+  b.hidden = true; b.after(ask);
+  const [yes, no] = ask.querySelectorAll('button');
+  const done = () => { ask.remove(); b.hidden = false; };
+  no.onclick = () => { done(); b.focus(); };
+  yes.onclick = async () => {
+    done(); b.disabled = true; b.textContent = 'Sending…';
+    try {
+      await api('/api/compose/send', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ facilitator_id: Number($('#to').value), subject: $('#subject').value, body: $('#body').value }) });
+      $('#done').textContent = 'Sent to ' + name + '.';
+      $('#subject').value = ''; $('#body').value = ''; say('');
+    } catch (er) { $('#err').textContent = er.message; }
+    b.disabled = false; b.textContent = 'Send email';
+  };
+  no.focus();
 };
-</script></body></html>
+</script><script src="/dictate.js" defer></script>
+</body></html>

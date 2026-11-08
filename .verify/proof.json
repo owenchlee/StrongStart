@@ -1,0 +1,27 @@
+{
+  "claims": [
+    { "id": "c_tests", "text": "Full test suite passes (12 files, incl. new test/todo.js)", "evidence": ["e_tests"] },
+    { "id": "c_todo", "text": "GET /api/todo lists every kind of pending staff work and excludes cancelled programs", "evidence": ["e_todo"] },
+    { "id": "c_received", "text": "Kits-received link is a GET page plus a POST confirm (no state change on GET)", "evidence": ["e_smoke"] },
+    { "id": "c_docs", "text": "Partner document downloads use a random token; id URL needs staff login", "evidence": ["e_site"] },
+    { "id": "c_training", "text": "Training sessions: create, edit, delete, roster, certificate; dead slot routes are gone", "evidence": ["e_training"] },
+    { "id": "c_noalert", "text": "No alert()/confirm() popups remain in the dashboard or composer", "evidence": ["e_noalert"] },
+    { "id": "c_shots", "text": "Today tab renders at desktop and 390px with no console errors (screenshots fresh)", "evidence": ["e_shot", "e_shot390"] },
+    { "id": "c_sim", "text": "End-to-end sim still passes with the new confirm step", "evidence": ["e_sim"] },
+    { "id": "c_done", "text": "Staff workflow simplification is complete and verified", "evidence": ["e_gate"], "dependsOn": ["c_tests", "c_todo", "c_received", "c_docs", "c_training", "c_noalert", "c_shots", "c_sim"] }
+  ],
+  "evidence": [
+    { "id": "e_tests", "kind": "command", "cmd": "npm run test" },
+    { "id": "e_todo", "kind": "command", "cmd": "node test/todo.js",
+      "canary": { "file": "src/routes/dashboard.js", "find": "NOT IN ('completed','cancelled')", "replace": "IN ('completed','cancelled')" } },
+    { "id": "e_smoke", "kind": "command", "cmd": "node test/smoke.js",
+      "canary": { "file": "src/routes/orders.js", "find": "orders.post('/received/:token'", "replace": "orders.put('/received/:token'" } },
+    { "id": "e_site", "kind": "command", "cmd": "node test/site-source.js" },
+    { "id": "e_training", "kind": "command", "cmd": "node test/training.js" },
+    { "id": "e_noalert", "kind": "command", "cmd": "! grep -qE 'alert\\(|confirm\\(' public/index.html public/compose.html" },
+    { "id": "e_shot", "kind": "file", "path": ".verify/shots/today.png" },
+    { "id": "e_shot390", "kind": "file", "path": ".verify/shots/today-390.png" },
+    { "id": "e_sim", "kind": "command", "cmd": "node .verify/sim.mjs" },
+    { "id": "e_gate", "kind": "command", "cmd": "node .claude/skills/verify-loop/scripts/verify.mjs" }
+  ]
+}

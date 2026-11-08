@@ -1,0 +1,10 @@
+{
+  "maxAttempts": 5,
+  "stuckAfter": 3,
+  "gates": [
+    {
+      "name": "test",
+      "cmd": "npm run test"
+    }
+  ]
+}

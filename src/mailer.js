@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { run } from './db.js';
+import { BASE_URL, oneLine, escapeHtml } from './util.js';
 
 const transport = process.env.SMTP_HOST
   ? nodemailer.createTransport({
@@ -9,13 +10,10 @@ const transport = process.env.SMTP_HOST
     })
   : null;
 
-export const BASE_URL = (process.env.BASE_URL || 'http://localhost:3000').replace(/\/+$/, '');
 const FROM = process.env.MAIL_FROM || 'Baby Connections <babyconnections@strongstart.example>';
 export const STAFF_EMAIL = process.env.STAFF_EMAIL || 'babyconnections@strongstart.example';
 
-const oneLine = (s) => String(s ?? '').replace(/[\r\n\u2028\u2029]+/g, ' ').trim();
-export const escapeHtml = (s) =>
-  String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+export { BASE_URL, escapeHtml };
 
 /** Escape everything first, then turn http(s) URLs into links. */
 function linkify(escaped) {
@@ -42,8 +40,8 @@ export function renderHtml(subject, body) {
 
 /** Always records the email in the outbox; sends via SMTP when configured. Optional 4th arg: { html }. */
 export async function sendMail(to, subject, body, opts = {}) {
-  to = oneLine(to);
-  subject = oneLine(subject).slice(0, 300);
+  to = oneLine(to, 1000);
+  subject = oneLine(subject, 300);
   body = String(body ?? '');
   const html = opts.html || renderHtml(subject, body);
   const { rows } = await run('INSERT INTO outbox (to_email, subject, body) VALUES ($1,$2,$3) RETURNING id', [to, subject, body]);
@@ -54,8 +52,7 @@ export async function sendMail(to, subject, body, opts = {}) {
   }
   try {
     await transport.sendMail({ from: FROM, to, subject, text: body, html, attachments: opts.attachments });
-    try { await run('UPDATE outbox SET delivered=1 WHERE id=$1', [id]); }
-    catch { await run('UPDATE outbox SET delivered=true WHERE id=$1', [id]).catch(() => {}); } // integer or boolean column
+    await run('UPDATE outbox SET delivered=true WHERE id=$1', [id]);
   } catch (e) {
     console.error('[mail] send failed:', e.message);
   }

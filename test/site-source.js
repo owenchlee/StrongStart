@@ -122,7 +122,7 @@ try {
   // 7. Mark order shipped and received
   const orderId = (await one('SELECT id FROM orders WHERE token=$1', [orderToken])).id;
   await postStaff(`/api/orders/${orderId}/ship`, {});
-  await fetch(`${base}/received/${orderToken}`);
+  await fetch(`${base}/received/${orderToken}`, { method: 'POST' });
 
   // Confirm received email includes completion form link
   const receivedEmail = await one("SELECT body FROM outbox WHERE to_email='morgan@example.org' AND subject='Thanks, kits received'");
@@ -217,7 +217,12 @@ try {
   const crmOutMail = await one("SELECT * FROM outbox WHERE to_email='morgan@example.org' AND subject LIKE '%PDSA Agreement Attached%'");
   assert.ok(crmOutMail, 'Outbox logged CRM reply');
   assert.ok(crmOutMail.body.includes('PDSA_Agreement_2026.pdf'));
-  assert.ok(crmOutMail.body.includes(`/api/partners/${partnerId}/documents/${docId}/download`));
+  const docToken = (await one('SELECT token FROM partner_documents WHERE id=$1', [docId])).token;
+  assert.match(docToken, /^[0-9a-f]{32}$/, 'documents get a random token');
+  assert.ok(crmOutMail.body.includes(`/api/documents/${docToken}/download`), 'email links use the token');
+  assert.ok(!crmOutMail.body.includes(`/api/partners/${partnerId}/documents/${docId}/download`), 'no guessable id link');
+  const sentRec = await one("SELECT attachments FROM partner_messages WHERE direction='outbound' AND partner_id=$1", [partnerId]);
+  assert.ok(sentRec.attachments[0].url.endsWith(`/api/documents/${docToken}/download`));
 
   // 17. Facilitator/Partner replies directly in their email
   const replyInbound = await postPublic('/api/inbound-email', {
@@ -236,7 +241,10 @@ try {
   assert.ok(lastMsg.body.includes('reviewed the agreement'));
 
   // 18. Partner downloads document from the link
-  const dlRes = await fetch(`${base}/api/partners/${partnerId}/documents/${docId}/download`);
+  assert.equal((await fetch(`${base}/api/partners/${partnerId}/documents/${docId}/download`)).status, 401, 'id download is staff-only');
+  assert.equal((await getStaff(`/api/partners/${partnerId}/documents/${docId}/download`)).status, 200, 'staff can still download by id');
+  assert.equal((await fetch(`${base}/api/documents/${'0'.repeat(32)}/download`)).status, 404);
+  const dlRes = await fetch(`${base}/api/documents/${docToken}/download`);
   assert.equal(dlRes.status, 200);
   const dlText = await dlRes.text();
   assert.equal(dlText, fileContent);

@@ -136,6 +136,8 @@ CREATE TABLE IF NOT EXISTS partners (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS partners_stage_idx ON partners(stage);
+-- 'initial_contact' was merged into 'discovery'.
+UPDATE partners SET stage='discovery' WHERE stage='initial_contact';
 
 -- Facilitators and programs linked to partners
 ALTER TABLE facilitators ADD COLUMN IF NOT EXISTS partner_id INTEGER REFERENCES partners(id) ON DELETE SET NULL;
@@ -229,6 +231,39 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC(10,2);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
 ALTER TABLE inbound_emails ADD COLUMN IF NOT EXISTS hints JSONB;
+-- Random per-document token for emailed download links (ids are guessable).
+ALTER TABLE partner_documents ADD COLUMN IF NOT EXISTS token TEXT;
+UPDATE partner_documents SET token = replace(gen_random_uuid()::text,'-','') WHERE token IS NULL;
+ALTER TABLE partner_documents ALTER COLUMN token SET DEFAULT replace(gen_random_uuid()::text,'-','');
+CREATE UNIQUE INDEX IF NOT EXISTS partner_documents_token_key ON partner_documents(token);
+
+DROP TABLE IF EXISTS training_meeting_slots;
+
+-- Training scheduling ("let us meet" links): staff weekly availability, their Google Calendar connection,
+-- and the invites sent to partners. Keyed by staff email so it also works while staff login is off.
+CREATE TABLE IF NOT EXISTS staff_availability (
+  staff_email TEXT NOT NULL, weekday SMALLINT NOT NULL, start_min INTEGER NOT NULL, end_min INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS staff_availability_email_idx ON staff_availability (staff_email);
+-- Custom days: replaces the standard week for one calendar date (windows is a JSON array; [] = day off).
+-- A "different week" is just up to seven of these.
+CREATE TABLE IF NOT EXISTS staff_day_overrides (
+  staff_email TEXT NOT NULL, day DATE NOT NULL, windows TEXT NOT NULL DEFAULT '[]',
+  PRIMARY KEY (staff_email, day)
+);
+CREATE TABLE IF NOT EXISTS staff_calendar (
+  staff_email TEXT PRIMARY KEY, timezone TEXT NOT NULL DEFAULT 'America/Toronto',
+  google_refresh_token TEXT, google_account TEXT, updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS training_invites (
+  id SERIAL PRIMARY KEY, token TEXT UNIQUE NOT NULL,
+  partner_id INTEGER REFERENCES partners(id) ON DELETE CASCADE,
+  host_email TEXT NOT NULL, host_name TEXT, invitee_email TEXT NOT NULL, invitee_name TEXT,
+  status TEXT NOT NULL DEFAULT 'pending', chosen_slots TEXT,
+  meeting_start TIMESTAMPTZ, meeting_end TIMESTAMPTZ, meet_link TEXT, event_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS training_invites_partner_idx ON training_invites (partner_id);
 `);
 // Case-insensitive unique staff emails (emails are stored lowercase by the app as well).
 await exec('CREATE UNIQUE INDEX IF NOT EXISTS staff_email_lower_key ON staff (lower(email))');
@@ -247,6 +282,7 @@ ALTER TABLE feedback ADD COLUMN IF NOT EXISTS image_url TEXT;
 ALTER TABLE feedback ADD COLUMN IF NOT EXISTS language TEXT;
 ALTER TABLE feedback ADD COLUMN IF NOT EXISTS translated_text TEXT;
 ALTER TABLE feedback ADD COLUMN IF NOT EXISTS audio_transcript TEXT;
+ALTER TABLE feedback ADD COLUMN IF NOT EXISTS summary TEXT;
 CREATE INDEX IF NOT EXISTS feedback_program_idx ON feedback(program_id);
 `);
 
@@ -280,7 +316,6 @@ if (isTimescale) {
 export const KIT_ITEMS = ['Participant Kits', 'Facilitator Kits', 'Facilitator Manuals', 'Replacement Materials'];
 export const PARTNER_STAGES = [
   'expression_of_interest',
-  'initial_contact',
   'discovery',
   'pdsa_review',
   'pdsa_signed',

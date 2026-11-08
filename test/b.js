@@ -108,7 +108,7 @@ try {
     url: () => 'https://res.example/readable.jpg',
   });
   const origFetch = globalThis.fetch;
-  queue.push(form({ language: 'en', translated_text: 'ignored' }));
+  queue.push(form({ language: 'en', translated_text: 'ignored', summary: 'Parent rated it highly and loved the songs.' }));
   const seen = [];
   // Gemini fake never fetches here because ai.js fetches the URL: stub fetch for that host only.
   globalThis.fetch = async (u, init) => (String(u).startsWith('https://res.example/') ? (seen.push(String(u)), new Response(JPEG, { headers: { 'content-type': 'image/jpeg' } })) : origFetch(u, init));
@@ -117,6 +117,7 @@ try {
   assert.equal(cu.results[0].status, 'saved');
   const cr = await one('SELECT * FROM feedback WHERE id=$1', [cu.results[0].id]);
   assert.equal(cr.image_url, 'https://res.example/readable.jpg'); assert.equal(cr.image_path, null); assert.equal(cr.translated_text, null);
+  assert.equal(cr.summary, 'Parent rated it highly and loved the songs.', 'Gemini summary saved');
   assert.deepEqual(seen, ['https://res.example/readable.jpg']);
   assert.ok(uploads[0].o.folder.endsWith(prog.token)); assert.ok(uploads[0].o.tags.includes(`program-${prog.token}`));
   assert.ok(!existsSync(uploads[0].p), 'local temp deleted after upload');

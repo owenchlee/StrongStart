@@ -3,29 +3,13 @@ import { Router } from 'express';
 import multer from 'multer';
 import { one, run } from '../db.js';
 import * as ai from '../ai.js';
+import { rateLimit } from '../util.js';
 import { speechToText, textToSpeech, elevenLabsEnabled, ElevenLabsError } from '../elevenlabs.js';
 
 export const voice = Router();
 
 export const AUDIO_TYPES = /^audio\/(webm|ogg|mp4|x-m4a|m4a|aac|wav|x-wav|wave|mpeg|mp3)$/i;
 export const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 10 } });
-
-/** Tiny in-memory fixed-window limiter, per IP + bucket. */
-const hits = new Map();
-export function rateLimit(bucket, max, windowMs = 60_000) {
-  return (req, res, next) => {
-    const now = Date.now();
-    const k = `${bucket}:${req.ip}`;
-    let h = hits.get(k);
-    if (!h || h.reset < now) { h = { n: 0, reset: now + windowMs }; hits.set(k, h); }
-    if (++h.n > max) {
-      res.set('Retry-After', String(Math.ceil((h.reset - now) / 1000)));
-      return res.status(429).json({ error: 'Too many requests, please slow down' });
-    }
-    next();
-  };
-}
-setInterval(() => { const n = Date.now(); for (const [k, h] of hits) if (h.reset < n) hits.delete(k); }, 60_000).unref();
 
 /** multer wrapper that turns upload errors into JSON. */
 export const audioUpload = (req, res, next) =>
@@ -83,4 +67,19 @@ voice.post('/api/feedback/:token/voice', rateLimit('voice', 10), audioUpload, as
       clip(s?.most_valued, 2000), clip(s?.suggestions, 2000), clip(s?.raw_text ?? transcript, 5000), transcript.slice(0, 10000),
       clip(s?.language ?? lang, 20), clip(s?.translated_text, 5000), weak]);
   res.json({ ok: true, id: rows[0].id, transcript });
+});
+
+// Generic dictation for any text box (public pages use it too): audio in, transcript out. Nothing is stored.
+voice.get('/api/transcribe', (_req, res) => res.json({ enabled: elevenLabsEnabled() }));
+voice.post('/api/transcribe', rateLimit('stt', 20), audioUpload, async (req, res) => {
+  if (!elevenLabsEnabled()) return res.status(503).json({ error: 'Voice typing is not set up yet.' });
+  const f = req.file;
+  if (!f || !f.buffer?.length) return res.status(400).json({ error: 'An audio file is required (field "audio")' });
+  if (!AUDIO_TYPES.test(String(f.mimetype).split(';')[0].trim())) return res.status(400).json({ error: 'Unsupported audio type' });
+  try {
+    res.json({ text: await speechToText(f.buffer, f.mimetype) });
+  } catch (e) {
+    console.error('[transcribe]', e.message);
+    res.status(e instanceof ElevenLabsError ? e.status : 502).json({ error: 'Could not transcribe that. Please try again.' });
+  }
 });

@@ -6,7 +6,8 @@ import { randomBytes } from 'node:crypto';
 import { unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { query, one, run, PARTNER_STAGES } from '../db.js';
-import { sendMail, STAFF_EMAIL, BASE_URL } from '../mailer.js';
+import { sendMail, STAFF_EMAIL } from '../mailer.js';
+import { BASE_URL, str, oneLine, dateOrNull, intId, validEmail } from '../util.js';
 
 export const partners = Router();
 
@@ -21,13 +22,6 @@ const docUpload = multer({
   }),
   limits: { fileSize: 25 * 1024 * 1024 } // 25MB max
 });
-
-const str = (v, max = 5000) => (v == null ? '' : String(v)).replace(/\u0000/g, '').trim().slice(0, max);
-const oneLine = (v, max = 200) => str(v, max).replace(/\s*[\r\n]+\s*/g, ' ');
-const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) && !Number.isNaN(Date.parse(s + 'T00:00:00Z'));
-const dateOrNull = (v) => { const s = str(v, 10); return isDate(s) ? s : null; };
-const intId = (v) => (/^\d{1,9}$/.test(String(v)) ? Number(v) : null);
-const validEmail = (e) => /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(e || '').trim());
 
 // Public: Prospective partner submits Expression of Interest (EOI)
 partners.post('/api/partners/interest', async (req, res) => {
@@ -283,7 +277,15 @@ partners.get('/api/partners/:id/documents', async (req, res) => {
   res.json(docs);
 });
 
-// Public / Facilitator / Staff: Download document
+// Public: download a document from an emailed link (random token, not the guessable id)
+partners.get('/api/documents/:token/download', async (req, res) => {
+  if (!/^[A-Za-z0-9_-]{16,64}$/.test(req.params.token)) return res.status(404).send('Not found');
+  const doc = await one('SELECT * FROM partner_documents WHERE token=$1', [req.params.token]);
+  if (!doc || !existsSync(doc.file_path)) return res.status(404).send('Document not found or removed');
+  res.download(doc.file_path, doc.original_name);
+});
+
+// Staff: Download document
 partners.get('/api/partners/:partnerId/documents/:docId/download', async (req, res) => {
   const partnerId = intId(req.params.partnerId);
   const docId = intId(req.params.docId);
@@ -357,7 +359,7 @@ partners.post('/api/partners/:id/reply', async (req, res) => {
 
   if (docRows.length) {
     fullBody += '\n\nAttached Documents:\n' + docRows.map((d) => {
-      const link = `${BASE_URL}/api/partners/${partnerId}/documents/${d.id}/download`;
+      const link = `${BASE_URL}/api/documents/${d.token}/download`;
       attachmentsInfo.push({ id: d.id, name: d.original_name, url: link });
       if (existsSync(d.file_path)) {
         mailAttachments.push({ filename: d.original_name, path: d.file_path });
@@ -377,5 +379,5 @@ partners.post('/api/partners/:id/reply', async (req, res) => {
     [partnerId, STAFF_EMAIL, partner.contact_email, subject, fullBody, JSON.stringify(attachmentsInfo)]
   );
 
-  res.json({ ok: true, message: 'Reply sent with attached documents', record: rows[0] });
+  res.json({ ok: true, message: docRows.length ? `Reply sent with ${docRows.length} attached document${docRows.length === 1 ? '' : 's'}` : 'Reply sent', record: rows[0] });
 });

@@ -1,0 +1,477 @@
+<section class="module" id="module-3" style="background: var(--color-bg-warm)">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">03</span>
+      <h1 class="module-title">Two Doors</h1>
+      <p class="module-subtitle">Links for the public, Google sign-in for staff: how StrongStart stays safe without anyone typing a password.</p>
+    </header>
+
+    <div class="module-body">
+
+      <!-- ───────────────────────── SCREEN 1 ───────────────────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Two kinds of visitor</h2>
+        <p><strong>Parents and facilitators never create an account or remember a password. Staff never type one either. How is that safe?</strong></p>
+        <p>Picture the site as a museum with two doors. Visitors get a <strong>wristband</strong>: a <span class="term" data-definition="A token is a long random string of letters and digits that acts as a key. Holding the token is what proves you were given the link; nobody can guess it.">token</span> hidden inside a link that admits them to exactly one exhibit. Staff wear a <strong>badge</strong>: a <span class="term" data-definition="A session is the server-side record that says this cookie belongs to this signed-in person, and until when. Delete the record and the cookie stops working.">session</span> <span class="term" data-definition="A cookie is a small note the server asks your browser to keep and send back with every later request. It is how a website remembers that you signed in.">cookie</span> earned by signing in with Google, and it opens every back-office door.</p>
+
+        <div class="pattern-cards" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr))">
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">🎟️</div>
+            <h4 class="pattern-title">The wristband: a link with a random token</h4>
+            <p class="pattern-desc">Parents, facilitators and partners. The <span class="term" data-definition="A URL is a web address, the text in the browser bar. The part after the site name, such as /feedback/8f3a, is called the path.">URL</span> itself is the key, and each key opens one exhibit only.</p>
+            <div class="badge-list">
+              <div class="badge-item"><code class="badge-code">/order/:token</code><span class="badge-desc">the order form for one kit request</span></div>
+              <div class="badge-item"><code class="badge-code">/feedback/:token</code><span class="badge-desc">the parent feedback page for one program</span></div>
+              <div class="badge-item"><code class="badge-code">/upload/:token</code><span class="badge-desc">paper-form photo upload for one program</span></div>
+              <div class="badge-item"><code class="badge-code">/sheet/:token</code><span class="badge-desc">printable paper form for one program</span></div>
+              <div class="badge-item"><code class="badge-code">/complete/:token</code><span class="badge-desc">the lesson-complete page (behind the <span class="term" data-definition="A QR code is a square barcode that a phone camera turns into a link, so parents reach their page without typing anything.">QR code</span>)</span></div>
+              <div class="badge-item"><code class="badge-code">/meet/:token</code><span class="badge-desc">one training meeting</span></div>
+              <div class="badge-item"><code class="badge-code">/certificate/:code</code><span class="badge-desc">one training certificate</span></div>
+              <div class="badge-item"><code class="badge-code">/training/register</code><span class="badge-desc">self-service training sign-up; open to anyone</span></div>
+            </div>
+          </div>
+
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">🪪</div>
+            <h4 class="pattern-title">The badge: a session cookie from Google sign-in</h4>
+            <p class="pattern-desc">Strong Start staff. One sign-in, one cookie, and every back-office door opens for 7 days.</p>
+            <div class="badge-list">
+              <div class="badge-item"><code class="badge-code">/</code><span class="badge-desc">the staff <span class="term" data-definition="The dashboard is the staff-only page at the root address (public/index.html): orders to ship, forms to review, trends and reports.">dashboard</span></span></div>
+              <div class="badge-item"><code class="badge-code">/compose.html</code><span class="badge-desc">write and send emails</span></div>
+              <div class="badge-item"><code class="badge-code">/profile.html</code><span class="badge-desc">the staff profile page</span></div>
+              <div class="badge-item"><code class="badge-code">/api/*</code><span class="badge-desc">every other <span class="term" data-definition="An API (application programming interface) is the set of addresses a program calls to fetch or change data, rather than pages a person reads. Here every API address starts with /api.">API</span> address: orders, programs, feedback review, reports</span></div>
+            </div>
+          </div>
+        </div>
+
+        <p>Nothing is open by default. A door with neither a wristband slot nor a badge reader is simply locked.</p>
+        <p>Module 2 showed the order of the <span class="term" data-definition="Middleware is a function that runs on every request before the route handler, like a checkpoint in a corridor. It can let the request through, change it, or stop it.">middleware</span> in <code>server.js</code>: <em>auth before the gate, the gate before static files</em>. This module is about what that gate does.</p>
+      </section>
+
+      <!-- ───────────────────────── SCREEN 2 ───────────────────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The gate on every request</h2>
+        <p><code>requireStaff</code> is the badge reader. It is one <span class="term" data-definition="A function is a named, reusable block of code that takes inputs and returns a result. requireStaff is a function the server calls on every request.">function</span> that the <span class="term" data-definition="The server is the program running on a computer somewhere that receives every request from a browser and decides what to send back. Here it is src/server.js and the files under src/routes.">server</span> runs on every single request, before any <span class="term" data-definition="A route is one address the server knows how to answer, such as GET /api/orders. Each route maps a URL to the code that handles it.">route</span> gets a say.</p>
+
+        <small style="display:block; font-family: var(--font-mono); color: var(--color-text-muted); margin-top: var(--space-6)">Snippet A · <code>src/auth.js</code> · lines 99–108</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-keyword">export</span> <span class="code-keyword">async</span> <span class="code-keyword">function</span> <span class="code-function">requireStaff</span>(req, res, next) {</span>
+<span class="code-line">  <span class="code-keyword">const</span> method = req.<span class="code-property">method</span> === <span class="code-string">'HEAD'</span> ? <span class="code-string">'GET'</span> : req.<span class="code-property">method</span>;</span>
+<span class="code-line">  <span class="code-keyword">if</span> (!authRequired) { req.<span class="code-property">staff</span> = LOCAL_STAFF; <span class="code-keyword">return</span> <span class="code-function">next</span>(); }</span>
+<span class="code-line">  <span class="code-keyword">if</span> (!<span class="code-function">isDashboardPage</span>(req.<span class="code-property">path</span>) &amp;&amp; !<span class="code-function">isApi</span>(req.<span class="code-property">path</span>)) <span class="code-keyword">return</span> <span class="code-function">next</span>();</span>
+<span class="code-line">  <span class="code-keyword">if</span> (<span class="code-function">isApi</span>(req.<span class="code-property">path</span>) &amp;&amp; PUBLIC_API.<span class="code-function">some</span>(([m, re]) =&gt; m === method &amp;&amp; re.<span class="code-function">test</span>(req.<span class="code-property">path</span>))) <span class="code-keyword">return</span> <span class="code-function">next</span>();</span>
+<span class="code-line">  <span class="code-keyword">const</span> staff = <span class="code-keyword">await</span> <span class="code-function">currentStaff</span>(req);</span>
+<span class="code-line">  <span class="code-keyword">if</span> (staff) { req.<span class="code-property">staff</span> = staff; <span class="code-keyword">return</span> <span class="code-function">next</span>(); }</span>
+<span class="code-line">  <span class="code-keyword">if</span> (<span class="code-function">isApi</span>(req.<span class="code-property">path</span>)) <span class="code-keyword">return</span> res.<span class="code-function">status</span>(<span class="code-number">401</span>).<span class="code-function">json</span>({ <span class="code-property">error</span>: <span class="code-string">'Staff login required'</span> });</span>
+<span class="code-line">  res.<span class="code-function">redirect</span>(<span class="code-string">'/login.html'</span>);</span>
+<span class="code-line">}</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Here is the gate. <span class="term" data-definition="Express is the web framework StrongStart runs on: the library that receives requests, runs middleware in order and hands each request to the matching route.">Express</span> hands it <span class="term" data-definition="req, res and next are the three things Express gives every middleware: the incoming request, the outgoing response, and a function that means pass to the next checkpoint.">req, res and next</span>: the request, the reply, and a way to say pass. It is <span class="term" data-definition="async marks a function that may need to wait, for example for the database. await pauses on that one line until the answer arrives, without freezing the rest of the server.">async</span> because it may have to wait for the database.</p>
+              <p class="tl">Treat a HEAD request as a GET. In <span class="term" data-definition="HTTP is the language browsers and servers speak. Every request carries a method: GET means read something, POST means send or change something, HEAD means GET but only the headers.">HTTP</span> they ask the same question, HEAD just wants the headers.</p>
+              <p class="tl">If staff login is switched off, pretend everyone is a local staff member and wave them through. (The hackathon setting; see the caveat below.)</p>
+              <p class="tl">Not a dashboard page and not under /api? Then it is a public page or a <span class="term" data-definition="Static files are plain HTML, CSS and JavaScript files served exactly as stored, such as public/index.html. No server code runs to build them.">static file</span>: no badge needed, pass.</p>
+              <p class="tl">Under /api but on the <span class="term" data-definition="An allow-list is a short explicit list of things that are permitted; everything not on it is refused. The opposite, a block-list, permits everything except what is listed.">allow-list</span>, with the right method and a matching pattern? That is a wristband door: pass.</p>
+              <p class="tl">Otherwise read the cookie, <span class="term" data-definition="A hash is a one-way fingerprint of some text. You can check a value against its hash but cannot work backwards from the hash to the original.">hash</span> it and look for a live session in the <span class="term" data-definition="The database is where all the data lives permanently: programs, orders, feedback, staff, sessions. StrongStart uses PostgreSQL (PGlite locally, Tiger Data in production).">database</span>.</p>
+              <p class="tl">Found one? Pin the staff record to the request so the route knows who is asking, then pass.</p>
+              <p class="tl">No session and this is an API call: answer <span class="term" data-definition="401 is the HTTP status code for Unauthorized: the server understood you but you have not proved who you are. Status codes are the three-digit verdicts every reply carries, like 200 OK or 404 Not Found.">401</span> with a short <span class="term" data-definition="JSON is the text format programs use to exchange structured data, such as { error: Staff login required }. The dashboard reads it with JavaScript rather than showing it raw to a person.">JSON</span> error the dashboard can display.</p>
+              <p class="tl">No session and this is a page: <span class="term" data-definition="A redirect tells the browser to go to a different address instead. Here a staff page without a session sends you to /login.html.">redirect</span> the <span class="term" data-definition="The browser is the program (Chrome, Safari, Firefox) that shows web pages and sends requests on your behalf.">browser</span> to the login page.</p>
+              <p class="tl">End of the gate. Every request leaves through exactly one of these exits.</p>
+            </div>
+          </div>
+        </div>
+
+        <p>Read top to bottom, the gate is a short queue of questions. The first yes wins.</p>
+        <div class="step-cards">
+          <div class="step-card"><div class="step-num">1</div><div><strong>Is login switched off?</strong><p>Everyone is treated as local staff. Demo only.</p></div></div>
+          <div class="step-card"><div class="step-num">2</div><div><strong>Is this a public page or a static file?</strong><p>Not the dashboard, not under /api. No credentials needed.</p></div></div>
+          <div class="step-card"><div class="step-num">3</div><div><strong>Is this /api address on the allow-list for this method?</strong><p>A wristband door. The token in the path does the checking later, inside the route.</p></div></div>
+          <div class="step-card"><div class="step-num">4</div><div><strong>Does the cookie match a live session?</strong><p>A valid badge. The staff record rides along as <code>req.staff</code>.</p></div></div>
+          <div class="step-card" style="border-left-color: var(--color-error)"><div class="step-num" style="background: var(--color-error)">✕</div><div><strong>None of the above: locked.</strong><p>API calls get 401 Staff login required; pages are sent to /login.html.</p></div></div>
+        </div>
+
+        <div class="callout callout-warning">
+          <div class="callout-icon">⚠️</div>
+          <div class="callout-content">
+            <strong class="callout-title">Honest caveat: staff login is currently OFF</strong>
+            <p>Exit 1 is live right now. Staff login is <strong>OFF unless <code>REQUIRE_AUTH=1</code></strong>, a temporary setting for the hackathon demo so judges can open the dashboard without a Strong Start Google account. The login code path is unchanged and every test runs with <code>REQUIRE_AUTH=1</code>. <strong>Set it before any public deploy.</strong></p>
+          </div>
+        </div>
+
+        <small style="display:block; font-family: var(--font-mono); color: var(--color-text-muted); margin-top: var(--space-6)">Snippet E · <code>src/auth.js</code> · lines 21–23</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-comment">// Staff login is OFF unless REQUIRE_AUTH=1 (temporary: the dashboard is open to anyone who can reach the server).</span></span>
+<span class="code-line"><span class="code-comment">// Turn it back on before deploying anywhere public. The login code below is unchanged and still tested.</span></span>
+<span class="code-line"><span class="code-keyword">export</span> <span class="code-keyword">const</span> authRequired = process.<span class="code-property">env</span>.<span class="code-property">REQUIRE_AUTH</span> === <span class="code-string">'1'</span>;</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">A <span class="term" data-definition="A comment is a note for humans inside the code; the computer skips it. In JavaScript comments start with two slashes, in SQL with two dashes.">comment</span> in the code says it plainly: login is off unless REQUIRE_AUTH=1, and until then the dashboard is open to anyone who can reach the server.</p>
+              <p class="tl">Turn it back on before <span class="term" data-definition="Deploying means putting the app on a server on the internet where real users can reach it, as opposed to running it on your own laptop.">deploying</span> anywhere public. The login code is intact and every test runs with it on.</p>
+              <p class="tl">The switch itself: read the <span class="term" data-definition="An environment variable is a setting handed to the program by the machine it runs on, rather than written in the code. REQUIRE_AUTH=1 is one; it lets the same code behave differently in a demo and in production.">environment variable</span>. The gate is armed only when it equals 1.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────────────────── SCREEN 3 ───────────────────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The allow-list</h2>
+        <p><code>PUBLIC_API</code> is the list of wristband doors. Every entry is a pair: an HTTP method and a <span class="term" data-definition="A regex (regular expression) is a compact pattern for matching text. The pattern for /api/feedback/ followed by [^/]+ means: then one path segment of anything, then optionally a slash, then the end of the address.">regex</span> the path must match.</p>
+
+        <small style="display:block; font-family: var(--font-mono); color: var(--color-text-muted); margin-top: var(--space-6)">Snippet B · <code>src/auth.js</code> · lines 74–80 (the list continues to line 95; 20 entries in total)</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-comment">// Default-deny: everything under /api and the dashboard page requires staff, except this allow-list</span></span>
+<span class="code-line"><span class="code-comment">// of public routes (see WORKLOAD.md "Who can access what"). New API routes are protected automatically.</span></span>
+<span class="code-line"><span class="code-keyword">const</span> PUBLIC_API = [</span>
+<span class="code-line">  [<span class="code-string">'POST'</span>, <span class="code-string">/^\/api\/inbound-email\/?$/</span>],              <span class="code-comment">// email provider webhook (add a shared secret separately)</span></span>
+<span class="code-line">  [<span class="code-string">'GET'</span>, <span class="code-string">/^\/api\/order-form\/[^/]+\/?$/</span>], [<span class="code-string">'POST'</span>, <span class="code-string">/^\/api\/order-form\/[^/]+\/?$/</span>],</span>
+<span class="code-line">  [<span class="code-string">'POST'</span>, <span class="code-string">/^\/api\/feedback\/[^/]+\/?$/</span>],            <span class="code-comment">// parent feedback form</span></span>
+<span class="code-line">  [<span class="code-string">'POST'</span>, <span class="code-string">/^\/api\/feedback\/[^/]+\/photos\/?$/</span>],    <span class="code-comment">// facilitator photo upload</span></span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">A note to future developers: the rule is <span class="term" data-definition="Default-deny means the starting answer is always no; you must be on a list to get a yes. Forgetting a route makes it too locked, which gets noticed, rather than too open, which does not.">default-deny</span>. Everything under /api and the dashboard page needs a badge...</p>
+              <p class="tl">...except the routes listed here, the wristband doors. New API routes are protected automatically; there is nothing to remember.</p>
+              <p class="tl">The allow-list begins. Each entry pairs a method with a pattern for the path.</p>
+              <p class="tl">The email provider POSTs each incoming email here, a <span class="term" data-definition="A webhook is an address another service calls to notify you, instead of you calling it. The email provider POSTs every incoming email to /api/inbound-email.">webhook</span>. The comment is a to-do: this door still needs a shared secret.</p>
+              <p class="tl">The order form for one kit request: GET to read it, POST to submit it. The <code>[^/]+</code> part is where the token sits.</p>
+              <p class="tl">Parents POST their feedback here, token in the path.</p>
+              <p class="tl">Facilitators POST photos of paper forms here. The list runs on to line 95: twenty doors in all.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">Key Insight: default-deny with an allow-list</strong>
+            <p>Default-deny with an allow-list is the safest shape for permissions: forgetting to add a route makes it <em>too locked</em>, which someone notices immediately, instead of <em>too open</em>, which nobody notices.</p>
+          </div>
+        </div>
+
+        <div class="icon-rows">
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-5); color: white">🪪</div>
+            <div><strong>Adding a staff route?</strong><p>Write the route. Touch nothing in <code>auth.js</code>. It is locked from the moment it exists.</p></div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-1); color: white">🎟️</div>
+            <div><strong>Adding a public route?</strong><p>Write the route, then add one line to <code>PUBLIC_API</code>: its method and a regex with a slot for the token.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────────────────── SCREEN 4 ───────────────────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Why a random token and not /feedback/12</h2>
+        <p>Program number 12 is easy to guess, and so is 13. A wristband like <code>/feedback/8f3aQx…</code> is not. Public URLs use the random token, never the numeric id, so knowing one link tells you nothing about any other.</p>
+
+        <small style="display:block; font-family: var(--font-mono); color: var(--color-text-muted); margin-top: var(--space-6)">Snippet C · <code>src/routes/feedback.js</code> · lines 29–33</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-keyword">const</span> TOKEN_RE = <span class="code-string">/^[A-Za-z0-9_-]{16,64}$/</span>;</span>
+<span class="code-line"><span class="code-keyword">async</span> <span class="code-keyword">function</span> <span class="code-function">programByToken</span>(token) {</span>
+<span class="code-line">  <span class="code-keyword">if</span> (!TOKEN_RE.<span class="code-function">test</span>(token || <span class="code-string">''</span>)) <span class="code-keyword">return</span> <span class="code-keyword">undefined</span>;</span>
+<span class="code-line">  <span class="code-keyword">return</span> <span class="code-function">one</span>(<span class="code-string">'SELECT id, name, location, token FROM programs WHERE token=$1'</span>, [token]);</span>
+<span class="code-line">}</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">What a valid wristband looks like: 16 to 64 characters, only letters, digits, underscore or hyphen.</p>
+              <p class="tl">Given a token from the URL, find the program it belongs to.</p>
+              <p class="tl">If the token is missing or does not look like a wristband, give up at once and return <span class="term" data-definition="undefined is the JavaScript value for nothing here. Returning it tells the caller that no program matched, so it can answer 404 Not Found.">undefined</span>. The database is never even asked.</p>
+              <p class="tl">Ask the database, in <span class="term" data-definition="SQL is the language for asking a database questions. SELECT ... FROM programs WHERE token=$1 means: find the programs row whose token equals the value I pass in.">SQL</span>, for the one program whose token matches. <span class="term" data-definition="$1 is a placeholder the database fills with the first value passed alongside the query. Using placeholders instead of pasting text into the SQL blocks SQL injection, a classic attack where the input is crafted to rewrite the query.">$1</span> is a placeholder, so the token can never be mistaken for part of the query.</p>
+              <p class="tl">Done. The caller gets one program, or nothing.</p>
+            </div>
+          </div>
+        </div>
+
+        <p>A guessable id would let anyone submit fake feedback for any program, or read any order form. The random token is the whole permission: engineers call this a <span class="term" data-definition="A capability link is a URL that is itself the permission: whoever holds it can do the one thing it names, and nothing else. Shared Google Docs links work the same way.">capability link</span>.</p>
+        <p>The badge works on the same idea in reverse. The cookie is a random secret too, and the database only ever stores its fingerprint.</p>
+
+        <small style="display:block; font-family: var(--font-mono); color: var(--color-text-muted); margin-top: var(--space-6)">Snippet D · <code>src/db.js</code> · lines 115–119</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-comment">-- Server-side sessions; id is the SHA-256 of the cookie value, so a leaked DB can't be replayed.</span></span>
+<span class="code-line"><span class="code-keyword">CREATE TABLE IF NOT EXISTS</span> sessions (</span>
+<span class="code-line">  <span class="code-property">id</span> <span class="code-keyword">TEXT PRIMARY KEY</span>, <span class="code-property">staff_id</span> <span class="code-keyword">INTEGER NOT NULL REFERENCES</span> staff(id) <span class="code-keyword">ON DELETE CASCADE</span>,</span>
+<span class="code-line">  <span class="code-property">expires_at</span> <span class="code-keyword">BIGINT NOT NULL</span>, <span class="code-property">created_at</span> <span class="code-keyword">TIMESTAMPTZ DEFAULT</span> <span class="code-function">now</span>()</span>
+<span class="code-line">);</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">The badge register. The id column holds a <span class="term" data-definition="SHA-256 is a standard hashing recipe that turns any input into a fixed 64-character fingerprint. The same input always gives the same fingerprint, and there is no way back.">SHA-256</span> fingerprint of the cookie, not the cookie itself, so a leaked database cannot be <span class="term" data-definition="Replaying means taking a stolen value and sending it again as if you were the original owner. A fingerprint cannot be replayed because the server expects the original, hashes it, and compares.">replayed</span>.</p>
+              <p class="tl">Make the sessions <span class="term" data-definition="A table is one kind of record in the database, like a spreadsheet tab; each row is one record and each column one field. The sessions table holds one row per signed-in staff session.">table</span> if it is not there yet; safe to run on every start.</p>
+              <p class="tl">One row per badge: its fingerprint as the <span class="term" data-definition="A primary key is the column that uniquely identifies each row, so no two rows can share it. Here the session id is the primary key.">primary key</span>, and the staff member it belongs to. <span class="term" data-definition="REFERENCES staff(id) makes staff_id a foreign key: every session must point at a real staff row. ON DELETE CASCADE means deleting that staff row deletes their sessions too.">ON DELETE CASCADE</span> means deactivate the staff row and their badges vanish with it.</p>
+              <p class="tl">When the badge expires (a <span class="term" data-definition="BIGINT is a large whole number, here a moment in time counted in milliseconds. TIMESTAMPTZ is a date and time that remembers its time zone.">BIGINT</span> moment in time) and when it was issued.</p>
+              <p class="tl">End of the table.</p>
+            </div>
+          </div>
+        </div>
+
+        <p>Four small things make the two doors hold.</p>
+        <div class="pattern-cards">
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3); color: white">#</div>
+            <h4 class="pattern-title">Hashed session ids</h4>
+            <p class="pattern-desc">The database keeps the fingerprint, the browser keeps the key. Stealing the register gets you nothing.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4); color: white">🔐</div>
+            <h4 class="pattern-title">PKCE on Google sign-in</h4>
+            <p class="pattern-desc">The <span class="term" data-definition="OAuth is the standard that lets you sign in to one site using another, such as Sign in with Google. The site never sees your Google password; Google vouches for you instead.">OAuth</span> flow uses <span class="term" data-definition="PKCE (proof key for code exchange) is an extra OAuth step where the app invents a secret at the start and must show it at the end. It stops an attacker who intercepts the middle of the sign-in from finishing it.">PKCE</span>, so intercepting the middle of a sign-in does not let anyone finish it.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5); color: white">✓</div>
+            <h4 class="pattern-title">Active staff row required</h4>
+            <p class="pattern-desc">A verified Google email is not enough. It must match an active row in the <code>staff</code> table.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2); color: white">⏏</div>
+            <h4 class="pattern-title">Deactivate deletes sessions</h4>
+            <p class="pattern-desc">Switch a staff member off and their badges stop working on the next request, not in 7 days.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────────────────── SCREEN 5 ───────────────────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">A staff member opens the dashboard</h2>
+        <p>Watch one badge do its job, get lost, and get reissued. Four characters: the staff member's Browser, the Gate (<code>requireStaff</code>), Google, and the Database.</p>
+
+        <div class="chat-window" id="chat-module3">
+          <div class="chat-messages">
+            <div class="chat-message" data-msg="0" data-sender="browser" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-5)">B</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-5)">Browser</span>
+                <p>GET /api/orders please. Here is my cookie: ss_session=…</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="1" data-sender="gate" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-2)">G</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-2)">Gate</span>
+                <p>Is /api/orders on the public list? No. Let me hash that cookie and look it up.</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="2" data-sender="database" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-3)">D</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-3)">Database</span>
+                <p>Found a session for staff #3, not expired, and the staff row is still active.</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="3" data-sender="gate" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-2)">G</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-2)">Gate</span>
+                <p>Welcome back, Jo. Passing you through to orders.js.</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="4" data-sender="browser" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-5)">B</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-5)">Browser</span>
+                <p>(Later, cookie deleted) GET /api/orders</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="5" data-sender="gate" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-2)">G</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-2)">Gate</span>
+                <p>No session. 401: Staff login required. Redirecting to /login.html.</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="6" data-sender="browser" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-5)">B</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-5)">Browser</span>
+                <p>Sign in with Google, then.</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="7" data-sender="google" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-4)">Go</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-4)">Google</span>
+                <p>Here is a <span class="term" data-definition="Signed means stamped with a cryptographic signature that only Google can produce and anyone can check, so the token cannot be forged or altered on the way.">signed</span> <span class="term" data-definition="An ID token is a signed statement from Google saying who just signed in and whether their email is verified. The server checks the signature, who issued it, who it was meant for, and that it is fresh.">ID token</span>: jo@strongstart.org, email verified.</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="8" data-sender="gate" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-2)">G</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-2)">Gate</span>
+                <p>Checked the <span class="term" data-definition="The issuer is who signed the token (Google) and the audience is which app it was made for (StrongStart). Checking both means a token made for some other app cannot be used here.">issuer, audience</span>, <span class="term" data-definition="A nonce is a one-time random value the server includes when starting a sign-in and expects to see echoed back inside the token. It stops an old sign-in response from being replayed.">nonce</span> and expiry. Is jo@strongstart.org an active row in the staff table?</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="9" data-sender="database" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-3)">D</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-3)">Database</span>
+                <p>Yes. New session created; id stored as a SHA-256 hash.</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="10" data-sender="gate" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-2)">G</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-2)">Gate</span>
+                <p>New cookie set for 7 days. In you go.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-typing" id="chat-module3-typing" style="display:none">
+            <div class="chat-avatar" id="chat-module3-typing-avatar">?</div>
+            <div class="chat-typing-dots">
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+            </div>
+          </div>
+
+          <div class="chat-controls">
+            <button class="btn chat-next-btn">Next Message</button>
+            <button class="btn chat-all-btn">Play All</button>
+            <button class="btn chat-reset-btn">Replay</button>
+            <span class="chat-progress"></span>
+          </div>
+        </div>
+
+        <div class="icon-rows">
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-accent); color: white">🎤</div>
+            <div><strong>When a judge asks: who can see the parents' data?</strong><p>Only signed-in staff; everything else is a random link that reaches exactly one program.</p></div>
+          </div>
+        </div>
+
+        <h2 class="screen-heading">Check your understanding</h2>
+        <p>Four situations you have not seen yet. Each one asks you to decide, not to remember.</p>
+
+        <div class="quiz-container" id="quiz-module3">
+          <div class="quiz-question-block"
+               data-correct="q1-b"
+               data-explanation-right="Exactly. The dashboard sends its staff cookie, requireStaff finds the session, and the new route is protected from the moment it exists. Default-deny means the safe answer is also the lazy one."
+               data-explanation-wrong="Not quite. The gate runs before every route, so a new /api address is locked the moment you create it, and the dashboard already carries a badge. Only wristband doors need a line in auth.js.">
+            <h3 class="quiz-question">You add <code>GET /api/kits/stock</code> so the Orders tab can show how many kits are left in the cupboard. Do you have to touch <code>auth.js</code>?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="q1-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Yes: add it to PUBLIC_API so the dashboard can reach it.</span>
+              </button>
+              <button class="quiz-option" data-value="q1-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>No. Anything under /api is staff-only by default; only public routes are listed.</span>
+              </button>
+              <button class="quiz-option" data-value="q1-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Yes: call requireStaff again inside the new route to be safe.</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="q2-b"
+               data-explanation-right="Yes. The symptom is the clue: a 401 saying Staff login required is requireStaff refusing an /api path it does not recognise as public. One line in PUBLIC_API, with GET and a pattern for the token, opens the wristband door."
+               data-explanation-wrong="Not quite. Look at the message itself: Staff login required comes from one place, the last-but-one line of requireStaff. The route exists and would run fine; the gate simply does not know yet that it is public.">
+            <h3 class="quiz-question">You add <code>GET /api/programs/:token/thank-you</code>, which the parent page calls after submitting. In testing the page shows <em>Staff login required</em>. Why?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="q2-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Parents have no Google account, so they need to be added to the staff table.</span>
+              </button>
+              <button class="quiz-option" data-value="q2-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>It is a new public route and must be added to PUBLIC_API with its method and a regex.</span>
+              </button>
+              <button class="quiz-option" data-value="q2-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The token is too short, so programByToken rejected it.</span>
+              </button>
+              <button class="quiz-option" data-value="q2-d" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The parent page forgot to send a cookie.</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="q3-b"
+               data-explanation-right="Exactly. The browser holds the original random value; the database holds only its fingerprint. Present the fingerprint as a cookie and the gate hashes it again, which matches nothing. That is the sentence written above the sessions table."
+               data-explanation-wrong="Not quite. The id column is not the cookie, it is the hash of the cookie. Hashing is one way, so a leaked row gives an attacker a fingerprint they cannot turn back into the key. Expiry and cascade delete are extra safety, not the main defence.">
+            <h3 class="quiz-question">A judge asks: if your database were leaked tomorrow, could an attacker log in as staff using the stolen <code>sessions</code> rows?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="q3-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Yes: paste a session id into a cookie and the gate lets you in.</span>
+              </button>
+              <button class="quiz-option" data-value="q3-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>No: the table holds SHA-256 hashes of the cookie values, not the cookies, so a row cannot be replayed.</span>
+              </button>
+              <button class="quiz-option" data-value="q3-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Yes, but only until the 7-day expiry runs out.</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="q4-c"
+               data-explanation-right="Yes. The wristband opens one exhibit. Both edges matter: anyone holding the link can submit to that program, and nobody holding it can see anything else. If a link spreads too far, the fix is to issue that program a new token."
+               data-explanation-wrong="Not quite. A capability link is the permission itself, so it works on any device, but it names exactly one program and no other door. The colleague could add feedback there and nothing more.">
+            <h3 class="quiz-question">A facilitator forwards their feedback-page link to a colleague at a different library. What can the colleague do?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="q4-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Nothing: the link only works on the original facilitator's phone.</span>
+              </button>
+              <button class="quiz-option" data-value="q4-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>See every program's feedback, because the link proves they are a facilitator.</span>
+              </button>
+              <button class="quiz-option" data-value="q4-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Submit feedback for that one program only; the token identifies one program and grants nothing else.</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module3')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module3')">Try Again</button>
+        </div>
+
+        <p><strong>Next:</strong> now that we know who may knock, let us follow the most interesting thing that comes through the public door: a photo of a paper form.</p>
+      </section>
+
+    </div>
+  </div>
+</section>

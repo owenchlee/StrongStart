@@ -56,6 +56,11 @@ try {
   assert.equal(h.start_date, '2030-03-04');
   assert.match(h.address, /12 Maple Street/);
   assert.deepEqual(parseHints('hi', 'nothing useful here'), {});
+  // one-paragraph email: "is called" must not leak into the name, and the address must not be the whole paragraph
+  const para = parseHints('Kits', 'Hi! Our program is called Little Readers Circle. We have 12 families and would like 12 kits. Starting Jan 15. Ship to 45 Main Street, Oakville ON L6H 1A1', new Date('2026-11-08'));
+  assert.equal(para.program_name, 'Little Readers Circle');
+  assert.equal(para.address, '45 Main Street, Oakville ON L6H 1A1');
+  assert.equal(parseHints('', 'a class called Baby Steps for 8 parents starting March 3').program_name, 'Baby Steps');
 
   // ---- inbound secret enforcement ----
   const inbound = { from: 'Dana Lee <dana@example.com>', subject: 'Kit order', body: 'Our program name is "Sprouts". 10 participants. Ship to: 5 Oak Avenue, Town' };
@@ -136,11 +141,24 @@ try {
   assert.ok((await one('SELECT reminder_sent_at FROM orders WHERE id=$1', [orderId])).reminder_sent_at);
   assert.equal(await sendOverdueReminders(7), 0, 'only one reminder per order');
   assert.equal((await authed('/api/orders/send-reminders', json({ days: 9999 }))).status, 400);
+  // one order on request, ignoring the days cutoff
+  const one1 = await authed('/api/orders/send-reminders', json({ order_id: orderId })).then((r) => r.json());
+  assert.deepEqual(one1, { ok: true, sent: 1 });
+  assert.match((await outbox('dana@example.com')).at(-1).body, /shipped 10 days ago/);
+  assert.equal((await outbox('dana@example.com')).length, before + 2);
+  assert.deepEqual(await authed('/api/orders/send-reminders', json({ order_id: 424242 })).then((r) => r.json()), { ok: true, sent: 0 }, 'unknown or unshipped order');
+  assert.equal((await authed('/api/orders/send-reminders', json({ order_id: 'x' }))).status, 400);
 
   // ---- received flow: emails use the program token ----
   assert.equal((await req('/received/nope')).status, 404);
+  assert.equal((await req('/received/nope', { method: 'POST' })).status, 404);
   assert.equal((await req(`/received/${tok}`)).status, 200);
-  assert.equal((await req(`/received/${tok}`)).status, 200, 'idempotent');
+  assert.equal((await one('SELECT status FROM orders WHERE id=$1', [orderId])).status, 'shipped', 'GET only shows the confirm button');
+  assert.equal((await outbox('dana@example.com')).filter((m) => m.subject === 'Thanks, kits received').length, 0);
+  assert.equal((await req(`/received/${tok}`, { method: 'POST' })).status, 200);
+  assert.equal((await req(`/received/${tok}`, { method: 'POST' })).status, 200, 'idempotent');
+  assert.equal((await one('SELECT status FROM orders WHERE id=$1', [orderId])).status, 'received');
+  assert.match(await req(`/received/${tok}`).then((r) => r.text()), /Thank you!/, 'GET after confirming shows thanks');
   const rec = (await outbox('dana@example.com')).filter((m) => m.subject === 'Thanks, kits received');
   assert.equal(rec.length, 1, 'thanks email sent once');
   for (const p of ['feedback', 'upload', 'sheet']) assert.ok(rec[0].body.includes(`http://test.local/${p}/${prog.token}`), p);
@@ -241,6 +259,29 @@ try {
   assert.equal((await authed('/api/compose/transcribe', audioForm('image/png'))).status, 400);
   const pol = await authed('/api/compose/polish', json({ text: 'um hi dana' }));
   assert.equal(pol.status, 200);
+  // form reader: normal by default; with GEMINI_FORM_THINKING=off it asks for no thinking, retries once if the model
+  // rejects that, and never retries a quota error (that would burn another request for nothing)
+  {
+    const { writeFile } = await import('node:fs/promises');
+    const img = join(dir, 'form.png');
+    await writeFile(img, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'));
+    const ok = JSON.stringify({ rating: 4, would_recommend: true, most_valued: 'a', suggestions: 'b', raw_text: 'x', language: 'en', translated_text: '', summary: 's', confidence: 'high' });
+    const seen = [];
+    const fake = (fn) => ai.__setGeminiForTests({ models: { generateContent: async (r) => { seen.push(r.config.thinkingConfig); return fn(seen.length); } } });
+    fake(() => ({ text: ok }));
+    await ai.transcribeFeedbackPhoto(img);
+    assert.deepEqual(seen, [undefined], 'default: thinking untouched');
+    process.env.GEMINI_FORM_THINKING = 'off';
+    seen.length = 0; await ai.transcribeFeedbackPhoto(img);
+    assert.deepEqual(seen, [{ thinkingBudget: 0 }], 'opt-in: thinking off');
+    seen.length = 0; fake((n) => { if (n === 1) throw new Error('thinkingBudget is not supported'); return { text: ok }; });
+    assert.equal((await ai.transcribeFeedbackPhoto(img)).rating, 4);
+    assert.deepEqual(seen, [{ thinkingBudget: 0 }, undefined], 'model rejects the setting: one plain retry');
+    seen.length = 0; fake(() => { throw new Error('{"error":{"code":429,"status":"RESOURCE_EXHAUSTED"}}'); });
+    await assert.rejects(ai.transcribeFeedbackPhoto(img), /429/);
+    assert.equal(seen.length, 1, 'quota error is not retried');
+    delete process.env.GEMINI_FORM_THINKING;
+  }
   ai.__setGeminiForTests(null);
   assert.equal((await authed('/api/compose/polish', json({ text: 'um hi' }))).status, 503, 'AI off');
   delete process.env.ELEVENLABS_API_KEY;

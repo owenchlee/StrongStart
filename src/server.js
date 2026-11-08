@@ -8,6 +8,7 @@ import { partners } from './routes/partners.js';
 import { programsRouter } from './routes/programs.js';
 import { trainingRouter } from './routes/training.js';
 import { resourcesRouter } from './routes/resources.js';
+import { meetRouter } from './routes/meet.js';
 import { aiEnabled } from './ai.js';
 import { auth, requireStaff } from './auth.js';
 import { dbBackend, isTimescale } from './db.js';
@@ -21,9 +22,11 @@ app.use(express.urlencoded({ extended: false })); // inbound-email webhooks ofte
 app.use(auth);        // /auth/*, /api/me: must come before the gate
 app.use(requireStaff); // default-deny for the dashboard page and /api (before static serves index.html)
 app.use(express.static('public'));
-app.use(orders, feedback, dashboard, voice, compose, partners, programsRouter, trainingRouter, resourcesRouter);
+app.use(orders, feedback, dashboard, voice, compose, partners, programsRouter, trainingRouter, resourcesRouter, meetRouter);
 
 app.use((err, _req, res, _next) => {
+  // Client mistakes (malformed JSON, body too large) are 4xx, not server errors.
+  if (err?.expose && err.status >= 400 && err.status < 500) return res.status(err.status).json({ error: err.status === 413 ? 'Request too large' : 'Invalid request' });
   console.error(err);
   res.status(500).json({ error: 'Something went wrong' });
 });
