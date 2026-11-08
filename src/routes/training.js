@@ -1,5 +1,6 @@
 // Training Registration and Certification (Requirements §4)
 import { Router } from 'express';
+import { sendMail, STAFF_EMAIL } from '../mailer.js';
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
 import { query, one, run, tx } from '../db.js';
@@ -196,8 +197,21 @@ trainingRouter.post('/api/training/:sessionId/admin/slots', async (req, res) => 
     `INSERT INTO training_meeting_slots (session_id, slot_start, slot_end) VALUES ($1, $2, $3)`,
     [sessionId, start.toISOString(), end.toISOString()]
   );
+  // Notify staff about the new slot proposal
+  try {
+    await sendMail(
+      STAFF_EMAIL,
+      'New Training Meeting Slot Proposed',
+      `A new meeting slot has been added for session ID ${sessionId}:
+Start: ${start.toISOString()}
+End: ${end.toISOString()}`
+    );
+  } catch (e) {
+    console.error('Failed to send admin slot notification email:', e);
+  }
   res.json({ ok: true, message: 'Slot added' });
 });
+
 trainingRouter.get('/api/training/:sessionId/slots', async (req, res) => {
   const sessionId = intId(req.params.sessionId);
   if (!sessionId) return res.status(400).json({ error: 'Invalid session id' });

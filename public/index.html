@@ -459,7 +459,15 @@ async function orders() {
     <p><button id="sim">Receive email</button> <span id="simmsg" class="muted"></span></p></details>
   <div class="tbl"><table><tr><th>#</th><th>Facilitator</th><th>Program</th><th>Kits</th><th>Status</th><th>Dates</th><th></th></tr>
   ${(Array.isArray(rows) ? rows : []).map((r) => `<tr><td>${esc(r.id)}</td><td>${esc(r.facilitator || '')}<br><span class="muted">${esc(r.email)}</span></td><td>${esc(r.program || '–')}</td>
-    <td>${(r.items || []).map((i) => `${esc(i.qty)} × ${esc(i.item)}`).join('<br>') || '–'}</td><td><span class="pill st-${esc(r.status)}">${esc(String(r.status).replace('_', ' '))}</span></td>
+    <td>${(r.items || []).map((i) => `${esc(i.qty)} × ${esc(i.item)}`).join('<br>') || '–'}</td><td>
+  <span class="pill st-${esc(r.status)}">${esc(String(r.status).replace('_', ' '))}</span>
+  <select onchange="setStatus(${r.id}, this)" class="status-select" style="margin-left:4px;">
+    <option value="form_sent" ${r.status==='form_sent' ? 'selected' : ''}>Request Received</option>
+    <option value="ordered" ${r.status==='ordered' ? 'selected' : ''}>Processing</option>
+    <option value="shipped" ${r.status==='shipped' ? 'selected' : ''}>Sent</option>
+    <option value="received" ${r.status==='received' ? 'selected' : ''}>Delivered</option>
+  </select>
+</td>
     <td class="muted">ordered ${date(r.ordered_at)}<br>shipped ${date(r.shipped_at)}<br>received ${date(r.received_at)}</td>
     <td>${r.status === 'ordered' ? `<button class="sm" onclick="ship(${Number(r.id)})">Mark shipped</button>` : r.status === 'form_sent' ? `<a class="muted" href="/order/${enc(r.token)}" target="_blank" rel="noopener">form link</a>` : ''}</td></tr>`).join('') || '<tr><td colspan=7 class="muted">No orders yet.</td></tr>'}
   </table></div>`;
