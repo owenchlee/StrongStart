@@ -66,7 +66,9 @@ for (const p of progs) {
   await check(`${p.name}: ship`, () => assert.equal(shipped.status, 200));
   await check(`${p.name}: ship twice rejected`, async () => assert.equal((await staff(`/api/orders/${p.orderId}/ship`, 'POST', {})).status, 409));
   const rec = await fetch(`${base}/received/${p.tok}`);
-  await check(`${p.name}: received link`, () => assert.equal(rec.status, 200));
+  await check(`${p.name}: received link shows confirm page`, () => assert.equal(rec.status, 200));
+  const confirmed = await fetch(`${base}/received/${p.tok}`, { method: 'POST' });
+  await check(`${p.name}: received confirmed by button`, () => assert.equal(confirmed.status, 200));
 }
 const roster = await staff(`/api/training/sessions/${sess.id}/roster`).then(j);
 await check('roster has 2', () => assert.equal((Array.isArray(roster) ? roster : roster.roster ?? []).length, 2));

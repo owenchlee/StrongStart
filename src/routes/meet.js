@@ -4,16 +4,14 @@ import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
 import { query, one, run, tx } from '../db.js';
-import { sendMail, BASE_URL } from '../mailer.js';
+import { sendMail } from '../mailer.js';
+import { BASE_URL, oneLine as str, intId, validEmail } from '../util.js';
 import { generateSlots, validTimeZone, parseHhmm, hhmm, localDate, addDays, SLOT_MINUTES } from '../slots.js';
 import { calendarConfigured, calendarAuthUrl, exchangeCalendarCode, createMeetEvent } from '../gcal.js';
 
 export const meetRouter = Router();
 const PUBLIC_DIR = resolve('public');
 const DEFAULT_TZ = 'America/Toronto';
-const str = (v, max = 200) => (v == null ? '' : String(v)).replace(/\u0000/g, '').replace(/\s*[\r\n]+\s*/g, ' ').trim().slice(0, max);
-const intId = (v) => (/^\d{1,9}$/.test(String(v)) ? Number(v) : null);
-const validEmail = (e) => /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(e || '').trim());
 const fmt = (iso, tz) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, dateStyle: 'full', timeStyle: 'short' }).format(new Date(iso));
 
 // ---- host availability ------------------------------------------------------------------------
@@ -238,8 +236,10 @@ meetRouter.post('/api/meet/:token/choose', async (req, res) => {
 
     const when = fmt(start, tz);
     const where = meetLink ? `Join with Google Meet: ${meetLink}` : 'A video link will be sent to you shortly.';
+    // Without a Google Meet link the host sends one by hand: tell the partner who, so they know who to expect it from.
+    const partnerWhere = meetLink ? where : `${inv.host_name || 'Your Strong Start host'} will email you the video link before the meeting. If you have not seen it a few hours before, just reply to this email.`;
     await sendMail(inv.invitee_email, 'Your Baby Connections training is booked',
-      `Hi ${name},\n\nYour training meeting is booked for:\n\n${when} (${tz.replace(/_/g, ' ')})\n\n${where}\n\nBaby Connections Team`);
+      `Hi ${name},\n\nYour training meeting is booked for:\n\n${when} (${tz.replace(/_/g, ' ')})\n\n${partnerWhere}\n\nBaby Connections Team`);
     await sendMail(inv.host_email, `Training booked with ${inv.partner_name || name}`,
       `${inv.partner_name || name} (${inv.invitee_email}) picked ${when} (${tz.replace(/_/g, ' ')}).\n\n${where}` +
       (warning ? `\n\nNote: ${warning}, so please send them a meeting link yourself.` : ''));

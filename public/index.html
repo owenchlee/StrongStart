@@ -1,22 +1,23 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/style.css"><script src="/theme.js"></script><title>Baby Connections Dashboard</title></head><body>
 <a class="skip" href="#main">Skip to content</a>
-<header class="site-head"><div class="in"><h1 class="brand"><img class="logo logo-light" src="/img/strong-start-logo.png" alt="Strong Start, a children's literacy charity"><img class="logo logo-dark" src="/img/strong-start-logo-dark.png" alt="" aria-hidden="true"><span class="app">Baby Connections<small>Staff</small></span></h1>
-<nav aria-label="Dashboard sections"><button data-t="partners">Partners</button><button data-t="orders" class="on">Orders</button><button data-t="programs">Programs &amp; feedback</button><button data-t="insights">Insights</button><button data-t="emails">Emails</button><button data-t="staff" id="staffTab" hidden>Staff</button><button data-t="userforms">Forms &amp; links</button></nav>
-<div class="who"><a class="btn sec sm profile" id="profileBtn" href="/profile.html" aria-label="Your profile and settings"><span class="avatar" id="av" aria-hidden="true"></span><span id="who"></span></a></div></div></header>
+<header class="site-head"><div class="in"><h1 class="brand"><img class="logo logo-light" src="/img/strong-start-logo.png" alt="Strong Start, a children's literacy charity"><img class="logo logo-dark" src="/img/strong-start-logo-dark.png" alt="" aria-hidden="true"><span class="app">Baby Connections<small id="appSub">Staff</small></span></h1>
+<nav aria-label="Dashboard sections"><button data-t="today">Today<span class="badge" id="todayBadge" hidden></span></button><button data-t="partners">Partners</button><button data-t="orders">Orders</button><button data-t="programs">Programs &amp; feedback</button><button data-t="training">Training</button><button data-t="insights">Insights</button><button data-t="emails">Emails</button><button data-t="staff" id="staffTab" hidden>Staff</button><button data-t="links">Links</button></nav>
+<div class="who"><a class="btn sec sm" id="backBtn" href="#" hidden onclick="closePartner();return false">&larr; Back to dashboard</a><a class="btn sec sm profile" id="profileBtn" href="/profile.html" aria-label="Your profile and settings"><span class="avatar" id="av" aria-hidden="true"></span><span id="who"></span></a></div></div></header>
 <main class="wide" id="main" tabindex="-1">
-<h2 class="page-title" id="pageTitle">Orders</h2>
-<section id="partners" hidden></section><section id="orders" hidden></section><section id="programs" hidden></section><section id="insights" hidden></section><section id="emails" hidden></section><section id="staff" hidden></section>
-    <section id="userforms" hidden>
-  <h2>Forms &amp; links</h2>
-  <div class="form-list">
-    <a class="btn sec sm" href="/resources" target="_blank" rel="noopener">Knowledge Centre</a>
-    <a class="btn sec sm" href="/partner-interest.html" target="_blank" rel="noopener">Public EOI Form</a>
-    <a class="btn sec sm" href="/order.html" target="_blank" rel="noopener">Order Form</a>
-    <a class="btn sec sm" href="/completion.html" target="_blank" rel="noopener">Program Completion Form</a>
-    <a class="btn sec sm" href="/training-register.html" target="_blank" rel="noopener">Training Registration Form</a>
-    <a class="btn sec sm" href="/feedback.html" target="_blank" rel="noopener">Feedback Form</a>
-  </div>
+<h2 class="page-title" id="pageTitle">Today</h2>
+<section id="today" hidden></section><section id="partners" hidden></section><section id="orders" hidden></section><section id="programs" hidden></section><section id="training" hidden></section><section id="insights" hidden></section><section id="emails" hidden></section><section id="staff" hidden></section>
+<section id="links" hidden>
+  <p class="muted">Public pages anyone can open. Send these to partners and facilitators.</p>
+  <ul class="link-list">
+    <li><div><b>Partner interest form</b><span class="muted">For an organization that wants to run Baby Connections.</span></div>
+      <div class="row-actions"><a class="btn sm sec" href="/partner-interest.html" target="_blank" rel="noopener">Open</a><button type="button" class="sm sec" data-copy="/partner-interest.html">Copy link</button></div></li>
+    <li><div><b>Training registration</b><span class="muted">Facilitators pick a training session and sign up.</span></div>
+      <div class="row-actions"><a class="btn sm sec" href="/training/register" target="_blank" rel="noopener">Open</a><button type="button" class="sm sec" data-copy="/training/register">Copy link</button></div></li>
+    <li><div><b>Knowledge Centre</b><span class="muted">Guides and resources for facilitators.</span></div>
+      <div class="row-actions"><a class="btn sm sec" href="/resources" target="_blank" rel="noopener">Open</a><button type="button" class="sm sec" data-copy="/resources">Copy link</button></div></li>
+  </ul>
+  <p class="muted">Program-specific links (feedback form, QR sheet, photo upload, completion form) are on each program's row under Programs.</p>
 </section>
 </main>
 <script>
@@ -37,14 +38,72 @@ fetch('/api/me').then((r) => r.json()).then((m) => {
 });
 async function logout() { await fetch('/auth/logout', { method: 'POST' }); location.href = '/login.html'; }
 const date = (s) => (s ? String(s).slice(0, 10) : '–');
+const dval = (s) => (s ? String(s).slice(0, 10) : ''); // value for <input type=date>
 const num = (n, d = 2) => (n == null ? '–' : +Number(n).toFixed(d));
 const enc = encodeURIComponent;
-const TABS = ['partners', 'orders', 'programs', 'insights', 'emails', 'staff', 'userforms'];
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const TABS = ['today', 'partners', 'orders', 'programs', 'training', 'insights', 'emails', 'staff', 'links'];
 let tab = (function() {
-  const stored = localStorage.getItem('activeTab');
-  return stored && TABS.includes(stored) ? stored : TABS[0];
+  try { const stored = localStorage.getItem('activeTab'); return stored && TABS.includes(stored) ? stored : TABS[0]; } catch { return TABS[0]; }
 })();
-document.querySelectorAll('nav button').forEach((b) => (b.onclick = () => { tab = b.dataset.t; localStorage.setItem('activeTab', tab); refresh(); }));
+function goTab(t) { tab = t; try { localStorage.setItem('activeTab', tab); } catch {} }
+document.querySelectorAll('nav button').forEach((b) => (b.onclick = () => { openPartner = null; goTab(b.dataset.t); refresh(); }));
+
+// Inline status messages instead of browser pop-ups: writes into a role="status" element; ok messages clear after 6s.
+function notice(el, text, kind = 'ok') {
+  el = typeof el === 'string' ? $(el) : el;
+  if (!el) return;
+  clearTimeout(el._t);
+  el.className = 'notice' + (text ? ' ' + kind : '');
+  el.textContent = text || '';
+  if (text && kind === 'ok') el._t = setTimeout(() => { el.textContent = ''; el.className = 'notice'; }, 6000);
+}
+// The status line at the top of the current tab.
+function tell(text, kind = 'ok') {
+  const el = $(`#${tab} [data-tabmsg]`);
+  notice(el, text, kind);
+  if (el && text && el.getBoundingClientRect().top < ($('.site-head')?.offsetHeight || 0)) el.scrollIntoView({ block: 'start' });
+}
+// Inline Yes/No instead of a browser pop-up: hides the button and asks next to it.
+function confirmInline(btn, question, onYes) {
+  if (btn.nextElementSibling?.classList.contains('inline-confirm')) return;
+  const box = document.createElement('span');
+  box.className = 'inline-confirm'; box.setAttribute('role', 'group'); box.setAttribute('aria-label', question);
+  box.innerHTML = `<span>${esc(question)}</span><button type="button" class="sm">Yes</button><button type="button" class="sm sec">No</button>`;
+  btn.hidden = true; btn.after(box);
+  const [yes, no] = box.querySelectorAll('button');
+  no.onclick = () => { box.remove(); btn.hidden = false; btn.focus(); };
+  yes.onclick = async () => {
+    yes.disabled = no.disabled = true;
+    try { await onYes(); } finally { if (box.isConnected) { box.remove(); btn.hidden = false; } }
+  };
+  no.focus();
+}
+// Copy buttons: <button data-copy="/path"> copies the full link (site address added for paths).
+async function copyText(text, btn) {
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; } catch {
+    const t = document.createElement('textarea');
+    t.value = text; t.readOnly = true; t.dataset.nodictate = ''; t.className = 'sr-only';
+    document.body.append(t); t.select();
+    try { ok = document.execCommand('copy'); } catch {}
+    t.remove();
+  }
+  if (!btn) return;
+  btn.dataset.label = btn.dataset.label || btn.textContent;
+  btn.textContent = ok ? 'Copied' : 'Could not copy';
+  clearTimeout(btn._t); btn._t = setTimeout(() => (btn.textContent = btn.dataset.label), 2000);
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-copy]'); if (!b) return;
+  const v = b.dataset.copy;
+  copyText(v.startsWith('/') ? location.origin + v : v, b);
+});
+function setBadge(n) {
+  const b = $('#todayBadge'); n = Number(n) || 0;
+  b.hidden = !n;
+  b.innerHTML = n ? `${n > 99 ? '99+' : n}<span class="sr-only"> to do</span>` : '';
+}
 
 // Presentation only: label cells so tables can stack into readable rows on narrow screens.
 function enhanceTables() {
@@ -58,11 +117,53 @@ function enhanceTables() {
   });
 }
 async function refresh() {
-  document.querySelectorAll('nav button').forEach((b) => { const on = b.dataset.t === tab; b.classList.toggle('on', on); if (on) { b.setAttribute('aria-current', 'page'); b.scrollIntoView({ block: 'nearest', inline: 'center' }); $('#pageTitle').textContent = b.textContent; } else b.removeAttribute('aria-current'); });
+  if (!(tab === 'partners' && openPartner)) detailMode(false);
+  document.querySelectorAll('nav button').forEach((b) => { const on = b.dataset.t === tab; b.classList.toggle('on', on); if (on) { b.setAttribute('aria-current', 'page'); b.scrollIntoView({ block: 'nearest', inline: 'center' }); $('#pageTitle').textContent = b.firstChild.textContent.trim(); } else b.removeAttribute('aria-current'); });
   TABS.forEach((t) => ($('#' + t).hidden = t !== tab));
   $('#stats')?.remove();
-  await { partners: renderPartners, orders, programs, insights, emails, staff }[tab]();
+  if (tab !== 'today') j('/api/todo').then((t) => t.counts && setBadge(t.counts.total)).catch(() => {});
+  await { today, partners: renderPartners, orders, programs, training, insights, emails, staff, links: () => {} }[tab]();
   enhanceTables();
+}
+
+// ---- Today: everything that needs a staff member, one card per kind of work ----
+const SOURCE_LABELS = { qr: 'online form', photo: 'photo of a paper form', voice: 'voice message' };
+let pendingReview = null; // feedback id to scroll to when the Programs tab opens
+function goPartner(id, sub = 'overview') { goTab('partners'); openPartner = { id, sub, focus: sub === 'emails' }; refresh(); }
+function goOrderEdit(id) { goTab('orders'); editOrder = id; refresh(); }
+function goReview(id) { goTab('programs'); pendingReview = id; refresh(); }
+async function today() {
+  const t = await j('/api/todo');
+  if (t.error || !t.counts) { $('#today').innerHTML = `<p class="notice err" role="status">${esc(t.error || 'Could not load your to-do list.')}</p>`; return; }
+  setBadge(t.counts.total);
+  const list = (k) => (Array.isArray(t[k]) ? t[k] : []);
+  const card = (k, title, hint, row) => list(k).length ? `<section class="card wide-card todo-card" aria-labelledby="td-${k}">
+    <h3 id="td-${k}">${esc(title)}<span class="badge">${list(k).length}</span></h3>${hint ? `<p class="muted">${esc(hint)}</p>` : ''}
+    <ul class="todo-list">${list(k).map(row).join('')}</ul></section>` : '';
+  const li = (main, actions) => `<li class="todo-row"><div class="todo-main">${main}</div><div class="row-actions">${actions}</div></li>`;
+  const who = (x) => esc(x.facilitator || x.email);
+  $('#today').innerHTML = `<p class="notice" role="status" data-tabmsg></p>` + (t.counts.total ? [
+    card('newPartners', 'New partner applications', 'Organizations that filled in the partner interest form.', (p) => li(
+      `<b>${esc(p.name)}</b><span class="muted">${esc(p.contact_email || 'No email given')} &bull; applied ${date(p.created_at)}</span>`,
+      `<button class="sm sec" onclick="goPartner(${Number(p.id)})">Open</button><button class="sm" onclick="goPartner(${Number(p.id)}, 'emails')">Email</button>`)),
+    card('ordersToShip', 'Kits to ship', '', (o) => li(
+      `<b>Order #${esc(o.id)}</b> for ${who(o)}${o.program ? ` &bull; ${esc(o.program)}` : ''}<span class="muted">Ordered ${date(o.ordered_at)}</span>
+       <span class="todo-detail">${(o.items || []).map((i) => `${esc(i.qty)} × ${esc(i.item)}`).join(', ') || 'No kits listed'}</span>
+       <span class="todo-detail ship-to"><b>Ship to:</b> ${esc(o.shipping_address || 'No address yet')}</span>`,
+      `<button class="sm" onclick="ship(${Number(o.id)})">Mark shipped</button><button class="sm sec" onclick="goOrderEdit(${Number(o.id)})">Edit</button>`)),
+    card('unconfirmedShipments', 'Kits not confirmed as arrived', 'Shipped more than a week ago and the facilitator has not confirmed they arrived.', (o) => li(
+      `<b>Order #${esc(o.id)}</b> for ${who(o)}${o.program ? ` &bull; ${esc(o.program)}` : ''}<span class="muted">Shipped ${date(o.shipped_at)} &bull; ${o.reminder_sent_at ? `reminder sent on ${date(o.reminder_sent_at)}` : 'no reminder sent yet'}</span>`,
+      `<button class="sm" onclick="remindOne(${Number(o.id)}, this)">${o.reminder_sent_at ? 'Send another reminder' : 'Send reminder'}</button>`)),
+    card('feedbackToReview', 'Parent feedback to check', 'Forms the computer could not read with confidence. Check them before they count in reports.', (f) => li(
+      `<b>${esc(f.program)}</b><span class="muted">${esc(SOURCE_LABELS[f.source] || f.source)} &bull; received ${date(f.created_at)}</span>`,
+      `<button class="sm" onclick="goReview(${Number(f.id)})">Review</button>`)),
+    card('programsMissingCompletion', 'Programs missing a completion report', 'The program has ended but the facilitator has not sent the completion form.', (p) => li(
+      `<b>${esc(p.name)}</b> ended ${date(p.end_date)}<span class="muted">${who(p)}${p.facilitator ? ` (${esc(p.email)})` : ''}</span>`,
+      `<button class="sm sec" data-copy="/complete/${esc(enc(p.token))}">Copy completion link</button>${p.facilitator_id ? `<a class="btn sm" href="/compose.html?facilitator=${Number(p.facilitator_id)}">Email facilitator</a>` : ''}`)),
+    card('trainingWaiting', 'Waiting for a partner to book training', 'We sent a link to pick a training time and they have not chosen yet.', (i) => li(
+      `<b>${esc(i.partner || 'Partner')}</b><span class="muted">Link sent to ${esc(i.invitee_email)} on ${date(i.created_at)}</span>`,
+      i.partner_id ? `<button class="sm sec" onclick="goPartner(${Number(i.partner_id)}, 'training')">Open partner</button>` : '')),
+  ].join('') : '<div class="card wide-card todo-empty"><p>Nothing needs your attention right now.</p></div>');
 }
 
 // ---- Partners (Phase 1) ----
@@ -75,45 +176,45 @@ const STAGE_LABELS = {
   active: 'Active Partner',
   inactive: 'Inactive'
 };
-
+const PDSA_STATUSES = [['pending', 'Pending'], ['issued', 'Issued'], ['signed', 'Signed'], ['executed', 'Executed'], ['expired', 'Expired']];
+const stageLabel = (st) => STAGE_LABELS[st] || String(st || '').replace(/_/g, ' ');
 
 async function renderPartners() {
+  if (openPartner) return viewPartner(openPartner.id);
   const [pipeline, partnerList] = await Promise.all([
     j('/api/partners/pipeline'),
     j('/api/partners' + (partnerFilterStage ? '?stage=' + enc(partnerFilterStage) : ''))
   ]);
   const stages = pipeline.stages || Object.keys(STAGE_LABELS);
+  const counts = pipeline.counts || {};
 
   $('#partners').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--s2);margin-bottom:var(--s3)">
-      <div style="display:flex;gap:var(--s2);flex-wrap:wrap">
-        
-        
-      </div>
+    <div class="toolbar">
+      <p class="muted">Choose a stage to filter the list. Change a partner's stage on their Overview page.</p>
       <button class="sm" onclick="$('#addPartnerDetails').open = true; $('#addPartnerDetails').scrollIntoView({behavior:'smooth'})">+ New Partner</button>
     </div>
 
-    <div class="stats" style="margin-bottom:var(--s4);grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
+    <div class="stats stage-tiles" role="group" aria-label="Filter partners by stage">
       ${stages.map((st) => `
-        <div class="stat stage-tile${partnerFilterStage === st ? ' attn' : ''}" style="cursor:pointer" onclick="setPartnerFilter('${st}')">
-          <b>${pipeline.counts[st] || 0}</b>
-          <span class="muted">${STAGE_LABELS[st] || st}</span>
-        </div>
+        <button type="button" class="stat stage-tile${partnerFilterStage === st ? ' attn' : ''}" aria-pressed="${partnerFilterStage === st}" onclick="setPartnerFilter('${esc(st)}')">
+          <b>${counts[st] || 0}</b>
+          <span class="muted">${esc(stageLabel(st))}</span>
+        </button>
       `).join('')}
-      <div class="stat stage-tile${!partnerFilterStage ? ' attn' : ''}" style="cursor:pointer" onclick="setPartnerFilter('')">
+      <button type="button" class="stat stage-tile${!partnerFilterStage ? ' attn' : ''}" aria-pressed="${!partnerFilterStage}" onclick="setPartnerFilter('')">
         <b>${pipeline.total || 0}</b>
         <span class="muted">All Partners</span>
-      </div>
+      </button>
     </div>
 
-    <details class="card wide-card" id="addPartnerDetails" style="margin-bottom:var(--s4)">
+    <details class="card wide-card" id="addPartnerDetails">
       <summary><b>Add Partner Organization</b></summary>
-      <form id="newPartnerForm" style="margin-top:var(--s3)">
+      <form id="newPartnerForm">
         <div class="row">
           <label>Organization Name *<input id="npName" required maxlength="200" placeholder="e.g. Cambridge Community Health"></label>
           <label>Stage
             <select id="npStage">
-              ${stages.map((s) => `<option value="${s}">${STAGE_LABELS[s] || s}</option>`).join('')}
+              ${stages.map((s) => `<option value="${esc(s)}">${esc(stageLabel(s))}</option>`).join('')}
             </select>
           </label>
         </div>
@@ -124,7 +225,8 @@ async function renderPartners() {
         </div>
         <label>Communities Served<input id="npCommunities" maxlength="500" placeholder="e.g. Cambridge, North Dumfries"></label>
         <label>Notes / Context<textarea id="npNotes" rows="2" maxlength="5000"></textarea></label>
-        <p><button type="submit" class="sm">Save Partner</button> <span id="npMsg" class="err"></span></p>
+        <p><button type="submit" class="sm">Save Partner</button></p>
+        <p id="npMsg" class="notice" role="status"></p>
       </form>
     </details>
 
@@ -139,36 +241,33 @@ async function renderPartners() {
           <th>Facilitators &amp; Programs</th>
           <th>Actions</th>
         </tr>
-        ${(partnerList || []).map((p) => `
+        ${(Array.isArray(partnerList) ? partnerList : []).map((p) => `
           <tr>
             <td><b>${esc(p.name)}</b></td>
             <td>${esc(p.contact_name || '')}<br><span class="muted">${esc(p.contact_email || p.contact_phone || '–')}</span></td>
             <td>${esc(p.communities_served || '–')}</td>
-            <td>
-              <select onchange="updatePartnerStage(${p.id}, this.value)" style="min-height:32px;padding:2px 6px;font-size:var(--fs-sm)">
-                ${stages.map((st) => `<option value="${st}" ${st === p.stage ? 'selected' : ''}>${STAGE_LABELS[st] || st}</option>`).join('')}
-              </select>
-            </td>
+            <td><span class="pill st-ordered">${esc(stageLabel(p.stage))}</span></td>
             <td>
               <span class="pill ${p.pdsa_status === 'executed' || p.stage === 'active' ? 'st-on' : 'st-off'}">${esc(p.pdsa_status || 'pending')}</span>
               ${p.pdsa_expiry_date ? `<br><small class="muted">Expires ${date(p.pdsa_expiry_date)}</small>` : ''}
             </td>
             <td class="muted">${p.facilitator_count || 0} facilitators<br>${p.program_count || 0} programs</td>
             <td>
-              <button class="sm sec" onclick="viewPartner(${p.id})">Details</button>
-              <button class="sm" onclick="viewPartner(${p.id}, true)">Email</button>
+              <div class="row-actions">
+                <button class="sm sec" onclick="viewPartner(${Number(p.id)})">Details</button>
+                <button class="sm" onclick="viewPartner(${Number(p.id)}, true)">Email</button>
+              </div>
             </td>
           </tr>
         `).join('') || '<tr><td colspan="7" class="muted">No partners found.</td></tr>'}
       </table>
     </div>
-    <div id="partnerDetailBox"></div>
   `;
 
   $('#newPartnerForm').onsubmit = async (e) => {
     e.preventDefault();
     const name = $('#npName').value.trim();
-    if (!name) return ($('#npMsg').textContent = 'Organization name is required');
+    if (!name) return notice('#npMsg', 'Organization name is required.', 'err');
     const r = await jsonPost('/api/partners', {
       name,
       stage: $('#npStage').value,
@@ -178,22 +277,13 @@ async function renderPartners() {
       communities_served: $('#npCommunities').value.trim(),
       notes: $('#npNotes').value.trim()
     });
-    if (r.error) $('#npMsg').textContent = r.error;
+    if (r.error) notice('#npMsg', r.error, 'err');
     else refresh();
   };
 }
 
 function setPartnerFilter(st) {
   partnerFilterStage = st;
-  refresh();
-}
-
-async function updatePartnerStage(id, stage) {
-  await j(`/api/partners/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ stage })
-  });
   refresh();
 }
 
@@ -209,9 +299,26 @@ async function startTraining(id) {
   const b = $('#startTrainBtn'); b.disabled = true;
   const r = await jsonPost(`/api/partners/${id}/start-training`);
   b.disabled = false;
-  if (r.error) return alert(r.error);
-  alert('Link emailed to ' + r.sent_to + '\n\n' + r.link);
+  if (r.error) return notice('#trainMsg', r.error, 'err');
+  notice('#trainMsg', 'Link emailed to ' + r.sent_to + '.', 'ok');
+  const box = $('#trainLink');
+  if (box && r.link) {
+    box.hidden = false;
+    box.innerHTML = `<span class="muted">Their link:</span> <a href="${esc(r.link)}" target="_blank" rel="noopener">${esc(r.link)}</a> <button type="button" class="sm sec" data-copy="${esc(r.link)}">Copy link</button>`;
+  }
   loadTrainStatus(id);
+}
+function detailMode(on) {
+  document.body.classList.toggle('detail', on);
+  $('#backBtn').hidden = !on; $('#profileBtn').hidden = on; $('#appSub').textContent = on ? 'Partner' : 'Staff';
+}
+let openPartner = null; // { id, sub } while a partner's detail page is open
+const PARTNER_SUBS = [['overview', 'Overview'], ['training', 'Training'], ['documents', 'Documents'], ['emails', 'Emails'], ['links', 'Facilitators & programs']];
+function closePartner() { openPartner = null; refresh(); window.scrollTo({ top: 0 }); }
+function partnerSub(sub) {
+  if (openPartner) openPartner.sub = sub;
+  document.querySelectorAll('#partnerSubnav button').forEach((b) => { const on = b.dataset.s === sub; b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  document.querySelectorAll('.psub').forEach((el) => (el.hidden = el.dataset.s !== sub));
 }
 async function viewPartner(id, focusEmail) {
   const [p, docs, msgs] = await Promise.all([
@@ -219,80 +326,90 @@ async function viewPartner(id, focusEmail) {
     j(`/api/partners/${id}/documents`).catch(() => []),
     j(`/api/partners/${id}/messages`).catch(() => [])
   ]);
-  if (p.error) return alert(p.error);
+  if (p.error) {
+    openPartner = null; detailMode(false);
+    $('#partners').innerHTML = `<p class="notice err" role="status">${esc(p.error)}</p><p><button class="sm sec" onclick="refresh()">Back to partners</button></p>`;
+    return;
+  }
+  if (!openPartner || openPartner.id !== id) openPartner = { id, sub: 'overview' };
+  if (focusEmail) openPartner.sub = 'emails';
+  focusEmail = focusEmail || openPartner.focus; delete openPartner.focus;
+  const docList = Array.isArray(docs) ? docs : [], msgList = Array.isArray(msgs) ? msgs : [];
 
   setTimeout(() => loadTrainStatus(id));
-  $('#partnerDetailBox').innerHTML = `
-    <div class="card wide-card" style="margin-top:var(--s4);border:2px solid var(--primary)">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div>
-          <h3 style="margin:0 0 var(--s1)">${esc(p.name)}</h3>
-          <p class="muted" style="margin:0"><b>Communities:</b> ${esc(p.communities_served || 'Not specified')}</p>
-        </div>
-        <button class="sm sec" onclick="$('#partnerDetailBox').innerHTML = ''">Close</button>
-      </div>
+  $('#partners').innerHTML = `
+    <div class="card wide-card">
+      <h3 class="detail-title">${esc(p.name)}</h3>
+      <p class="muted flush"><b>Communities:</b> ${esc(p.communities_served || 'Not specified')}</p>
+      <div id="partnerSubnav" class="subnav" role="group" aria-label="Partner sections">${PARTNER_SUBS.map(([k, l]) => `<button data-s="${k}" onclick="partnerSub('${k}')">${l}</button>`).join('')}</div>
 
-      <div class="row" style="margin-top:var(--s3)">
-        <div><b>Contact:</b> ${esc(p.contact_name || '–')} &bull; <a href="mailto:${esc(p.contact_email)}">${esc(p.contact_email || '–')}</a> &bull; ${esc(p.contact_phone || '–')}</div>
-        <div><b>Current Stage:</b> <span class="pill st-ordered">${esc(p.stage)}</span></div>
-      </div>
+      <div class="psub" data-s="overview">
+      <p class="detail-contact"><b>Contact:</b> ${esc(p.contact_name || '–')} &bull; ${p.contact_email ? `<a href="mailto:${esc(p.contact_email)}">${esc(p.contact_email)}</a>` : '–'} &bull; ${esc(p.contact_phone || '–')}</p>
 
-      <div id="trainBox" style="margin-top:var(--s3);padding:var(--s3);background:var(--surface-2);border-radius:var(--r-md)">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--s2)">
-          <h4 style="margin:0">Training</h4>
-          <button class="sm" id="startTrainBtn" onclick="startTraining(${p.id})">Start training</button>
-        </div>
-        <p class="muted" style="margin:var(--s2) 0 0">Emails ${esc(p.contact_email || 'the partner')} a link where they pick times from your availability. The earliest overlap is booked as a Google Meet.</p>
-        <div id="trainStatus" style="margin-top:var(--s2)"></div>
-      </div>
-
-      <!-- PDSA Agreement Section -->
-      <div style="${p.stage === 'pdsa_review' ? 'margin-top:var(--s3);background:var(--surface-2);padding:var(--s3);border-radius:var(--r-md)' : 'display:none'}">
-        <h4 style="margin:0 0 var(--s2)">Program Delivery &amp; Support Agreement (PDSA)</h4>
+      <div class="panel">
+        <h4>Stage and agreement (PDSA)</h4>
         <div class="row">
-          <label>Status
-            <select id="pdetPdsaStatus">
-              <option value="pending" ${p.pdsa_status === 'pending' ? 'selected' : ''}>Pending</option>
-              <option value="issued" ${p.pdsa_status === 'issued' ? 'selected' : ''}>Issued</option>
-              <option value="signed" ${p.pdsa_status === 'signed' ? 'selected' : ''}>Signed</option>
-              <option value="executed" ${p.pdsa_status === 'executed' ? 'selected' : ''}>Executed</option>
-              <option value="expired" ${p.pdsa_status === 'expired' ? 'selected' : ''}>Expired</option>
+          <label>Stage
+            <select id="pdetStage">
+              ${Object.keys(STAGE_LABELS).map((st) => `<option value="${st}" ${st === p.stage ? 'selected' : ''}>${esc(STAGE_LABELS[st])}</option>`).join('')}
             </select>
           </label>
-          <label>Date Issued<input type="date" id="pdetIssued" value="${date(p.pdsa_issued_date)}"></label>
-          <label>Date Executed<input type="date" id="pdetExecuted" value="${date(p.pdsa_executed_date)}"></label>
-          <label>Expiry Date<input type="date" id="pdetExpiry" value="${date(p.pdsa_expiry_date)}"></label>
+          <label>Agreement status
+            <select id="pdetPdsaStatus">
+              ${PDSA_STATUSES.map(([v, l]) => `<option value="${v}" ${p.pdsa_status === v ? 'selected' : ''}>${l}</option>`).join('')}
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Date issued<input type="date" id="pdetIssued" value="${esc(dval(p.pdsa_issued_date))}"></label>
+          <label>Date executed<input type="date" id="pdetExecuted" value="${esc(dval(p.pdsa_executed_date))}"></label>
+          <label>Expiry date<input type="date" id="pdetExpiry" value="${esc(dval(p.pdsa_expiry_date))}"></label>
         </div>
       </div>
 
-      <div style="margin-top:var(--s3)">
-        <label>Relationship Notes / Follow-ups
-          <textarea id="pdetNotes" rows="2">${esc(p.notes || '')}</textarea>
-        </label>
-        <p><button class="sm" onclick="savePartnerDetails(${p.id})">Save Agreement &amp; Notes</button></p>
+      <label>Relationship notes and follow-ups
+        <textarea id="pdetNotes" rows="3">${esc(p.notes || '')}</textarea>
+      </label>
+      <p class="row-actions"><button class="sm" onclick="savePartnerDetails(${Number(p.id)})">Save changes</button></p>
+      <p class="notice" role="status" id="pdetMsg"></p>
       </div>
 
-      <!-- Uploaded Documents & Agreements -->
-      <div style="margin-top:var(--s4);padding-top:var(--s3);border-top:1px solid var(--line)">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--s2)">
-          <h4 style="margin:0">Partner Documents &amp; Agreements (${docs.length})</h4>
+      <div class="psub" data-s="training" hidden>
+      <div class="panel" id="trainBox">
+        <div class="head-row">
+          <h4>Training</h4>
+          <button class="sm" id="startTrainBtn" onclick="startTraining(${Number(p.id)})">Start training</button>
+        </div>
+        <p class="muted">Emails ${esc(p.contact_email || 'the partner')} a link where they pick times from your availability. The earliest overlap is booked as a Google Meet.</p>
+        <p class="notice" role="status" id="trainMsg"></p>
+        <p id="trainLink" hidden></p>
+        <div id="trainStatus"></div>
+      </div>
+      </div>
+
+      <div class="psub" data-s="documents" hidden>
+        <div class="head-row panel">
+          <h4>Partner Documents &amp; Agreements (${docList.length})</h4>
           <div>
-            <input type="file" id="pUploadInput" multiple style="display:none" onchange="uploadPartnerDocs(${p.id})">
+            <input type="file" id="pUploadInput" multiple hidden onchange="uploadPartnerDocs(${Number(p.id)})">
             <button class="sm" onclick="$('#pUploadInput').click()">+ Upload Document (PDF / Agreement)</button>
           </div>
         </div>
-        <div class="tbl" style="margin-top:var(--s2)">
+        <p class="notice" role="status" id="docMsg"></p>
+        <div class="tbl">
           <table>
             <tr><th>Document Name</th><th>Uploaded By</th><th>Date</th><th>Size</th><th>Actions</th></tr>
-            ${docs.map((d) => `
+            ${docList.map((d) => `
               <tr>
                 <td><b>${esc(d.original_name)}</b></td>
                 <td><span class="pill st-off">${esc(d.uploaded_by)}</span></td>
                 <td class="muted">${date(d.created_at)}</td>
                 <td class="muted">${d.file_size ? Math.round(d.file_size / 1024) + ' KB' : '–'}</td>
                 <td>
-                  <a class="btn sm sec" href="/api/partners/${p.id}/documents/${d.id}/download" target="_blank" rel="noopener">Download</a>
-                  <button class="sm sec" onclick="deletePartnerDoc(${p.id}, ${d.id})" style="color:var(--err);margin-left:4px">Delete</button>
+                  <div class="row-actions">
+                    <a class="btn sm sec" href="/api/partners/${Number(p.id)}/documents/${Number(d.id)}/download" target="_blank" rel="noopener">Download</a>
+                    <button class="sm sec danger" onclick="deletePartnerDoc(${Number(p.id)}, ${Number(d.id)}, this)">Delete</button>
+                  </div>
                 </td>
               </tr>
             `).join('') || '<tr><td colspan="5" class="muted">No documents uploaded yet. Upload PDSA agreements, onboarding packs, or certificates here.</td></tr>'}
@@ -300,30 +417,28 @@ async function viewPartner(id, focusEmail) {
         </div>
       </div>
 
-      <!-- Two-Way CRM Conversation Timeline -->
-      <div style="margin-top:var(--s4);padding-top:var(--s3);border-top:1px solid var(--line)">
-        <h4 style="margin:0 0 var(--s2)">Conversation History &amp; Replies (${msgs.length})</h4>
-        <div style="display:flex;flex-direction:column;gap:var(--s3);max-height:350px;overflow-y:auto;padding-right:var(--s2)">
-          ${msgs.map((m) => `
-            <div class="card" style="margin:0;border-left:4px solid ${m.direction === 'inbound' ? 'var(--ok)' : 'var(--primary)'};background:var(--surface-2)">
-              <div style="display:flex;justify-content:space-between;align-items:center;font-size:var(--fs-sm)">
-                <b>${m.direction === 'inbound' ? `<span style="color:var(--ok)">&larr; Inbound Email from ${esc(m.from_email)}</span>` : `<span style="color:var(--primary)">&rarr; Staff Sent to ${esc(m.to_email)}</span>`}</b>
-                <span class="muted">${date(m.created_at)} ${String(m.created_at).slice(11, 16)}</span>
+      <div class="psub" data-s="emails" hidden>
+        <h4>Conversation History &amp; Replies (${msgList.length})</h4>
+        <div class="msg-list">
+          ${msgList.map((m) => `
+            <article class="msg ${m.direction === 'inbound' ? 'in' : 'out'}">
+              <div class="msg-head">
+                <b class="msg-dir">${m.direction === 'inbound' ? `&larr; From ${esc(m.from_email)}` : `&rarr; Sent to ${esc(m.to_email)}`}</b>
+                <span class="muted">${date(m.created_at)} ${esc(String(m.created_at).slice(11, 16))}</span>
               </div>
-              <div style="margin-top:var(--s1);font-weight:600">${esc(m.subject || 'No Subject')}</div>
-              <div style="margin-top:var(--s1);white-space:pre-wrap;font-size:var(--fs-sm);line-height:1.5">${esc(m.body)}</div>
+              <div class="msg-subj">${esc(m.subject || 'No Subject')}</div>
+              <div class="msg-body">${esc(m.body)}</div>
               ${Array.isArray(m.attachments) && m.attachments.length ? `
-                <div style="margin-top:var(--s2);display:flex;gap:var(--s2);flex-wrap:wrap">
-                  ${m.attachments.map((at) => `<a class="pill st-on" href="${esc(at.url)}" target="_blank" rel="noopener" style="text-decoration:none">&bull; ${esc(at.name)}</a>`).join('')}
+                <div class="att-list">
+                  ${m.attachments.map((at) => `<a class="pill st-on" href="${esc(at.url)}" target="_blank" rel="noopener">${esc(at.name)}</a>`).join('')}
                 </div>
               ` : ''}
-            </div>
+            </article>
           `).join('') || '<p class="muted">No messages yet. Send an email below or receive replies from the partner.</p>'}
         </div>
 
-        <!-- CRM Reply Box -->
-        <div style="margin-top:var(--s4);background:var(--surface);border:1px solid var(--primary);border-radius:var(--r-md);padding:var(--s3)">
-          <h4 style="margin:0 0 var(--s2);color:var(--primary-text)">Email partner or facilitator</h4>
+        <div class="compose-box">
+          <h4>Email partner or facilitator</h4>
           <label>To
             <select id="crmTo" onchange="crmToChanged()">
               <option value="">${esc(p.contact_name || 'Partner contact')} (${esc(p.contact_email || 'no email on file')})</option>
@@ -337,58 +452,48 @@ async function viewPartner(id, focusEmail) {
             <textarea id="crmReplyBody" rows="4" placeholder="Type your message to ${esc(p.contact_name || p.contact_email)}…"></textarea>
           </label>
 
-          ${docs.length ? `
-            <div style="margin-top:var(--s2)" id="crmDocsWrap">
-              <small><b>Attach Uploaded Documents:</b></small>
-              <div style="display:flex;gap:var(--s3);flex-wrap:wrap;margin-top:var(--s1)">
-                ${docs.map((d) => `
-                  <label style="display:inline-flex;align-items:center;gap:4px;margin:0;font-weight:normal;font-size:var(--fs-sm);cursor:pointer">
-                    <input type="checkbox" class="crmDocCheckbox" value="${d.id}" checked>
-                    ${esc(d.original_name)}
-                  </label>
-                `).join('')}
+          ${docList.length ? `
+            <fieldset class="att-pick" id="crmDocsWrap">
+              <legend>Attach uploaded documents</legend>
+              <div class="check-list">
+                ${docList.map((d) => `<label><input type="checkbox" class="crmDocCheckbox" value="${Number(d.id)}" checked> ${esc(d.original_name)}</label>`).join('')}
               </div>
-            </div>
-          ` : '<p class="muted" style="font-size:var(--fs-sm);margin:var(--s1) 0">No documents uploaded yet to attach.</p>'}
+            </fieldset>
+          ` : '<p class="muted">No documents uploaded yet to attach.</p>'}
 
-          <div style="display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap;margin-top:var(--s2)">
+          <div class="actions">
             <button type="button" class="sm sec" id="crmMic" aria-pressed="false" onclick="crmDictate()">Start dictating</button>
             <button type="button" class="sm sec" id="crmTidy" onclick="crmPolish()">Tidy with AI</button>
             <span id="crmSt" class="muted" role="status" aria-live="polite"></span>
+            <progress id="crmBar" max="100" value="0" hidden></progress>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:var(--s3);flex-wrap:wrap;gap:var(--s2)">
-            <label style="margin:0;display:flex;align-items:center;gap:var(--s2);font-weight:normal" id="crmStageWrap">
-              <span>Advance stage to:</span>
-              <select id="crmReplyStage" style="min-height:32px;padding:2px 6px">
-                <option value="">Keep current (${esc(p.stage)})</option>
-                <option value="discovery">Discovery</option>
-                <option value="pdsa_review">PDSA Review</option>
-                <option value="pdsa_signed">PDSA Signed</option>
-                <option value="active">Active Partner</option>
-              </select>
-            </label>
-            <button class="sm" id="crmSendBtn" onclick="sendPartnerReply(${p.id})">Send email</button>
+          <div class="actions">
+            <button class="sm" id="crmSendBtn" onclick="sendPartnerReply(${Number(p.id)}, this)">Send email</button>
           </div>
-          <p id="crmReplyMsg" style="margin:var(--s2) 0 0" class="muted"></p>
+          <p id="crmReplyMsg" class="notice" role="status"></p>
         </div>
       </div>
 
-      <!-- Linked Facilitators & Programs -->
-      <h4 style="margin-top:var(--s5)">Linked Facilitators (${(p.facilitators || []).length})</h4>
-      ${(p.facilitators || []).map((f) => `<div>&bull; <b>${esc(f.name || f.email)}</b> (${esc(f.email)})</div>`).join('') || '<p class="muted">No facilitators linked yet.</p>'}
-      <div style="margin-top:var(--s2);display:flex;gap:var(--s2);align-items:flex-end">
-        <label style="margin:0;flex:1">Link facilitator by email
+      <div class="psub" data-s="links" hidden>
+      <h4>Linked Facilitators (${(p.facilitators || []).length})</h4>
+      ${(p.facilitators || []).length ? `<ul class="plain-list">${p.facilitators.map((f) => `<li><b>${esc(f.name || f.email)}</b> (${esc(f.email)})</li>`).join('')}</ul>` : '<p class="muted">No facilitators linked yet.</p>'}
+      <div class="link-fac">
+        <label>Link facilitator by email
           <input id="linkFacEmail" type="email" placeholder="facilitator@example.org">
         </label>
-        <button class="sm sec" onclick="linkFacToPartner(${p.id})">Link Facilitator</button>
+        <button class="sm sec" onclick="linkFacToPartner(${Number(p.id)})">Link Facilitator</button>
       </div>
+      <p class="notice" role="status" id="linkMsg"></p>
 
-      <h4 style="margin-top:var(--s4)">Programs (${(p.programs || []).length})</h4>
-      ${(p.programs || []).map((pr) => `<div>&bull; <b>${esc(pr.name)}</b> &bull; ${date(pr.start_date)} &rarr; ${date(pr.end_date)} &bull; ${pr.feedback_count || 0} feedback responses</div>`).join('') || '<p class="muted">No programs delivered under this partner yet.</p>'}
+      <h4>Programs (${(p.programs || []).length})</h4>
+      ${(p.programs || []).length ? `<ul class="plain-list">${p.programs.map((pr) => `<li><b>${esc(pr.name)}</b> &bull; ${date(pr.start_date)} &rarr; ${date(pr.end_date)} &bull; ${pr.feedback_count || 0} feedback responses</li>`).join('')}</ul>` : '<p class="muted">No programs delivered under this partner yet.</p>'}
+      </div>
     </div>
   `;
+  detailMode(true);
+  partnerSub(openPartner.sub);
   if (focusEmail && $('#crmReplyBody')) { $('#crmReplyBody').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('#crmReplyBody').focus(); }
-  else $('#partnerDetailBox').scrollIntoView({ behavior: 'smooth' });
+  else window.scrollTo({ top: 0 });
 }
 
 async function uploadPartnerDocs(partnerId) {
@@ -401,21 +506,24 @@ async function uploadPartnerDocs(partnerId) {
     method: 'POST',
     body: formData
   });
+  if (res.status === 401) { location.href = '/login.html'; return; }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) alert(data.error || 'Upload failed');
-  else viewPartner(partnerId);
+  if (!res.ok) return notice('#docMsg', data.error || 'Upload failed.', 'err');
+  await refresh();
+  notice('#docMsg', 'Uploaded.', 'ok');
 }
 
-async function deletePartnerDoc(partnerId, docId) {
-  if (!confirm('Are you sure you want to remove this document?')) return;
-  await j(`/api/partners/${partnerId}/documents/${docId}`, { method: 'DELETE' });
-  viewPartner(partnerId);
+function deletePartnerDoc(partnerId, docId, btn) {
+  confirmInline(btn, 'Remove this document?', async () => {
+    const r = await j(`/api/partners/${partnerId}/documents/${docId}`, { method: 'DELETE' });
+    await refresh();
+    notice('#docMsg', r.error || 'Document removed.', r.error ? 'err' : 'ok');
+  });
 }
 
 function crmToChanged() {
-  const toFac = !!$('#crmTo').value;
-  // Documents and stage changes only apply to the partner contact.
-  ['#crmDocsWrap', '#crmStageWrap'].forEach((q) => { const el = $(q); if (el) el.style.display = toFac ? 'none' : ''; });
+  // Documents only go to the partner contact.
+  const wrap = $('#crmDocsWrap'); if (wrap) wrap.hidden = !!$('#crmTo').value;
 }
 let crmRec = null, crmChunks = [], crmStream = null;
 const crmSay = (m) => { const el = $('#crmSt'); if (el) el.textContent = m; };
@@ -449,112 +557,207 @@ async function crmDictate() {
   crmRec.start(); mic.setAttribute('aria-pressed', 'true'); mic.textContent = 'Stop dictating'; crmSay('Recording…');
 }
 async function crmPolish() {
-  const text = $('#crmReplyBody').value.trim();
+  const box = $('#crmReplyBody'), text = box.value.trim();
   if (!text) return crmSay('Write or dictate something first.');
-  const btn = $('#crmTidy'); btn.disabled = true; crmSay('Tidying…');
-  const r = await jsonPost('/api/compose/polish', { text, facilitator_id: $('#crmTo').value });
-  if (r.error) crmSay(r.error); else { $('#crmReplyBody').value = r.text; crmSay('Tidied. Please review it before sending.'); }
+  const btn = $('#crmTidy'); btn.disabled = true;
+  const bar = $('#crmBar'); bar.hidden = false; bar.value = 0;
+  const pct = (n) => { bar.value = n; crmSay('Tidying… ' + n + '%'); };
+  pct(0);
+  try {
+    const r = await fetch('/api/compose/polish-stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, facilitator_id: $('#crmTo').value }) });
+    if (r.status === 401) { location.href = '/login.html'; return; }
+    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'AI tidy-up is not available'); }
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let out = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      out += dec.decode(value, { stream: true });
+      box.value = out; // text appears as it is written
+      pct(Math.min(95, Math.round((out.length / Math.max(text.length, 1)) * 95)));
+    }
+    if (!out.trim()) throw new Error('AI tidy-up returned nothing');
+    box.value = out.trim(); bar.value = 100; crmSay('Tidied. Please review it before sending.');
+  } catch (e) { box.value = text; crmSay(e.message || 'AI tidy-up is not available'); }
   btn.disabled = false;
+  setTimeout(() => { bar.hidden = true; }, 1500);
 }
-async function sendPartnerReply(partnerId) {
+function sendPartnerReply(partnerId, btn) {
   const subject = $('#crmReplySubject').value.trim();
   const body = $('#crmReplyBody').value.trim();
-  const stage = $('#crmStageWrap').style.display === 'none' ? '' : $('#crmReplyStage').value;
   const facId = Number($('#crmTo').value) || 0;
-  const btn = $('#crmSendBtn');
 
-  if (!body) return alert('Please enter a message body');
-  if (facId && !subject) return alert('Add a subject');
+  if (!body) return notice('#crmReplyMsg', 'Write a message first.', 'err');
+  if (facId && !subject) return notice('#crmReplyMsg', 'Add a subject.', 'err');
   const toName = $('#crmTo').selectedOptions[0].textContent;
-  if (facId && !confirm('Send this email to ' + toName + '?')) return;
-
   const selectedDocs = facId ? [] : [...document.querySelectorAll('.crmDocCheckbox:checked')].map((c) => Number(c.value));
 
-  btn.disabled = true;
-  btn.textContent = 'Sending…';
-
-  try {
+  const send = async () => {
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
     const res = facId
       ? await jsonPost('/api/compose/send', { facilitator_id: facId, subject, body })
-      : await jsonPost(`/api/partners/${partnerId}/reply`, { subject, body, stage: stage || undefined, document_ids: selectedDocs });
-
-    if (res.error) throw new Error(res.error);
-
-    alert(facId ? 'Email sent.' : 'Email sent successfully with attached documents!');
-    viewPartner(partnerId);
-    refresh();
-  } catch (err) {
-    alert(err.message || 'Failed to send reply');
-    btn.disabled = false;
-    btn.textContent = 'Send email';
-  }
+      : await jsonPost(`/api/partners/${partnerId}/reply`, { subject, body, document_ids: selectedDocs });
+    if (res.error) {
+      btn.disabled = false; btn.textContent = 'Send email';
+      return notice('#crmReplyMsg', res.error, 'err');
+    }
+    await refresh();
+    notice('#crmReplyMsg', facId ? 'Email sent to ' + toName + '.' : selectedDocs.length ? `Email sent with ${plural(selectedDocs.length, 'document')} attached.` : 'Email sent.', 'ok');
+    $('#crmReplyMsg')?.scrollIntoView({ block: 'center' });
+  };
+  if (facId) return confirmInline(btn, 'Send this email to ' + toName + '?', send);
+  send();
 }
 
 async function savePartnerDetails(id) {
-  await j(`/api/partners/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      pdsa_status: $('#pdetPdsaStatus').value,
-      pdsa_issued_date: $('#pdetIssued').value || null,
-      pdsa_executed_date: $('#pdetExecuted').value || null,
-      pdsa_expiry_date: $('#pdetExpiry').value || null,
-      notes: $('#pdetNotes').value
-    })
-  });
-  alert('Partner updated successfully');
-  viewPartner(id);
+  const r = await jsonPost(`/api/partners/${id}`, {
+    stage: $('#pdetStage').value,
+    pdsa_status: $('#pdetPdsaStatus').value,
+    pdsa_issued_date: $('#pdetIssued').value || null,
+    pdsa_executed_date: $('#pdetExecuted').value || null,
+    pdsa_expiry_date: $('#pdetExpiry').value || null,
+    notes: $('#pdetNotes').value
+  }, 'PATCH');
+  if (r.error) return notice('#pdetMsg', r.error, 'err');
+  await refresh();
+  notice('#pdetMsg', 'Saved.', 'ok');
 }
 
 async function linkFacToPartner(partnerId) {
   const email = $('#linkFacEmail').value.trim();
-  if (!email) return alert('Enter facilitator email');
+  if (!email) return notice('#linkMsg', 'Enter the facilitator\'s email address.', 'err');
   const r = await jsonPost(`/api/partners/${partnerId}/facilitators`, { email });
-  if (r.error) alert(r.error);
-  else { alert(r.message); viewPartner(partnerId); }
+  if (r.error) return notice('#linkMsg', r.error, 'err');
+  await refresh();
+  notice('#linkMsg', r.message || 'Facilitator linked.', 'ok');
 }
 
 // ---- Orders ----
+const KIT_ITEMS = ['Participant Kits', 'Facilitator Kits', 'Facilitator Manuals', 'Replacement Materials']; // same list as src/db.js
+let editOrder = null; // order id whose inline editor is open
+const money = (n) => '$' + Number(n).toFixed(2);
+function orderActions(r) {
+  const id = Number(r.id);
+  const cancel = `<button class="sm sec danger" onclick="cancelOrder(${id}, this)">Cancel</button>`;
+  if (r.status === 'form_sent') return `<button class="sm sec" data-copy="/order/${esc(enc(r.token))}">Copy form link</button>${cancel}`;
+  if (r.status === 'ordered') return `<button class="sm" onclick="ship(${id})">Mark shipped</button><button class="sm sec" onclick="editOrder=${id};refresh()">Edit</button>${cancel}`;
+  if (r.status === 'shipped') return (r.reminder_sent_at
+    ? `<button class="sm sec" disabled>Reminder sent ${date(r.reminder_sent_at)}</button>`
+    : `<button class="sm sec" onclick="remindOne(${id}, this)">Send reminder</button>`) + cancel;
+  return '';
+}
+function orderEditor(r) {
+  const qty = Object.fromEntries((r.items || []).map((i) => [i.item, i.qty]));
+  return `<tr class="edit-row"><td colspan="8"><form class="order-edit" onsubmit="saveOrder(event, ${Number(r.id)})">
+    <h4>Edit order #${esc(r.id)}</h4>
+    <label>Ship to<textarea name="shipping_address" rows="3" maxlength="500" required>${esc(r.shipping_address || '')}</textarea></label>
+    <div class="row">
+      <label>Needed by<input type="date" name="requested_date" value="${esc(dval(r.requested_date))}"></label>
+      <label>Shipping cost ($)<input type="number" name="shipping_cost" min="0" step="0.01" value="${esc(r.shipping_cost ?? '')}"></label>
+    </div>
+    <label>Notes<textarea name="notes" rows="2" maxlength="2000">${esc(r.notes || '')}</textarea></label>
+    <fieldset class="kit-qty"><legend>Kits</legend><div class="row">
+      ${KIT_ITEMS.map((k) => `<label>${esc(k)}<input type="number" min="0" max="5000" data-item="${esc(k)}" value="${Number(qty[k]) || 0}"></label>`).join('')}
+    </div></fieldset>
+    <p class="notice" role="status" id="oeMsg"></p>
+    <p class="row-actions"><button class="sm">Save changes</button><button type="button" class="sm sec" onclick="editOrder=null;refresh()">Close</button></p>
+  </form></td></tr>`;
+}
 async function orders() {
   const rows = await j('/api/orders');
-  $('#orders').innerHTML = `
-  <details class="card wide-card"><summary><b>Simulate an email from a facilitator</b> <span class="muted">(until your email provider's webhook is connected)</span></summary>
-    <div class="row"><label>From<input id="se" type="email" placeholder="facilitator@example.org" autocomplete="off"></label><label>Name<input id="sn"></label></div>
-    <label>Subject<input id="ss" value="Kits for our next program"></label><label>Message<textarea id="sb" rows="2">Hi, we're running Baby Connections this fall and need kits.</textarea></label>
-    <p><button id="sim">Receive email</button> <span id="simmsg" class="muted"></span></p></details>
-  <div class="tbl"><table><tr><th>#</th><th>Facilitator</th><th>Program</th><th>Kits</th><th>Status</th><th>Dates</th><th></th></tr>
-  ${(Array.isArray(rows) ? rows : []).map((r) => `<tr><td>${esc(r.id)}</td><td>${esc(r.facilitator || '')}<br><span class="muted">${esc(r.email)}</span></td><td>${esc(r.program || '–')}</td>
-    <td>${(r.items || []).map((i) => `${esc(i.qty)} × ${esc(i.item)}`).join('<br>') || '–'}</td><td><span class="pill st-${esc(r.status)}">${esc(String(r.status).replace('_', ' '))}</span></td>
+  const list = Array.isArray(rows) ? rows : [];
+  if (editOrder && !list.some((r) => r.id === editOrder && r.status === 'ordered')) editOrder = null;
+  $('#orders').innerHTML = `<p class="notice" role="status" data-tabmsg></p>
+  <div class="toolbar"><p class="muted">Reminders go to facilitators whose kits shipped over a week ago and who have not confirmed they arrived.</p>
+    <button class="sm sec" onclick="remindAll(this)">Send all overdue reminders</button></div>
+  <details class="card wide-card"><summary><b>Start a kit order for a facilitator</b></summary>
+    <p class="muted">Use this when a facilitator asks by phone or in person. They get the order-form link by email.</p>
+    <div class="row"><label>Facilitator email<input id="se" type="email" placeholder="facilitator@example.org" autocomplete="off"></label><label>Facilitator name<input id="sn"></label></div>
+    <label>Subject<input id="ss" value="Kits for our next program"></label><label>What they asked for<textarea id="sb" rows="2">Hi, we're running Baby Connections this fall and need kits.</textarea></label>
+    <p><button id="sim">Email the order form</button></p>
+    <p id="simmsg" class="notice" role="status"></p></details>
+  <div class="tbl"><table><tr><th>#</th><th>Facilitator</th><th>Program</th><th>Kits</th><th>Ship to</th><th>Status</th><th>Dates</th><th>Actions</th></tr>
+  ${list.map((r) => `<tr${editOrder === r.id ? ' class="sel"' : ''}><td>${esc(r.id)}</td><td>${esc(r.facilitator || '')}<br><span class="muted">${esc(r.email)}</span></td><td>${esc(r.program || '–')}</td>
+    <td>${(r.items || []).map((i) => `${esc(i.qty)} × ${esc(i.item)}`).join('<br>') || '–'}</td>
+    <td><span class="ship-to">${esc(r.shipping_address || '–')}</span>${r.requested_date ? `<br><span class="muted">Needed by ${date(r.requested_date)}</span>` : ''}${r.shipping_cost != null ? `<br><span class="muted">Shipping ${esc(money(r.shipping_cost))}</span>` : ''}</td>
+    <td><span class="pill st-${esc(r.status)}">${esc(String(r.status).replace('_', ' '))}</span></td>
     <td class="muted">ordered ${date(r.ordered_at)}<br>shipped ${date(r.shipped_at)}<br>received ${date(r.received_at)}</td>
-    <td>${r.status === 'ordered' ? `<button class="sm" onclick="ship(${Number(r.id)})">Mark shipped</button>` : r.status === 'form_sent' ? `<a class="muted" href="/order/${enc(r.token)}" target="_blank" rel="noopener">form link</a>` : ''}</td></tr>`).join('') || '<tr><td colspan=7 class="muted">No orders yet.</td></tr>'}
+    <td><div class="row-actions">${orderActions(r)}</div></td></tr>${editOrder === r.id ? orderEditor(r) : ''}`).join('') || '<tr><td colspan=8 class="muted">No orders yet.</td></tr>'}
   </table></div>`;
   $('#sim').onclick = async () => {
-    const r = await jsonPost('/api/inbound-email', { from: $('#se').value, name: $('#sn').value, subject: $('#ss').value, body: $('#sb').value });
-    $('#simmsg').textContent = r.error || 'Received. Order form emailed (see Emails tab).'; if (!r.error) refresh();
+    const email = $('#se').value.trim();
+    if (!email) return notice('#simmsg', 'Enter the facilitator\'s email address.', 'err');
+    const r = await jsonPost('/api/inbound-email', { from: email, name: $('#sn').value, subject: $('#ss').value, body: $('#sb').value });
+    if (r.error) return notice('#simmsg', r.error, 'err');
+    await refresh();
+    tell('Order form emailed to ' + email + '. You can see it on the Emails tab.');
   };
+  const ed = $('.order-edit');
+  if (ed) { ed.scrollIntoView({ block: 'center' }); ed.querySelector('textarea').focus({ preventScroll: true }); }
 }
-async function ship(id) { await j(`/api/orders/${id}/ship`, { method: 'POST' }); refresh(); }
+async function saveOrder(e, id) {
+  e.preventDefault();
+  const f = e.target;
+  const items = [...f.querySelectorAll('[data-item]')].map((i) => ({ item: i.dataset.item, qty: Number(i.value) || 0 })).filter((i) => i.qty > 0);
+  const r = await jsonPost(`/api/orders/${id}`, {
+    shipping_address: f.elements.shipping_address.value,
+    requested_date: f.elements.requested_date.value || null,
+    notes: f.elements.notes.value,
+    shipping_cost: f.elements.shipping_cost.value,
+    items
+  }, 'PATCH');
+  if (r.error) return notice('#oeMsg', r.error, 'err');
+  editOrder = null;
+  await refresh();
+  tell(`Order #${id} saved.`);
+}
+async function ship(id) {
+  const r = await j(`/api/orders/${id}/ship`, { method: 'POST' });
+  await refresh();
+  tell(r.error || `Order #${id} marked as shipped. The facilitator has been emailed.`, r.error ? 'err' : 'ok');
+}
+function cancelOrder(id, btn) {
+  confirmInline(btn, `Cancel order #${id}? The facilitator is emailed.`, async () => {
+    const r = await j(`/api/orders/${id}/cancel`, { method: 'POST' });
+    await refresh();
+    tell(r.error || `Order #${id} cancelled. The facilitator has been emailed.`, r.error ? 'err' : 'ok');
+  });
+}
+async function remindOne(id, btn) {
+  if (btn) btn.disabled = true;
+  const r = await jsonPost('/api/orders/send-reminders', { order_id: id });
+  await refresh();
+  tell(r.error || (r.sent ? `Reminder emailed for order #${id}.` : `Order #${id} is no longer waiting for confirmation.`), r.error ? 'err' : 'ok');
+}
+async function remindAll(btn) {
+  btn.disabled = true;
+  const r = await jsonPost('/api/orders/send-reminders', { days: 7 });
+  await refresh();
+  tell(r.error || `Sent ${plural(r.sent || 0, 'reminder')}.`, r.error ? 'err' : 'ok');
+}
 
 // ---- Programs ----
 const pf = { from: '', to: '', facilitator: '', partner: '', status: '' };
 const pfQuery = () => new URLSearchParams(Object.entries(pf).filter(([, v]) => v)).toString();
+const PROGRAM_LINKS = [['Feedback form', 'feedback'], ['QR sheet', 'sheet'], ['Photo upload', 'upload'], ['Completion form', 'complete']];
 async function programs() {
-  const [rows, ru, partnerList] = await Promise.all([
+  const [rows, facList, partnerList] = await Promise.all([
     j('/api/programs?' + pfQuery()),
-    j('/api/rollup'),
+    j('/api/compose/facilitators'),
     j('/api/partners')
   ]);
-  const facs = ru.byFacilitator || [];
+  const facs = Array.isArray(facList) ? facList : [];
   const qs = pfQuery();
-  $('#programs').innerHTML = `<details class="card wide-card" id="reviewBox" style="margin-bottom:var(--s3)"><summary><b>Review queue</b> <span class="muted" id="reviewCount"></span></summary><div id="review"></div></details>
-  <details class="card wide-card" id="outstandingBox" style="margin-bottom:var(--s4)"><summary><b>Outstanding surveys</b> <span class="muted" id="outstandingCount"></span></summary><div id="outstanding"></div></details>
+  $('#programs').innerHTML = `<details class="card wide-card" id="reviewBox"><summary><b>Review queue</b> <span class="muted" id="reviewCount"></span></summary><div id="review"></div></details>
+  <details class="card wide-card" id="outstandingBox"><summary><b>Outstanding surveys</b> <span class="muted" id="outstandingCount"></span></summary><div id="outstanding"></div></details>
   <form class="filters" id="pfForm">
     <label>From<input type="date" id="pfFrom" value="${esc(pf.from)}"></label>
     <label>To<input type="date" id="pfTo" value="${esc(pf.to)}"></label>
     <label>Partner
       <select id="pfPartner">
         <option value="">All Partners</option>
-        ${(partnerList || []).map((pt) => `<option value="${Number(pt.id)}" ${String(pt.id) === pf.partner ? 'selected' : ''}>${esc(pt.name)}</option>`).join('')}
+        ${(Array.isArray(partnerList) ? partnerList : []).map((pt) => `<option value="${Number(pt.id)}" ${String(pt.id) === pf.partner ? 'selected' : ''}>${esc(pt.name)}</option>`).join('')}
       </select>
     </label>
     <label>Facilitator
@@ -574,8 +777,8 @@ async function programs() {
     <button>Apply</button><button type="button" class="sec" id="pfClear">Clear</button>
     <a class="btn sec" href="/api/export/programs.csv${qs ? '?' + qs : ''}">Export CSV</a></form>
   <div class="tbl"><table><tr><th>Program</th><th>Partner &amp; Facilitator</th><th>Format &amp; Dates</th><th>Status</th><th>Responses</th><th>Avg rating</th><th>Links</th><th>Actions</th></tr>
-  ${rows.map((p) => {
-    const t = enc(p.token);
+  ${(Array.isArray(rows) ? rows : []).map((p) => {
+    const t = esc(enc(p.token));
     const isCompleted = Boolean(p.completion_id) || p.status === 'completed';
     const formatLabel = p.delivery_format === 'virtual' ? 'Virtual' : p.delivery_format === 'hybrid' ? 'Hybrid' : 'In-Person';
     return `<tr>
@@ -585,11 +788,14 @@ async function programs() {
       <td><span class="pill ${isCompleted ? 'st-on' : 'st-off'}">${isCompleted ? 'Completed' : esc(p.status || 'scheduled')}</span></td>
       <td>${esc(p.responses)}${p.projected_participants ? ` / ${esc(p.projected_participants)}` : ''}${p.needs_review ? ` <span class="pill st-review">${esc(p.needs_review)} to review</span>` : ''}</td>
       <td>${num(p.avg_rating)}</td>
-      <td><a href="/feedback/${t}" target="_blank" rel="noopener">form</a> &bull; <a href="/upload/${t}" target="_blank" rel="noopener">upload photos</a> &bull; <a href="/sheet/${t}" target="_blank" rel="noopener">QR sheet</a> &bull; <a href="/complete/${t}" target="_blank" rel="noopener">completion form</a></td>
-      <td style="white-space:nowrap">
+      <td><details class="links-menu"><summary>Links</summary><ul>
+        ${PROGRAM_LINKS.map(([label, path]) => `<li><a href="/${path}/${t}" target="_blank" rel="noopener">${label}</a><button type="button" class="sm sec" data-copy="/${path}/${t}">Copy</button></li>`).join('')}
+      </ul></details></td>
+      <td><div class="row-actions">
         <button class="sm sec" onclick="report(${Number(p.id)})">Feedback Report</button>
-        ${isCompleted ? `<button class="sm" onclick="viewCompletion(${Number(p.id)})" style="margin-left:4px">Completion</button>` : ''}
-      </td></tr>`;
+        ${isCompleted ? `<button class="sm" onclick="viewCompletion(${Number(p.id)})">Completion</button>` : ''}
+        ${p.facilitator_id ? `<a class="btn sm sec" href="/compose.html?facilitator=${Number(p.facilitator_id)}">Email facilitator</a>` : ''}
+      </div></td></tr>`;
   }).join('') || '<tr><td colspan=8 class="muted">No programs match your filter.</td></tr>'}
   </table></div><div id="report"></div>`;
 
@@ -607,21 +813,26 @@ async function programs() {
     refresh();
   };
   await Promise.all([review(), outstanding()]);
+  if (pendingReview != null) {
+    const c = $(`#review [data-id="${Number(pendingReview)}"]`);
+    pendingReview = null;
+    if (c) { $('#reviewBox').open = true; c.scrollIntoView({ block: 'start' }); c.querySelector('.rt')?.focus({ preventScroll: true }); }
+  }
 }
 
 async function viewCompletion(programId) {
   const c = await j(`/api/programs/${programId}/completion`);
-  if (c.error) return alert(c.error);
+  if (c.error) { $('#report').innerHTML = `<p class="notice err" role="status">${esc(c.error)}</p>`; return; }
   $('#report').innerHTML = `
-    <div class="card wide-card" style="border:2px solid var(--ok);margin-top:var(--s4)">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div class="card wide-card completion-card">
+      <div class="head-row">
         <div>
-          <h3 style="margin:0 0 var(--s1)">Completion Report: ${esc(c.program_name)}</h3>
-          <p class="muted" style="margin:0">Submitted by <b>${esc(c.facilitator_name || c.facilitator_email)}</b> on ${date(c.submitted_at)}</p>
+          <h3>Completion Report: ${esc(c.program_name)}</h3>
+          <p class="muted flush">Submitted by <b>${esc(c.facilitator_name || c.facilitator_email)}</b> on ${date(c.submitted_at)}</p>
         </div>
         <button class="sm sec" onclick="$('#report').innerHTML = ''">Close</button>
       </div>
-      <div class="stats" style="margin:var(--s3) 0">
+      <div class="stats">
         <div class="stat"><b>${esc(c.families_served ?? '–')}</b><span class="muted">Families served</span></div>
         <div class="stat"><b>${esc(c.kits_distributed ?? '–')}</b><span class="muted">Kits distributed</span></div>
         <div class="stat"><b>Yes</b><span class="muted">Program concluded</span></div>
@@ -632,6 +843,103 @@ async function viewCompletion(programId) {
     </div>
   `;
   $('#report').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ---- Training sessions: list, create, edit, delete, roster, certificates ----
+const FORMATS = [['online', 'Online'], ['in_person', 'In person']];
+const REG_STATUS = { registered: ['Registered', 'st-ordered'], attended: ['Attended', 'st-shipped'], completed: ['Completed', 'st-on'], cancelled: ['Cancelled', 'st-off'] };
+let editSession = null, openSession = null;
+function sessionFields(s = {}) {
+  return `<div class="row">
+      <label>Title<input name="title" required maxlength="200" value="${esc(s.title || '')}" placeholder="e.g. Facilitator training, winter"></label>
+      <label>Date<input type="date" name="session_date" required value="${esc(dval(s.session_date))}"></label>
+      <label>Time<input name="session_time" maxlength="50" value="${esc(s.session_time || '')}" placeholder="10:00 AM - 12:00 PM"></label>
+    </div>
+    <div class="row">
+      <label>Format<select name="delivery_type">${FORMATS.map(([v, l]) => `<option value="${v}" ${s.delivery_type === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label>Location or meeting link<input name="location_details" maxlength="500" value="${esc(s.location_details || '')}"></label>
+      <label>Trainer<input name="trainer_name" maxlength="120" value="${esc(s.trainer_name || '')}"></label>
+      <label>Places<input type="number" name="capacity" min="1" max="500" required value="${esc(s.capacity || 25)}"></label>
+    </div>`;
+}
+async function training() {
+  const rows = await j('/api/training/sessions');
+  const list = Array.isArray(rows) ? rows : [];
+  if (editSession && !list.some((s) => s.id === editSession)) editSession = null;
+  $('#training').innerHTML = `<p class="notice" role="status" data-tabmsg></p>
+  <div class="toolbar"><p class="muted">Facilitators sign up for these sessions on the public registration page.</p>
+    <div class="row-actions"><a class="btn sm sec" href="/training/register" target="_blank" rel="noopener">Open registration page</a><button type="button" class="sm sec" data-copy="/training/register">Copy registration link</button></div></div>
+  <details class="card wide-card" id="newSessionBox"><summary><b>New session</b></summary>
+    <form class="session-form" onsubmit="saveSession(event)">${sessionFields()}
+      <p class="notice" role="status"></p>
+      <button class="sm">Create session</button></form></details>
+  <div class="tbl"><table><tr><th>Session</th><th>Date &amp; time</th><th>Format</th><th>Trainer</th><th>Signed up</th><th>Actions</th></tr>
+  ${list.map((s) => {
+    const id = Number(s.id), full = s.capacity && s.registered_count >= s.capacity;
+    return `<tr data-session="${id}"${openSession === s.id ? ' class="sel"' : ''}>
+      <td><b>${esc(s.title)}</b>${s.location_details ? `<br><span class="muted">${esc(s.location_details)}</span>` : ''}</td>
+      <td>${date(s.session_date)}${s.session_time ? `<br><span class="muted">${esc(s.session_time)}</span>` : ''}</td>
+      <td>${s.delivery_type === 'in_person' ? 'In person' : 'Online'}</td>
+      <td>${esc(s.trainer_name || '–')}</td>
+      <td><span class="train-cap${full ? ' full' : ''}">${esc(s.registered_count || 0)} / ${esc(s.capacity || '–')}</span>${full ? '<br><span class="muted">Full</span>' : ''}</td>
+      <td><div class="row-actions"><button class="sm" onclick="showRoster(${id})">Who signed up</button><button class="sm sec" onclick="editSession=${id};refresh()">Edit</button><button class="sm sec danger" onclick="deleteSession(${id})">Delete</button></div></td></tr>
+      ${editSession === s.id ? `<tr class="edit-row"><td colspan="6"><form class="session-form" onsubmit="saveSession(event, ${id})"><h4>Edit session</h4>${sessionFields(s)}
+        <p class="notice" role="status"></p>
+        <div class="row-actions"><button class="sm">Save changes</button><button type="button" class="sm sec" onclick="editSession=null;refresh()">Close</button></div></form></td></tr>` : ''}`;
+  }).join('') || '<tr><td colspan="6" class="muted">No training sessions yet. Create one with New session.</td></tr>'}
+  </table></div><div id="roster"></div>`;
+  if (openSession) await showRoster(openSession, false);
+}
+async function saveSession(e, id) {
+  e.preventDefault();
+  const f = e.target;
+  const b = Object.fromEntries(new FormData(f));
+  b.capacity = Number(b.capacity);
+  const r = id ? await jsonPost(`/api/training/sessions/${id}`, b, 'PATCH') : await jsonPost('/api/training/sessions', b);
+  if (r.error) return notice(f.querySelector('.notice'), r.error, 'err');
+  editSession = null;
+  await refresh();
+  tell(id ? 'Session saved.' : 'Session created. Facilitators can now sign up for it.');
+}
+async function deleteSession(id) {
+  const r = await j(`/api/training/sessions/${id}`, { method: 'DELETE' });
+  if (r.error) return tell(r.error + '. You can edit it instead.', 'err');
+  if (openSession === id) openSession = null;
+  await refresh();
+  tell('Session deleted.');
+}
+function closeRoster() { openSession = null; refresh(); }
+async function showRoster(id, scroll = true) {
+  openSession = id;
+  document.querySelectorAll('#training tr.sel').forEach((tr) => tr.classList.remove('sel'));
+  const r = await j(`/api/training/sessions/${id}/roster`);
+  const el = $('#roster'); if (!el) return;
+  if (r.error || !r.session) { openSession = null; el.innerHTML = `<p class="notice err" role="status">${esc(r.error || 'Could not load the sign-ups.')}</p>`; return; }
+  const list = Array.isArray(r.roster) ? r.roster : [];
+  el.innerHTML = `<div class="card wide-card roster">
+    <div class="head-row"><h3>${esc(r.session.title)}, ${date(r.session.session_date)}: ${plural(list.length, 'person')} signed up</h3><button class="sm sec" onclick="closeRoster()">Close</button></div>
+    <p class="notice" role="status" id="rosterMsg"></p>
+    ${list.length ? `<div class="tbl"><table><tr><th>Facilitator</th><th>Organization</th><th>Signed up</th><th>Status</th><th>Certificate</th></tr>
+    ${list.map((x) => { const [label, pill] = REG_STATUS[x.status] || [x.status, 'st-off']; return `<tr>
+      <td><b>${esc(x.name || x.email)}</b><br><span class="muted">${esc(x.email)}</span></td>
+      <td>${esc(x.partner_name || x.organization || '–')}</td>
+      <td class="muted">${date(x.created_at)}</td>
+      <td><span class="pill ${pill}">${esc(label)}</span></td>
+      <td>${x.status === 'completed' && x.certificate_code
+        ? `<a href="/certificate/${esc(enc(x.certificate_code))}" target="_blank" rel="noopener">${esc(x.certificate_code)}</a>`
+        : x.status === 'cancelled' ? '' : `<button class="sm" onclick="completeReg(${Number(x.registration_id)}, this)">Mark completed, send certificate</button>`}</td></tr>`; }).join('')}
+    </table></div>` : '<p class="muted">Nobody has signed up yet. Share the registration link.</p>'}
+  </div>`;
+  $(`#training tr[data-session="${Number(id)}"]`)?.classList.add('sel');
+  enhanceTables();
+  if (scroll) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+async function completeReg(regId, btn) {
+  btn.disabled = true;
+  const r = await jsonPost(`/api/training/registrations/${regId}/complete`);
+  if (r.error) { btn.disabled = false; return notice('#rosterMsg', r.error, 'err'); }
+  await showRoster(openSession, false);
+  notice('#rosterMsg', `${r.message}. Certificate ${r.certificateCode} has been emailed.`, 'ok');
 }
 
 async function report(id) {
@@ -804,8 +1112,16 @@ async function rollup() {
 // ---- Emails ----
 async function emails() {
   const e = await j('/api/emails');
-  $('#emails').innerHTML = `<p class="muted">To write an email, open a partner on the Partners tab and press Email.</p><h3>Outbox (sent by the system)</h3><div class="tbl"><table><tr><th>When</th><th>To</th><th>Subject</th><th></th></tr>${(e.outbox || []).map((m) => `<tr><td class="muted">${esc(m.created_at)}</td><td>${esc(m.to_email)}</td><td>${esc(m.subject)}</td><td>${m.delivered ? '<span class="pill st-on">sent</span>' : '<span class="pill st-off">logged only</span>'}</td></tr><tr><td></td><td colspan=3 class="muted pre">${esc(m.body)}</td></tr>`).join('')}</table></div>
-  <h3>Inbound from facilitators</h3><div class="tbl"><table><tr><th>When</th><th>From</th><th>Subject</th></tr>${(e.inbound || []).map((m) => `<tr><td class="muted">${esc(m.received_at)}</td><td>${esc(m.from_email)}</td><td>${esc(m.subject)}</td></tr>`).join('')}</table></div>`;
+  const when = (s) => (s ? esc(whenFmt(s)) : '–');
+  const subj = (m) => m.body
+    ? `<details class="mail"><summary>${esc(m.subject || 'No subject')}</summary><div class="msg-body">${esc(m.body)}</div></details>`
+    : esc(m.subject || 'No subject');
+  $('#emails').innerHTML = `<div class="toolbar"><p class="muted">Open a subject to read the message. To email a partner, open them on the Partners tab and choose Email.</p>
+    <a class="btn sm" href="/compose.html">Write an email</a></div>
+  <h3>Sent by the system</h3><div class="tbl"><table><tr><th>Date</th><th>To</th><th>Subject</th><th>Status</th></tr>
+  ${(e.outbox || []).map((m) => `<tr><td class="muted">${when(m.created_at)}</td><td>${esc(m.to_email)}</td><td>${subj(m)}</td><td>${m.delivered ? '<span class="pill st-on">Sent</span>' : '<span class="pill st-off">Saved here only, not sent</span>'}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">No emails sent yet.</td></tr>'}</table></div>
+  <h3>Received from facilitators</h3><div class="tbl"><table><tr><th>Date</th><th>From</th><th>Subject</th><th>Status</th></tr>
+  ${(e.inbound || []).map((m) => `<tr><td class="muted">${when(m.received_at)}</td><td>${esc(m.from_email)}</td><td>${subj(m)}</td><td>${m.order_id ? `<span class="pill st-ordered">Order #${esc(m.order_id)} started</span>` : '<span class="pill st-off">Received</span>'}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">No emails received yet.</td></tr>'}</table></div>`;
 }
 
 // ---- Staff (admins) ----
@@ -814,20 +1130,25 @@ async function staff() {
   const rows = await j('/api/staff');
   $('#staff').innerHTML = `<form class="filters" id="stForm"><label>Email<input id="stEmail" type="email" required></label><label>Name<input id="stName"></label>
     <label>Role<select id="stRole"><option value="staff">Staff</option><option value="admin">Admin</option></select></label><button>Add / reactivate</button></form>
-  <p id="stMsg" class="err" role="alert"></p>
+  <p id="stMsg" class="notice" role="status"></p>
   <div class="tbl"><table><tr><th>Email</th><th>Name</th><th>Role</th><th>Status</th><th>Last login</th><th></th></tr>
   ${(Array.isArray(rows) ? rows : []).map((s) => `<tr><td>${esc(s.email)}</td><td>${esc(s.name || '')}</td><td>${esc(s.role)}</td><td>${s.active ? '<span class="pill st-on">active</span>' : '<span class="pill st-off">deactivated</span>'}</td><td class="muted">${date(s.last_login_at)}</td>
-   <td>${s.active && s.id !== me.id ? `<button class="sm sec" onclick="deactivate(${Number(s.id)})">Deactivate</button>` : ''}</td></tr>`).join('')}</table></div>`;
+   <td>${s.active && s.id !== me.id ? `<button class="sm sec danger" onclick="deactivate(${Number(s.id)}, this)">Deactivate</button>` : ''}</td></tr>`).join('')}</table></div>`;
   $('#stForm').onsubmit = async (e) => {
     e.preventDefault();
     const r = await jsonPost('/api/staff', { email: $('#stEmail').value, name: $('#stName').value, role: $('#stRole').value });
-    if (r.error) $('#stMsg').textContent = r.error; else refresh();
+    if (r.error) return notice('#stMsg', r.error, 'err');
+    await refresh();
+    notice('#stMsg', 'Saved. They can now sign in.', 'ok');
   };
 }
-async function deactivate(id) {
-  if (!confirm('Deactivate this staff member? They are signed out immediately.')) return;
-  const r = await j(`/api/staff/${id}/deactivate`, { method: 'POST' });
-  if (r.error) $('#stMsg').textContent = r.error; else refresh();
+function deactivate(id, btn) {
+  confirmInline(btn, 'Deactivate this staff member? They are signed out immediately.', async () => {
+    const r = await j(`/api/staff/${id}/deactivate`, { method: 'POST' });
+    if (r.error) return notice('#stMsg', r.error, 'err');
+    await refresh();
+    notice('#stMsg', 'Deactivated.', 'ok');
+  });
 }
 refresh();
 </script><script src="/dictate.js" defer></script>

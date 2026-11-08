@@ -2,21 +2,16 @@
 import { Router } from 'express';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { query, one, run, tx, KIT_ITEMS } from '../db.js';
-import { sendMail, BASE_URL, STAFF_EMAIL } from '../mailer.js';
+import { sendMail, STAFF_EMAIL } from '../mailer.js';
+import { BASE_URL, str, oneLine, isDate, dateOrNull, intId, validEmail, escapeHtml as esc } from '../util.js';
 
 export const orders = Router();
 
 const token = () => randomBytes(16).toString('hex');
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-const page = (title, msg) =>
-  `<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><link rel=stylesheet href=/style.css><title>${esc(title)}</title></head><body class=public><header class="site-head simple"><div class=in><p class=brand><svg class=mark viewBox="0 0 32 32" aria-hidden=true focusable=false><circle class=a cx=12 cy=17 r=9 /><circle class=b cx=21 cy=17 r=9 /></svg><span>Baby Connections <small>Strong Start</small></span></p></div></header><main id=main><div class=card>${title === 'Thank you!' ? `<div class=done-icon><svg viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2.5 stroke-linecap=round stroke-linejoin=round aria-hidden=true><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>` : ''}<h1>${esc(title)}</h1><p>${esc(msg)}</p></div></main></body></html>`;
+const page = (title, msg, extra = '') =>
+  `<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><link rel=stylesheet href=/style.css><title>${esc(title)}</title></head><body class=public><header class="site-head simple"><div class=in><p class=brand><svg class=mark viewBox="0 0 32 32" aria-hidden=true focusable=false><circle class=a cx=12 cy=17 r=9 /><circle class=b cx=21 cy=17 r=9 /></svg><span>Baby Connections <small>Strong Start</small></span></p></div></header><main id=main><div class=card>${title === 'Thank you!' ? `<div class=done-icon><svg viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2.5 stroke-linecap=round stroke-linejoin=round aria-hidden=true><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>` : ''}<h1>${esc(title)}</h1><p>${esc(msg)}</p>${extra}</div></main></body></html>`;
 
 // ---------- input helpers ----------
-const str = (v, max) => (v == null ? '' : String(v)).replace(/\u0000/g, '').trim().slice(0, max);
-const oneLine = (v, max) => str(v, max).replace(/\s*[\r\n]+\s*/g, ' ');
-const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s + 'T00:00:00Z'));
-const dateOrNull = (v) => { const s = str(v, 10); return isDate(s) ? s : null; };
-const intId = (v) => (/^\d{1,9}$/.test(String(v)) ? Number(v) : null);
 const MAX_QTY = 5000;
 const cleanItems = (items) => {
   const out = new Map();
@@ -52,7 +47,7 @@ export function parseHints(subject = '', body = '', now = new Date()) {
   const text = `${subject}\n${body}`;
   const h = {};
   const prog =
-    text.match(/\b(?:program|class|group|series|workshop|session)\s*(?:name\s*)?(?:is|:|called|named)\s*["“']?([^\n"”.,;]{3,80})/i) ||
+    text.match(/\b(?:program|class|group|series|workshop|session)\s*(?:name\s*)?(?:(?:is|was)\s+(?:called|named)|is|:|called|named)\s*["“']?([^\n"”.,;]{3,80}?)(?=\s+(?:and\s+)?(?:is|has|have|will|we|starting|starts|that|which|for\s+\d|with\s+\d)\b|["”.,;\n]|$)/i) ||
     text.match(/\bfor (?:our|my|the)\s+([A-Z][\w'’& -]{2,60}?)\s+(?:program|class|group|series|workshop)\b/);
   if (prog) h.program_name = prog[1].trim();
   const ppl = text.match(/\b(\d{1,3})\s+(?:participants?|parents?|families|caregivers?|moms?|mothers?|babies|people|attendees|registrants)\b/i);
@@ -74,8 +69,19 @@ export function parseHints(subject = '', body = '', now = new Date()) {
   const uniq = [...new Set(dates)].slice(0, 4);
   if (uniq.length) { h.dates = uniq; h.start_date = uniq[0]; if (uniq.length > 1) h.end_date = uniq[uniq.length - 1]; }
 
-  const addr = text.match(/^.*\b\d{1,6}\s+[A-Za-z0-9.'’ -]{2,40}\s(?:st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|ln|lane|way|ct|court|pl|place|pkwy|parkway)\b\.?[^\n]*(?:\n[^\n]*\b\d{5}(?:-\d{4})?\b[^\n]*)?/im);
-  if (addr) h.address = addr[0].replace(/^\s*(?:ship(?:ping)?\s*(?:to|address)?|address)\s*[:\-]\s*/i, '').trim().slice(0, 300);
+  // Start at the street number (not the start of the line) so a one-paragraph email doesn't return the whole paragraph,
+  // and stop at the postal code (US ZIP or Canadian) when there is one.
+  const POSTAL = /\b(?:[A-Z]\d[A-Z] ?\d[A-Z]\d|\d{5}(?:-\d{4})?)\b/i;
+  const addr = text.match(/\b\d{1,6}\s+(?:(?:[A-Za-z.'’-]+|\d+(?:st|nd|rd|th))\s+){0,4}(?:st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|ln|lane|way|ct|court|pl|place|pkwy|parkway|cres|crescent|hwy|highway)\b\.?[^\n]*(?:\n[^\n]*\b(?:\d{5}(?:-\d{4})?|[A-Z]\d[A-Z] ?\d[A-Z]\d)\b[^\n]*)?/i);
+  if (addr) {
+    const kept = [];
+    for (const line of addr[0].split('\n')) {
+      const pc = line.match(POSTAL);
+      if (pc) { kept.push(line.slice(0, pc.index + pc[0].length)); break; }
+      kept.push(line);
+    }
+    h.address = kept.join('\n').trim().slice(0, 300);
+  }
   return h;
 }
 
@@ -95,7 +101,7 @@ function inboundAllowed(req) {
 orders.post('/api/inbound-email', async (req, res) => {
   if (!inboundAllowed(req)) return res.status(401).json({ error: 'Unauthorized' });
   const m = normalizeInbound(req.body);
-  if (m.email.length > 254 || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(m.email)) return res.status(400).json({ error: 'Valid sender email required' });
+  if (m.email.length > 254 || !validEmail(m.email)) return res.status(400).json({ error: 'Valid sender email required' });
   const hints = parseHints(m.subject, m.body);
 
   const t = token();
@@ -186,7 +192,7 @@ orders.post('/api/order-form/:token', async (req, res) => {
   await sendMail(fac.email, `Order confirmation: ${pname}`,
     `Hi ${fac.name || 'there'},\n\nWe've received your order for "${pname}":\n${summary}\n\nShip to: ${address}\n${requested ? `Requested by: ${requested}\n` : ''}\nWe'll email you when it ships.\n\nBaby Connections team`);
   await sendMail(STAFF_EMAIL, `New kit order #${o.id}: ${pname}`,
-    `${fac.name || fac.email} ordered:\n${summary}\n\nShip to: ${address}\nOpen the dashboard: ${BASE_URL}/`);
+    `${fac.name || fac.email} ordered:\n${summary}\n\nShip to: ${address}\nTraining: ${fac.certified ? 'completed (certified)' : 'not completed yet'}\nOpen the dashboard: ${BASE_URL}/`);
   res.json({ ok: true, orderId: o.id, programId });
 });
 
@@ -198,7 +204,7 @@ async function itemsFor(orderId) {
 orders.get('/api/orders', async (_req, res) => {
   const rows = await query(`SELECT o.id, o.status, o.token, o.created_at, o.ordered_at, o.shipped_at, o.received_at, o.cancelled_at, o.reminder_sent_at,
       o.shipping_address, o.requested_date, o.notes, o.shipping_cost,
-      f.name AS facilitator, f.email, p.name AS program, p.id AS program_id, p.token AS program_token
+      f.name AS facilitator, f.email, f.certified, p.name AS program, p.id AS program_id, p.token AS program_token
     FROM orders o JOIN facilitators f ON f.id=o.facilitator_id LEFT JOIN programs p ON p.id=o.program_id ORDER BY o.id DESC`);
   const items = await query('SELECT order_id, item, qty FROM order_items ORDER BY id');
   const by = new Map();
@@ -282,7 +288,7 @@ orders.post('/api/orders/:id/ship', async (req, res) => {
   const fac = await one('SELECT * FROM facilitators WHERE id=$1', [o.facilitator_id]);
   const prog = o.program_id ? await one('SELECT * FROM programs WHERE id=$1', [o.program_id]) : null;
   await sendMail(fac.email, 'Your Baby Connections kits have shipped',
-    `Hi ${fac.name || 'there'},\n\nYour order is on its way to ${o.shipping_address}.\n\nWhen the kits arrive, please confirm with one click:\n${BASE_URL}/received/${o.token}\n\nBaby Connections team`);
+    `Hi ${fac.name || 'there'},\n\nYour order is on its way to ${o.shipping_address}.\n\nWhen the kits arrive, please open this link and press the button to confirm:\n${BASE_URL}/received/${o.token}\n\nBaby Connections team`);
   const lines = (await itemsFor(o.id)).map((l) => `  [ ] ${l.item}: ${l.qty}`).join('\n');
   await sendMail(STAFF_EMAIL, `Packing slip: order #${o.id}${prog ? ` (${prog.name})` : ''}`,
     `PACKING SLIP, order #${o.id}\n\nFacilitator: ${fac.name || ''} <${fac.email}>\n${prog ? `Program: ${prog.name}${prog.location ? ` (${prog.location})` : ''}\n` : ''}\nShip to:\n${o.shipping_address}\n\nItems:\n${lines}\n\n${o.requested_date ? `Requested by: ${o.requested_date}\n` : ''}${o.shipping_cost != null ? `Shipping cost: $${Number(o.shipping_cost).toFixed(2)}\n` : ''}${o.notes ? `Notes: ${o.notes}\n` : ''}${prog ? `\nProgram QR sheet to include: ${BASE_URL}/sheet/${prog.token}\n` : ''}`);
@@ -290,6 +296,12 @@ orders.post('/api/orders/:id/ship', async (req, res) => {
 });
 
 // ---------- reminders ----------
+async function remind(token, facilitatorId, n) {
+  const fac = await one('SELECT * FROM facilitators WHERE id=$1', [facilitatorId]);
+  await sendMail(fac.email, 'Did your Baby Connections kits arrive?',
+    `Hi ${fac.name || 'there'},\n\nOur records show your kits shipped ${n} days ago, but we haven't heard that they arrived. When they do, please open this link and press the button to confirm:\n${BASE_URL}/received/${token}\n\nIf something is wrong, just reply to this email.\n\nBaby Connections team`);
+}
+
 /** Emails facilitators whose order shipped more than `days` days ago and is still unconfirmed (once per order). */
 export async function sendOverdueReminders(days = 7) {
   const n = Math.min(Math.max(Number(days) || 7, 0), 365);
@@ -299,15 +311,22 @@ export async function sendOverdueReminders(days = 7) {
   for (const { id } of due) {
     const { rows } = await run("UPDATE orders SET reminder_sent_at=now() WHERE id=$1 AND status='shipped' AND reminder_sent_at IS NULL RETURNING token, facilitator_id", [id]);
     if (!rows.length) continue; // someone else got it first
-    const fac = await one('SELECT * FROM facilitators WHERE id=$1', [rows[0].facilitator_id]);
-    await sendMail(fac.email, 'Did your Baby Connections kits arrive?',
-      `Hi ${fac.name || 'there'},\n\nOur records show your kits shipped over ${n} days ago, but we haven't heard that they arrived. When they do, please confirm with one click:\n${BASE_URL}/received/${rows[0].token}\n\nIf something is wrong, just reply to this email.\n\nBaby Connections team`);
+    await remind(rows[0].token, rows[0].facilitator_id, `over ${n}`);
     sent++;
   }
   return sent;
 }
 
+// Body: { days } for every overdue order, or { order_id } to remind one shipped order now (staff asked for it).
 orders.post('/api/orders/send-reminders', async (req, res) => {
+  if (req.body?.order_id != null) {
+    const id = intId(req.body.order_id);
+    if (!id) return res.status(400).json({ error: 'order_id must be an order number' });
+    const { rows } = await run(`UPDATE orders SET reminder_sent_at=now() WHERE id=$1 AND status='shipped'
+      RETURNING token, facilitator_id, GREATEST(0, floor(EXTRACT(EPOCH FROM (now() - shipped_at)) / 86400))::int AS days`, [id]);
+    if (rows.length) await remind(rows[0].token, rows[0].facilitator_id, rows[0].days);
+    return res.json({ ok: true, sent: rows.length });
+  }
   const raw = req.body?.days ?? req.query.days;
   const days = raw == null || raw === '' ? 7 : Number(raw);
   if (!Number.isFinite(days) || days < 0 || days > 365) return res.status(400).json({ error: 'days must be between 0 and 365' });
@@ -318,10 +337,24 @@ if (process.env.ENABLE_JOBS === '1') {
   setInterval(() => sendOverdueReminders().catch((e) => console.error('[jobs] reminders failed:', e.message)), 60 * 60 * 1000).unref();
 }
 
-// Facilitator clicks the link in the shipped email.
+// Facilitator clicks the link in the shipped email. GET only shows a confirm button: email scanners
+// follow links, so the state change happens on POST.
+const thanks = (res) => res.send(page('Thank you!', 'Your kit delivery is confirmed. We just emailed you the parent feedback links for your program.'));
+const notShipped = (res) => res.status(404).send(page('Not found', 'We could not find a shipped order for this link.'));
+
 orders.get('/received/:token', async (req, res) => {
+  const o = await one('SELECT o.*, p.name AS program FROM orders o LEFT JOIN programs p ON p.id=o.program_id WHERE o.token=$1', [req.params.token]);
+  if (!o || !['shipped', 'received'].includes(o.status)) return notShipped(res);
+  if (o.status === 'received') return thanks(res);
+  const items = (await itemsFor(o.id)).map((l) => `<li>${esc(l.item)}: ${esc(l.qty)}</li>`).join('');
+  res.send(page('Did your kits arrive?', `Please confirm that your Baby Connections kits${o.program ? ` for "${o.program}"` : ''} have arrived.`,
+    `${items ? `<ul>${items}</ul>` : ''}${o.shipping_address ? `<p class=muted>Shipped to: ${esc(o.shipping_address)}</p>` : ''}` +
+    `<form method=post action="/received/${encodeURIComponent(o.token)}"><button type=submit>Yes, the kits arrived</button></form>`));
+});
+
+orders.post('/received/:token', async (req, res) => {
   const o = await one('SELECT * FROM orders WHERE token=$1', [req.params.token]);
-  if (!o || !['shipped', 'received'].includes(o.status)) return res.status(404).send(page('Not found', 'We could not find a shipped order for this link.'));
+  if (!o || !['shipped', 'received'].includes(o.status)) return notShipped(res);
   if (o.status === 'shipped') {
     const claim = await run("UPDATE orders SET status='received', received_at=now() WHERE id=$1 AND status='shipped' RETURNING id", [o.id]);
     if (claim.rows.length) {
@@ -332,5 +365,5 @@ orders.get('/received/:token', async (req, res) => {
       await sendMail(STAFF_EMAIL, `Order #${o.id} received by facilitator`, `${fac.name || fac.email} confirmed receipt of order #${o.id}.`);
     }
   }
-  res.send(page('Thank you!', 'Your kit delivery is confirmed. We just emailed you the parent feedback links for your program.'));
+  thanks(res);
 });

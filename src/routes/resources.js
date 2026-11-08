@@ -8,7 +8,7 @@ const PUBLIC_DIR = resolve('public');
 // Public / Facilitator: Serve resources page
 resourcesRouter.get('/resources', (_req, res) => res.sendFile('resources.html', { root: PUBLIC_DIR }));
 
-// Knowledge Centre catalog
+// Knowledge Centre catalog. `available: false` = listed but not published yet (shown as "Coming soon").
 export const KNOWLEDGE_CENTRE = {
   categories: [
     {
@@ -21,6 +21,7 @@ export const KNOWLEDGE_CENTRE = {
           format: 'PDF',
           size: '1.4 MB',
           url: '/resources/Baby-Connections-Poster-2026.pdf',
+          available: false,
           description: 'Customizable poster with blank space for your program dates and location.'
         },
         {
@@ -28,6 +29,7 @@ export const KNOWLEDGE_CENTRE = {
           format: 'ZIP / PNG',
           size: '4.8 MB',
           url: '/resources/Baby-Connections-Social-Kit.zip',
+          available: false,
           description: 'High-res square and story images for Instagram, Facebook, and LinkedIn.'
         },
         {
@@ -35,6 +37,7 @@ export const KNOWLEDGE_CENTRE = {
           format: 'DOCX',
           size: '42 KB',
           url: '/resources/Parent-Invitation-Email-Template.docx',
+          available: false,
           description: 'Pre-written email to invite registered families before session one.'
         }
       ]
@@ -49,6 +52,7 @@ export const KNOWLEDGE_CENTRE = {
           format: 'PDF',
           size: '3.2 MB',
           url: '/resources/Facilitator-Curriculum-Guide.pdf',
+          available: false,
           description: 'Complete step-by-step facilitator manual with timing, sensory activities, and book prompts.'
         },
         {
@@ -56,6 +60,7 @@ export const KNOWLEDGE_CENTRE = {
           format: 'PDF',
           size: '850 KB',
           url: '/resources/Book-Sharing-Tips-Multilingual.pdf',
+          available: false,
           description: 'Handout for parents demonstrating responsive face-to-face reading techniques.'
         },
         {
@@ -63,6 +68,7 @@ export const KNOWLEDGE_CENTRE = {
           format: 'PDF',
           size: '620 KB',
           url: '/resources/Baby-Connections-Songs-and-Rhymes.pdf',
+          available: false,
           description: 'Pocket-sized song cards to give parents for tummy time and bedtime routines.'
         }
       ]
@@ -77,6 +83,7 @@ export const KNOWLEDGE_CENTRE = {
           format: 'PDF',
           size: '410 KB',
           url: '/resources/Evaluation-Best-Practices.pdf',
+          available: false,
           description: 'Tips for ensuring high response rates and collecting verbal or written parent feedback.'
         },
         {
@@ -84,6 +91,7 @@ export const KNOWLEDGE_CENTRE = {
           format: 'PDF',
           size: '320 KB',
           url: '/resources/Baby-Connections-Paper-Survey-Master.pdf',
+          available: false,
           description: 'Printable survey form ready to photograph with your phone for AI handwriting transcription.'
         }
       ]
@@ -98,6 +106,7 @@ export const KNOWLEDGE_CENTRE = {
           format: 'Video (MP4)',
           duration: '8 mins',
           url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+          available: false,
           description: 'Experienced facilitators model circle time transitions and individual parent coaching.'
         },
         {
@@ -105,6 +114,7 @@ export const KNOWLEDGE_CENTRE = {
           format: 'Video (MP4)',
           duration: '12 mins',
           url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+          available: false,
           description: 'Deep dive into language acquisition, pointing, babbling, and book handling from 0 to 12 months.'
         }
       ]

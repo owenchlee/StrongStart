@@ -4,7 +4,8 @@ import { query, one } from '../db.js';
 import * as ai from '../ai.js';
 import { sendMail } from '../mailer.js';
 import { speechToText, elevenLabsEnabled, ElevenLabsError } from '../elevenlabs.js';
-import { AUDIO_TYPES, audioUpload, rateLimit } from './voice.js';
+import { AUDIO_TYPES, audioUpload } from './voice.js';
+import { rateLimit } from '../util.js';
 
 export const compose = Router();
 
@@ -48,6 +49,28 @@ compose.post('/api/compose/polish', rateLimit('compose-polish', 30), async (req,
   } catch (e) {
     console.error('[compose] polish failed:', e.message);
     res.status(503).json({ error: 'AI tidy-up is not available' });
+  }
+});
+
+// Same tidy-up, streamed as plain text so the page can show progress as it is written.
+compose.post('/api/compose/polish-stream', rateLimit('compose-polish', 30), async (req, res) => {
+  const text = String(req.body?.text ?? '').trim();
+  if (!text || text.length > 10000) return res.status(400).json({ error: 'text is required (max 10000 characters)' });
+  if (!ai.polishEmailStream) return res.status(503).json({ error: 'AI tidy-up is not available' });
+  let started = false, last = '';
+  try {
+    const fac = Number(req.body.facilitator_id) ? await one('SELECT name FROM facilitators WHERE id=$1', [Number(req.body.facilitator_id)]) : null;
+    const out = await ai.polishEmailStream(text, { recipientName: fac?.name || '' }, (soFar) => {
+      if (!started) { started = true; res.setHeader('Content-Type', 'text/plain; charset=utf-8'); res.setHeader('Cache-Control', 'no-store'); }
+      res.write(soFar.slice(last.length)); last = soFar;
+    });
+    if (!out) return started ? res.end() : res.status(503).json({ error: 'AI tidy-up is not available' });
+    if (!started) res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    if (out.length > last.length) res.write(out.slice(last.length));
+    res.end();
+  } catch (e) {
+    console.error('[compose] polish-stream failed:', e.message);
+    if (started) res.end(); else res.status(503).json({ error: 'AI tidy-up is not available' });
   }
 });
 

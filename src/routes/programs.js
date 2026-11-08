@@ -2,16 +2,13 @@
 import { Router } from 'express';
 import { resolve } from 'node:path';
 import { query, one, run, tx, PROGRAM_DELIVERY_FORMATS } from '../db.js';
-import { sendMail, STAFF_EMAIL, BASE_URL } from '../mailer.js';
-import { rateLimit } from './feedback.js';
+import { sendMail, STAFF_EMAIL } from '../mailer.js';
+import { BASE_URL, str, oneLine, intId, rateLimit } from '../util.js';
 
 export const programsRouter = Router();
 
 const PUBLIC_DIR = resolve('public');
 const TOKEN_RE = /^[A-Za-z0-9_-]{16,64}$/;
-const str = (v, max = 5000) => (v == null ? '' : String(v)).replace(/\u0000/g, '').trim().slice(0, max);
-const oneLine = (v, max = 200) => str(v, max).replace(/\s*[\r\n]+\s*/g, ' ');
-const intId = (v) => (/^\d{1,9}$/.test(String(v)) ? Number(v) : null);
 const limitCompletion = rateLimit({ name: 'completion', max: 15, windowMs: 10 * 60 * 1000 });
 
 // Public: Serve facilitator completion reporting web page

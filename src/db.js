@@ -231,16 +231,13 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC(10,2);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
 ALTER TABLE inbound_emails ADD COLUMN IF NOT EXISTS hints JSONB;
+-- Random per-document token for emailed download links (ids are guessable).
+ALTER TABLE partner_documents ADD COLUMN IF NOT EXISTS token TEXT;
+UPDATE partner_documents SET token = replace(gen_random_uuid()::text,'-','') WHERE token IS NULL;
+ALTER TABLE partner_documents ALTER COLUMN token SET DEFAULT replace(gen_random_uuid()::text,'-','');
+CREATE UNIQUE INDEX IF NOT EXISTS partner_documents_token_key ON partner_documents(token);
 
--- Meeting slots generated for a training session (same as scripts/add_training_meeting_slots.sql, which nothing ran).
-CREATE TABLE IF NOT EXISTS training_meeting_slots (
-  id SERIAL PRIMARY KEY,
-  session_id INTEGER NOT NULL REFERENCES training_sessions(id) ON DELETE CASCADE,
-  slot_start TIMESTAMPTZ NOT NULL, slot_end TIMESTAMPTZ NOT NULL,
-  booked_by INTEGER REFERENCES facilitators(id), outlook_event_id TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_meeting_slots_session ON training_meeting_slots (session_id, slot_start);
+DROP TABLE IF EXISTS training_meeting_slots;
 
 -- Training scheduling ("let us meet" links): staff weekly availability, their Google Calendar connection,
 -- and the invites sent to partners. Keyed by staff email so it also works while staff login is off.

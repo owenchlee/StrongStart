@@ -1,8 +1,8 @@
 // Google Calendar: connect a staff member's calendar (OAuth, offline access) and create events with a Google Meet link.
 // Uses the same OAuth client as staff login (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET) with the Calendar API enabled.
 import { randomUUID } from 'node:crypto';
+import { BASE_URL } from './util.js';
 
-const BASE_URL = (process.env.BASE_URL || 'http://localhost:3000').replace(/\/+$/, '');
 export const CAL_REDIRECT_URI = `${BASE_URL}/api/google/calendar/callback`;
 export const calendarConfigured = () => Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 

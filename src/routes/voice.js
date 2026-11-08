@@ -3,29 +3,13 @@ import { Router } from 'express';
 import multer from 'multer';
 import { one, run } from '../db.js';
 import * as ai from '../ai.js';
+import { rateLimit } from '../util.js';
 import { speechToText, textToSpeech, elevenLabsEnabled, ElevenLabsError } from '../elevenlabs.js';
 
 export const voice = Router();
 
 export const AUDIO_TYPES = /^audio\/(webm|ogg|mp4|x-m4a|m4a|aac|wav|x-wav|wave|mpeg|mp3)$/i;
 export const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 10 } });
-
-/** Tiny in-memory fixed-window limiter, per IP + bucket. */
-const hits = new Map();
-export function rateLimit(bucket, max, windowMs = 60_000) {
-  return (req, res, next) => {
-    const now = Date.now();
-    const k = `${bucket}:${req.ip}`;
-    let h = hits.get(k);
-    if (!h || h.reset < now) { h = { n: 0, reset: now + windowMs }; hits.set(k, h); }
-    if (++h.n > max) {
-      res.set('Retry-After', String(Math.ceil((h.reset - now) / 1000)));
-      return res.status(429).json({ error: 'Too many requests, please slow down' });
-    }
-    next();
-  };
-}
-setInterval(() => { const n = Date.now(); for (const [k, h] of hits) if (h.reset < n) hits.delete(k); }, 60_000).unref();
 
 /** multer wrapper that turns upload errors into JSON. */
 export const audioUpload = (req, res, next) =>

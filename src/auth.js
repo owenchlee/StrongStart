@@ -4,10 +4,10 @@
 import { Router } from 'express';
 import { createHash, randomBytes } from 'node:crypto';
 import { one, run } from './db.js';
+import { BASE_URL } from './util.js';
 
 export const auth = Router();
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const REDIRECT_URI = `${BASE_URL}/auth/google/callback`;
@@ -91,7 +91,7 @@ const PUBLIC_API = [
   ['GET', /^\/api\/meet\/[^/]+\/?$/], ['POST', /^\/api\/meet\/[^/]+\/choose\/?$/], // partner "let us meet" scheduling page
   ['GET', /^\/api\/transcribe\/?$/], ['POST', /^\/api\/transcribe\/?$/], // voice typing (rate limited by its route)
   ['GET', /^\/api\/resources\/?$/],                        // resources hub data
-  ['GET', /^\/api\/partners\/\d+\/documents\/\d+\/download\/?$/], // document download for partners/facilitators
+  ['GET', /^\/api\/documents\/[A-Za-z0-9_-]{16,64}\/download\/?$/], // emailed document download (random token)
 ];
 const isDashboardPage = (p) => /^\/(index\.html|compose\.html|profile\.html)?$/i.test(p);
 const isApi = (p) => /^\/api(\/|$)/i.test(p);

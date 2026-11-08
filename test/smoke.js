@@ -43,7 +43,11 @@ try {
   // 3. shipped, then facilitator confirms receipt
   const orderId = (await one('SELECT id FROM orders WHERE token=$1', [token])).id;
   assert.equal((await post(`/api/orders/${orderId}/ship`)).status, 200);
-  assert.equal((await fetch(`${base}/received/${token}`)).status, 200);
+  const confirmPage = await fetch(`${base}/received/${token}`);
+  assert.equal(confirmPage.status, 200);
+  assert.match(await confirmPage.text(), /Yes, the kits arrived/);
+  assert.equal((await one('SELECT status FROM orders WHERE id=$1', [orderId])).status, 'shipped', 'GET (e.g. an email scanner) changes nothing');
+  assert.equal((await fetch(`${base}/received/${token}`, { method: 'POST' })).status, 200);
   assert.equal((await one('SELECT status FROM orders WHERE id=$1', [orderId])).status, 'received');
   assert.equal((await one("SELECT COUNT(*)::int n FROM outbox WHERE subject LIKE 'Thanks, kits received'")).n, 1);
 

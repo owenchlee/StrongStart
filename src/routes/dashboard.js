@@ -4,25 +4,55 @@ import { Router } from 'express';
 import { query, one, run, isTimescale, hasDailyAggregate } from '../db.js';
 import { programReport, toCsv } from '../report.js';
 import { aiEnabled } from '../ai.js';
+import { isDate, intId, validEmail } from '../util.js';
 
 export const dashboard = Router();
 
-const isDate = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
-const intOrNull = (s) => (/^\d+$/.test(String(s ?? '')) ? Number(s) : null);
 
 dashboard.get('/api/overview', async (_req, res) => {
-  const n = async (sql) => (await one(sql)).n;
-  res.json({
-    aiEnabled,
-    partners: await n('SELECT COUNT(*)::int n FROM partners'),
-    activePartners: await n("SELECT COUNT(*)::int n FROM partners WHERE stage='active'"),
-    facilitators: await n('SELECT COUNT(*)::int n FROM facilitators'),
-    openOrders: await n("SELECT COUNT(*)::int n FROM orders WHERE status IN ('ordered','shipped')"),
-    programs: await n('SELECT COUNT(*)::int n FROM programs'),
-    completedPrograms: await n("SELECT COUNT(*)::int n FROM programs WHERE status='completed'"),
-    feedbackResponses: await n('SELECT COUNT(*)::int n FROM feedback'),
-    needsReview: await n('SELECT COUNT(*)::int n FROM feedback WHERE needs_review=true'),
-  });
+  const counts = await one(`SELECT
+      (SELECT COUNT(*)::int FROM partners) AS partners,
+      (SELECT COUNT(*)::int FROM partners WHERE stage='active') AS "activePartners",
+      (SELECT COUNT(*)::int FROM facilitators) AS facilitators,
+      (SELECT COUNT(*)::int FROM orders WHERE status IN ('ordered','shipped')) AS "openOrders",
+      (SELECT COUNT(*)::int FROM programs) AS programs,
+      (SELECT COUNT(*)::int FROM programs WHERE status='completed') AS "completedPrograms",
+      (SELECT COUNT(*)::int FROM feedback) AS "feedbackResponses",
+      (SELECT COUNT(*)::int FROM feedback WHERE needs_review=true) AS "needsReview"`);
+  res.json({ aiEnabled, ...counts });
+});
+
+// Today: everything that needs a staff member's attention, oldest first, at most 50 per list.
+dashboard.get('/api/todo', async (_req, res) => {
+  const [newPartners, ordersToShip, unconfirmedShipments, feedbackToReview, programsMissingCompletion, trainingWaiting] = await Promise.all([
+    query(`SELECT id, name, contact_email, created_at FROM partners
+      WHERE stage='expression_of_interest' ORDER BY created_at, id LIMIT 50`),
+    query(`SELECT o.id, f.name AS facilitator, f.email, p.name AS program, o.program_id, o.ordered_at, o.shipping_address
+      FROM orders o JOIN facilitators f ON f.id=o.facilitator_id LEFT JOIN programs p ON p.id=o.program_id
+      WHERE o.status='ordered' ORDER BY o.ordered_at, o.id LIMIT 50`),
+    query(`SELECT o.id, f.name AS facilitator, f.email, p.name AS program, o.shipped_at, o.reminder_sent_at
+      FROM orders o JOIN facilitators f ON f.id=o.facilitator_id LEFT JOIN programs p ON p.id=o.program_id
+      WHERE o.status='shipped' AND o.shipped_at < now() - interval '7 days' ORDER BY o.shipped_at, o.id LIMIT 50`),
+    query(`SELECT fb.id, p.name AS program, fb.program_id, fb.source, fb.created_at
+      FROM feedback fb JOIN programs p ON p.id=fb.program_id
+      WHERE fb.needs_review=true ORDER BY fb.created_at, fb.id LIMIT 50`),
+    query(`SELECT p.id, p.name, p.token, p.facilitator_id, f.name AS facilitator, f.email, p.end_date
+      FROM programs p JOIN facilitators f ON f.id=p.facilitator_id
+      WHERE p.end_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' AND p.end_date < to_char(now(),'YYYY-MM-DD')
+        AND COALESCE(p.status,'') NOT IN ('completed','cancelled')
+        AND NOT EXISTS (SELECT 1 FROM program_completions pc WHERE pc.program_id=p.id)
+      ORDER BY p.end_date, p.id LIMIT 50`),
+    query(`SELECT i.id, i.partner_id, p.name AS partner, i.invitee_email, i.created_at
+      FROM training_invites i LEFT JOIN partners p ON p.id=i.partner_id
+      WHERE i.status='pending' ORDER BY i.created_at, i.id LIMIT 50`),
+  ]);
+  const ids = ordersToShip.map((o) => o.id);
+  const items = ids.length ? await query('SELECT order_id, item, qty FROM order_items WHERE order_id=ANY($1::int[]) ORDER BY id', [ids]) : [];
+  for (const o of ordersToShip) o.items = items.filter((i) => i.order_id === o.id).map(({ item, qty }) => ({ item, qty }));
+  const lists = { newPartners, ordersToShip, unconfirmedShipments, feedbackToReview, programsMissingCompletion, trainingWaiting };
+  const counts = Object.fromEntries(Object.entries(lists).map(([k, v]) => [k, v.length]));
+  counts.total = Object.values(counts).reduce((a, b) => a + b, 0);
+  res.json({ ...lists, counts });
 });
 
 // Programs, optionally filtered: ?from=YYYY-MM-DD&to=YYYY-MM-DD (program start date, falling back to
@@ -32,9 +62,9 @@ async function programRows(q) {
   const when = "COALESCE(NULLIF(p.start_date,''), to_char(p.created_at,'YYYY-MM-DD'))";
   if (isDate(q.from)) { params.push(q.from); where.push(`${when} >= $${params.length}`); }
   if (isDate(q.to)) { params.push(q.to); where.push(`${when} <= $${params.length}`); }
-  const fid = intOrNull(q.facilitator);
+  const fid = intId(q.facilitator);
   if (fid != null) { params.push(fid); where.push(`p.facilitator_id = $${params.length}`); }
-  const pid = intOrNull(q.partner);
+  const pid = intId(q.partner);
   if (pid != null) { params.push(pid); where.push(`(p.partner_id = $${params.length} OR f.partner_id = $${params.length})`); }
   const status = typeof q.status === 'string' && ['scheduled', 'in_progress', 'completed', 'cancelled'].includes(q.status) ? q.status : null;
   if (status) { params.push(status); where.push(`p.status = $${params.length}`); }
@@ -75,7 +105,7 @@ dashboard.get('/api/emails', async (_req, res) => {
 
 // ---- trends -----------------------------------------------------------------------------------
 dashboard.get('/api/trends', async (req, res) => {
-  const days = Math.min(730, Math.max(1, intOrNull(req.query.days) ?? 90));
+  const days = Math.min(730, Math.max(1, intId(req.query.days) ?? 90));
   let perDay;
   let source = 'sql';
   if (isTimescale && hasDailyAggregate) {
@@ -168,7 +198,7 @@ dashboard.post('/api/staff', adminOnly, async (req, res) => {
   const email = String(req.body?.email || '').trim().toLowerCase();
   const name = String(req.body?.name || '').trim().slice(0, 200) || null;
   const role = req.body?.role === 'admin' ? 'admin' : 'staff';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return res.status(400).json({ error: 'Enter a valid email address' });
+  if (!validEmail(email) || email.length > 254) return res.status(400).json({ error: 'Enter a valid email address' });
   const row = await one(`INSERT INTO staff (email, name, role) VALUES ($1,$2,$3)
     ON CONFLICT (lower(email)) DO UPDATE SET active=true, role=excluded.role, name=COALESCE(excluded.name, staff.name)
     RETURNING id, email, name, role, active`, [email, name, role]);
@@ -176,7 +206,7 @@ dashboard.post('/api/staff', adminOnly, async (req, res) => {
 });
 
 dashboard.post('/api/staff/:id/deactivate', adminOnly, async (req, res) => {
-  const id = intOrNull(req.params.id);
+  const id = intId(req.params.id);
   if (id == null) return res.status(404).json({ error: 'No such staff member' });
   if (id === req.staff.id) return res.status(400).json({ error: "You can't deactivate yourself" });
   const r = await run('UPDATE staff SET active=false WHERE id=$1', [id]);

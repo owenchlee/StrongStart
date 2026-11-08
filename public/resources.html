@@ -80,7 +80,7 @@
                       <span class="muted" style="font-size:var(--fs-sm)">${it.description}</span>
                     </div>
                     <div>
-                      ${it.url.startsWith('http') ?
+                      ${it.available === false ? `<span class="muted">Coming soon</span>` : it.url.startsWith('http') ?
                         `<a href="${it.url}" target="_blank" rel="noopener" class="btn sec sm">Watch Video</a>` :
                         `<a href="#" onclick="alert('Downloading: ' + ${JSON.stringify(it.title)} + '\\n(In production, this downloads the actual file asset).'); return false;" class="btn sm">Download</a>`
                       }
