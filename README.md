@@ -23,7 +23,7 @@ Create a service at Tiger Data, then set `TIGER_DATABASE_URL` to its connection 
 | `PORT`, `BASE_URL` | Port, and public URL used in emailed links and QR codes |
 | `TIGER_DATABASE_URL` | Tiger Data / Postgres URL (otherwise local PGlite) |
 | `PGLITE_DIR` | Persist the local PGlite database in this folder |
-| `GEMINI_API_KEY`, `GEMINI_MODEL` | Gemini: handwriting, translation, summaries (default model `gemini-3.8-flash`) |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Gemini: handwriting, translation, summaries (default model `gemini-3.8-flash`). A free-tier key allows only about 20 requests a day (one per photographed form): use a paid key before a real program. Forms read while over quota are saved for staff review, not lost. Reading one photo takes up to a minute |
 | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | Read-aloud, voice feedback, email dictation |
 | `CLOUDINARY_URL` | Photo storage |
 | `INBOUND_EMAIL_SECRET` | Shared secret for the inbound-email webhook |

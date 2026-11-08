@@ -1,0 +1,443 @@
+<section class="module" id="module-2" style="background: var(--color-bg)">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">02</span>
+      <h1 class="module-title">Meet the cast</h1>
+      <p class="module-subtitle">One server, ten routers, one database: who does what inside the folder</p>
+    </header>
+
+    <div class="module-body">
+
+      <!-- ───────────── Screen 1: The whole cast on one card ───────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The whole cast on one card</h2>
+        <p>Module 1 followed one order through the system. Every one of those steps was handled by a different file, and those five emails all came from <code>orders.js</code>.</p>
+        <p>There are only about 8,000 <span class="term" data-definition="A line of code is one line of text in a program file. Counting lines is a rough way to say how big a project is; 8,000 is small enough for one person to know their way around.">lines of code</span> in this project and no <span class="term" data-definition="A build step is a process that converts source files into different files before they can run (for example compiling or bundling). This project has none: the files in the folder are the files the server runs.">build step</span>. What you see in the folder is exactly what runs.</p>
+
+        <div class="icon-rows stagger-children">
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-1)">👪</div>
+            <div>
+              <strong>Facilitator and parent pages</strong>
+              <p>Plain <span class="term" data-definition="HTML is the language that describes what a web page contains: headings, forms, buttons. The browser reads it and draws the page.">HTML</span> pages in <code>public/</code> such as the order form, the QR feedback form and training registration. Reached through links, no login.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-2)">☎️</div>
+            <div>
+              <strong>The server</strong>
+              <p><code>src/server.js</code> and the ten files in <code>src/routes/</code>. A <span class="term" data-definition="A server is a program that waits for requests from browsers and answers them. Here it is written in JavaScript and runs on Node.js.">server</span> running on <span class="term" data-definition="Node.js is the program that runs JavaScript outside a browser, on a computer or cloud machine. It is what turns this folder of files into a running website.">Node.js</span> 22 with <span class="term" data-definition="Express is a small web framework for Node.js. It gives you a tidy way to say: when a request for this address arrives, run this function.">Express</span> 5.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-3)">🗄️</div>
+            <div>
+              <strong>The database</strong>
+              <p><code>src/db.js</code>. A <span class="term" data-definition="A database is organised, permanent storage for data, arranged in tables of rows and columns, a bit like a set of spreadsheets that many programs can read and write safely.">database</span> that is <span class="term" data-definition="PGlite is a version of the Postgres database that runs inside the Node.js process itself, with no separate database server to install. Perfect for laptops and tests.">PGlite</span> on a laptop and <span class="term" data-definition="Tiger Data is a hosted Postgres service with the TimescaleDB extension, which is good at data that arrives over time such as daily feedback counts.">Tiger Data</span> in production.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-4)">🌐</div>
+            <div>
+              <strong>Outside services</strong>
+              <p>One file each: <code>ai.js</code> for <span class="term" data-definition="Gemini is the Google AI model this project uses for everything AI: reading handwriting, translating, tidying emails.">Gemini</span>, <code>elevenlabs.js</code> for <span class="term" data-definition="ElevenLabs is a service that turns text into natural-sounding speech and speech back into text. It powers read-aloud and spoken answers.">ElevenLabs</span>, <code>cloudinary.js</code> for <span class="term" data-definition="Cloudinary is a service that stores and resizes images in the cloud, so uploaded photos of paper forms do not live on our own server.">Cloudinary</span>, <code>gcal.js</code> for Google Calendar, <code>mailer.js</code> for email.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-5)">📊</div>
+            <div>
+              <strong>Staff dashboard</strong>
+              <p><code>public/index.html</code>, the biggest single file. One page with tabs for orders, forms to review, trends and reports, all drawn with plain <span class="term" data-definition="JavaScript is the programming language that runs inside web browsers and, via Node.js, on the server. Vanilla JavaScript means the plain language with no extra framework such as React.">vanilla JavaScript</span>.</p>
+            </div>
+          </div>
+        </div>
+
+        <p>How small is small? Here are the biggest files, measured in lines.</p>
+        <div class="badge-list">
+          <div class="badge-item">
+            <code class="badge-code">public/index.html</code>
+            <span class="badge-desc">876 lines: the staff dashboard, the largest file in the project</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">src/routes/partners.js</code>
+            <span class="badge-desc">383 lines: partner organisations from expression of interest to active</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">src/routes/orders.js</code>
+            <span class="badge-desc">358 lines: the whole kit order pipeline from Module 1</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">src/db.js</code>
+            <span class="badge-desc">334 lines: every table definition and the database switch</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">everything</code>
+            <span class="badge-desc">about 7,900 lines in total, roughly the length of a short novel</span>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">ℹ️</div>
+          <div class="callout-content">
+            <strong class="callout-title">No build step</strong>
+            <p><code>npm run dev</code> runs the files as they are. There is no compiling, no bundling and no generated folder to hunt through: the file you edit is the file that runs.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────── Screen 2: The switchboard ───────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The switchboard</h2>
+        <p>Picture an old telephone switchboard. One operator takes every incoming call, checks a few things, then patches it through to the right department.</p>
+        <p>In our code the operator is <code>src/server.js</code>, a call is an <span class="term" data-definition="HTTP is the set of rules browsers and servers use to talk. An HTTP request is one message from a browser to the server: please give me this page, or please save this form.">HTTP request</span>, and each department is a <span class="term" data-definition="A router is a file that groups together the addresses for one business area, such as everything to do with orders. Express lets you plug several routers into one app.">router</span> file in <code>src/routes/</code>. Here is the operator's whole script.</p>
+
+        <small>File: <code>src/server.js</code>, lines 16 to 25</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-keyword">export const</span> app = <span class="code-function">express</span>();</span>
+<span class="code-line"><span class="code-comment">// Behind a reverse proxy (Caddy, etc.) the client IP comes from X-Forwarded-For; needed for per-IP rate limits.</span></span>
+<span class="code-line"><span class="code-keyword">if</span> (process.env.TRUST_PROXY) app.<span class="code-function">set</span>(<span class="code-string">'trust proxy'</span>, <span class="code-string">/^\d+$/</span>.<span class="code-function">test</span>(process.env.TRUST_PROXY) ? <span class="code-function">Number</span>(process.env.TRUST_PROXY) : process.env.TRUST_PROXY === <span class="code-string">'true'</span> ? <span class="code-number">1</span> : process.env.TRUST_PROXY);</span>
+<span class="code-line"><span class="code-keyword">else if</span> ((process.env.BASE_URL || <span class="code-string">''</span>).<span class="code-function">startsWith</span>(<span class="code-string">'https:'</span>)) app.<span class="code-function">set</span>(<span class="code-string">'trust proxy'</span>, <span class="code-number">1</span>);</span>
+<span class="code-line">app.<span class="code-function">use</span>(express.<span class="code-function">json</span>({ <span class="code-property">limit</span>: <span class="code-string">'1mb'</span> }));</span>
+<span class="code-line">app.<span class="code-function">use</span>(express.<span class="code-function">urlencoded</span>({ <span class="code-property">extended</span>: <span class="code-keyword">false</span> })); <span class="code-comment">// inbound-email webhooks often post form data</span></span>
+<span class="code-line">app.<span class="code-function">use</span>(auth);        <span class="code-comment">// /auth/*, /api/me: must come before the gate</span></span>
+<span class="code-line">app.<span class="code-function">use</span>(requireStaff); <span class="code-comment">// default-deny for the dashboard page and /api (before static serves index.html)</span></span>
+<span class="code-line">app.<span class="code-function">use</span>(express.<span class="code-function">static</span>(<span class="code-string">'public'</span>));</span>
+<span class="code-line">app.<span class="code-function">use</span>(orders, feedback, dashboard, voice, compose, partners, programsRouter, trainingRouter, resourcesRouter, meetRouter);</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Build the switchboard: one Express app that every request passes through. Exporting it lets the test scripts boot the very same app.</p>
+              <p class="tl">A note for readers: when the site sits behind a <span class="term" data-definition="A reverse proxy is a front-door program (Caddy, Nginx) that receives traffic from the internet and forwards it to your server. Because of it, the server sees the proxy's address unless told to look at a header.">reverse proxy</span>, the caller's real <span class="term" data-definition="An IP address is the numeric address of a device on the internet, like a phone number for computers. Rate limits count requests per IP address.">IP address</span> arrives inside a header.</p>
+              <p class="tl">If the TRUST_PROXY <span class="term" data-definition="An environment variable is a named setting handed to the program when it starts, kept outside the code so secrets and per-machine settings never get committed. Written process.env.NAME in Node.js.">environment variable</span> is set, tell Express how many proxies to trust so the per-caller <span class="term" data-definition="A rate limit caps how many requests one caller may make in a window of time, so a script cannot flood a form with thousands of submissions.">rate limit</span> counts the right address.</p>
+              <p class="tl">Otherwise, if the public address starts with https, assume exactly one proxy stands in front.</p>
+              <p class="tl">Checkpoint 1: if the call carries <span class="term" data-definition="JSON is a plain-text format for structured data, all curly braces and quotes. Browsers and servers use it to pass objects back and forth.">JSON</span>, unpack it, but refuse anything larger than 1 MB.</p>
+              <p class="tl">Checkpoint 2: also unpack old-fashioned form data, because inbound-email <span class="term" data-definition="A webhook is a request that another service sends to your server when something happens, for example the email provider posting each new email to you the moment it arrives.">webhooks</span> send it that way.</p>
+              <p class="tl">Checkpoint 3: the sign-in desk. It answers /auth/* and /api/me and has to sit before the gate.</p>
+              <p class="tl">Checkpoint 4: the gate. Anything not on the public allow-list needs a staff login. Module 3 is all about this one line.</p>
+              <p class="tl">Checkpoint 5: hand out the <span class="term" data-definition="Static files are files served exactly as they sit on disk, such as HTML pages, stylesheets and images. Nothing is computed; the server just copies them to the browser.">static files</span> in public/ to anyone who got this far.</p>
+              <p class="tl">Finally, patch the call through to the ten departments. Each router only answers the addresses it knows; the rest pass it along.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">Order matters in Express</strong>
+            <p>Each <code>app.use</code> is a checkpoint the request passes in sequence. Engineers call these <span class="term" data-definition="Middleware is a function that sits in the path of every request and can inspect it, change it, reject it or wave it through to the next function. Express runs them in the order you add them.">middleware</span>. Move the gate below the static files and the dashboard page would be served to strangers.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────── Screen 3: The folder, annotated ───────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The folder, annotated</h2>
+        <p>Every department has its own file, and every file has one job. Knowing this tree means you can tell an AI tool exactly where a change belongs.</p>
+
+        <div class="file-tree">
+          <div class="ft-folder open">
+            <span class="ft-name">src/</span>
+            <span class="ft-desc">Everything that runs on the server</span>
+            <div class="ft-children">
+              <div class="ft-file">
+                <span class="ft-name">server.js</span>
+                <span class="ft-desc">The switchboard: wires everything together (42 lines)</span>
+              </div>
+              <div class="ft-folder open">
+                <span class="ft-name">routes/</span>
+                <span class="ft-desc">One file per business area</span>
+                <div class="ft-children">
+                  <div class="ft-file">
+                    <span class="ft-name">orders.js</span>
+                    <span class="ft-desc">Inbound email to order form to ship to received</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">feedback.js</span>
+                    <span class="ft-desc"><span class="term" data-definition="A QR code is the square barcode a phone camera can read. Here each one opens the feedback form for a specific kit, so the parent never types a link.">QR</span> form, photo upload, QR sheet, review fixes</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">voice.js</span>
+                    <span class="ft-desc">Read-aloud and spoken answers (ElevenLabs)</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">compose.js</span>
+                    <span class="ft-desc">Staff email composer with dictation and AI tidy-up</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">partners.js</span>
+                    <span class="ft-desc">Partner organisations: expression of interest to active</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">programs.js</span>
+                    <span class="ft-desc">Completion reports from facilitators</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">training.js</span>
+                    <span class="ft-desc">Training sessions, registration, certificates</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">meet.js</span>
+                    <span class="ft-desc">Let us meet scheduling with Google Meet</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">dashboard.js</span>
+                    <span class="ft-desc">Overview, Today list, trends, rollups, <span class="term" data-definition="CSV is comma-separated values: a plain-text spreadsheet where each line is a row and commas divide the columns. Excel and Google Sheets open it directly.">CSV</span>, staff admin</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">resources.js</span>
+                    <span class="ft-desc">Knowledge centre</span>
+                  </div>
+                </div>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">db.js</span>
+                <span class="ft-desc">The <span class="term" data-definition="A schema is the blueprint of a database: which tables exist and which columns each one has. Change the schema and you change what can be stored.">schema</span> and the PGlite / Tiger Data switch</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">auth.js</span>
+                <span class="ft-desc">Google sign-in, <span class="term" data-definition="A session is the server's memory that a particular browser has already signed in, usually tied to a small cookie. It is why staff do not log in again on every click.">sessions</span>, the public allow-list</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">ai.js</span>
+                <span class="ft-desc">Every Gemini call</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">elevenlabs.js, cloudinary.js, gcal.js</span>
+                <span class="ft-desc">One file per outside service</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">mailer.js</span>
+                <span class="ft-desc">Sends email and logs every message to the outbox <span class="term" data-definition="A table is one grid of data inside the database, with named columns and one row per record. The outbox table has one row per email ever sent.">table</span></span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">util.js</span>
+                <span class="ft-desc">Input cleaning, HTML escaping, rate limiting</span>
+              </div>
+            </div>
+          </div>
+          <div class="ft-folder open">
+            <span class="ft-name">public/</span>
+            <span class="ft-desc">Plain HTML pages, served as they are</span>
+            <div class="ft-children">
+              <div class="ft-file">
+                <span class="ft-name">index.html</span>
+                <span class="ft-desc">The staff dashboard</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">feedback.html, order.html, upload.html, meet.html</span>
+                <span class="ft-desc">Pages parents and facilitators reach through links</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">training-register.html, certificate.html, completion.html</span>
+                <span class="ft-desc">Training sign-up, the certificate, the completion report</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">compose.html, profile.html, login.html</span>
+                <span class="ft-desc">Staff-only pages</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">dictate.js</span>
+                <span class="ft-desc">The shared voice-typing widget</span>
+              </div>
+            </div>
+          </div>
+          <div class="ft-folder open">
+            <span class="ft-name">test/</span>
+            <span class="ft-desc">11 <span class="term" data-definition="A test script is a small program that starts the app, pokes it the way a user would and checks the answers. If a change breaks something, a test fails before a real person notices.">test scripts</span> that boot the real app on an <span class="term" data-definition="An in-memory database lives only in the computer's memory and vanishes when the program stops. Tests use one so they start clean every run and never touch real data.">in-memory database</span></span>
+          </div>
+        </div>
+
+        <p>Three shared rooms serve every department: <code>db.js</code> is the filing room, <code>util.js</code> is the drawer of common tools, and <code>mailer.js</code> is the post room. No router keeps its own copy of any of them.</p>
+      </section>
+
+      <!-- ───────────── Screen 4: How a page talks to the server ───────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">How a page talks to the server</h2>
+        <p>There is no framework on the dashboard. Every tab is an <span class="term" data-definition="An async function is one that can pause while it waits for something slow, such as a reply from the server, without freezing the page. The keyword await marks each pause.">async function</span> that calls <code>j('/api/...')</code>, gets JSON back, and writes HTML into a section of the page.</p>
+        <p>The whole conversation with the server runs through one tiny helper at the top of <code>index.html</code>.</p>
+
+        <small>File: <code>public/index.html</code>, lines 26 to 32</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-keyword">const</span> j = (u, o) =&gt; <span class="code-function">fetch</span>(u, o).<span class="code-function">then</span>(<span class="code-keyword">async</span> (r) =&gt; {</span>
+<span class="code-line">  <span class="code-keyword">if</span> (r.status === <span class="code-number">401</span>) { location.href = <span class="code-string">'/login.html'</span>; <span class="code-keyword">throw new</span> <span class="code-function">Error</span>(<span class="code-string">'signed out'</span>); }</span>
+<span class="code-line">  <span class="code-keyword">const</span> body = <span class="code-keyword">await</span> r.<span class="code-function">json</span>().<span class="code-function">catch</span>(() =&gt; ({}));</span>
+<span class="code-line">  <span class="code-keyword">if</span> (!r.ok &amp;&amp; !body.error) body.error = <span class="code-string">'Request failed ('</span> + r.status + <span class="code-string">')'</span>;</span>
+<span class="code-line">  <span class="code-keyword">return</span> body;</span>
+<span class="code-line">});</span>
+<span class="code-line"><span class="code-keyword">const</span> jsonPost = (u, b, method = <span class="code-string">'POST'</span>) =&gt; <span class="code-function">j</span>(u, { method, <span class="code-property">headers</span>: { <span class="code-string">'Content-Type'</span>: <span class="code-string">'application/json'</span> }, <span class="code-property">body</span>: JSON.<span class="code-function">stringify</span>(b || {}) });</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Define j, the helper every tab uses: <span class="term" data-definition="fetch is the browser's built-in way to make an HTTP request from JavaScript: give it an address and it returns the server's reply, without reloading the page.">fetch</span> a URL from the <span class="term" data-definition="An API is the set of addresses a server answers with data rather than pages, such as /api/orders. Pages call the API; the API talks to the database.">API</span>, then wait for the reply.</p>
+              <p class="tl">If the server answers <span class="term" data-definition="A status code is the three-digit number in every HTTP reply. 200 means fine, 401 means not signed in, 404 means not found, 500 means the server hit an error.">status</span> 401 (not signed in), send the browser to the login page and stop right there.</p>
+              <p class="tl">Read the reply as JSON. If it is not JSON at all, fall back to an empty object instead of crashing the tab.</p>
+              <p class="tl">If the server failed but gave no message, make one from the status code. This is the Request failed (500) text staff sometimes see.</p>
+              <p class="tl">Hand the parsed reply back to whichever tab asked for it.</p>
+              <p class="tl">End of the helper.</p>
+              <p class="tl">jsonPost wraps j for sending data: it sets the method to <span class="term" data-definition="GET and POST are the two most common request types. GET asks for data (open a page, list orders); POST sends data to be saved or acted on (submit a form, mark shipped).">POST</span>, labels the body as JSON and turns the object into text.</p>
+            </div>
+          </div>
+        </div>
+
+        <p>Before any of that data touches the database, it passes through the drawer of common tools. These tiny <span class="term" data-definition="A helper function is a small, reusable piece of code that does one job well, so the same logic is written once and called from many places.">helper functions</span> clean every input, and every router uses them instead of rolling its own.</p>
+
+        <small>File: <code>src/util.js</code>, lines 4 to 11</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-keyword">export const</span> BASE_URL = (process.env.BASE_URL || <span class="code-string">'http://localhost:3000'</span>).<span class="code-function">replace</span>(<span class="code-string">/\/+$/</span>, <span class="code-string">''</span>);</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">export const</span> str = (v, max = <span class="code-number">5000</span>) =&gt; (v == <span class="code-keyword">null</span> ? <span class="code-string">''</span> : <span class="code-function">String</span>(v)).<span class="code-function">replace</span>(<span class="code-string">/\u0000/g</span>, <span class="code-string">''</span>).<span class="code-function">trim</span>().<span class="code-function">slice</span>(<span class="code-number">0</span>, max);</span>
+<span class="code-line"><span class="code-keyword">export const</span> oneLine = (v, max = <span class="code-number">200</span>) =&gt; <span class="code-function">str</span>(v, max).<span class="code-function">replace</span>(<span class="code-string">/\s*[\r\n\u2028\u2029]+\s*/g</span>, <span class="code-string">' '</span>);</span>
+<span class="code-line"><span class="code-keyword">export const</span> isDate = (s) =&gt; <span class="code-keyword">typeof</span> s === <span class="code-string">'string'</span> &amp;&amp; <span class="code-string">/^\d{4}-\d{2}-\d{2}$/</span>.<span class="code-function">test</span>(s) &amp;&amp; !Number.<span class="code-function">isNaN</span>(Date.<span class="code-function">parse</span>(s + <span class="code-string">'T00:00:00Z'</span>));</span>
+<span class="code-line"><span class="code-keyword">export const</span> dateOrNull = (v) =&gt; { <span class="code-keyword">const</span> s = <span class="code-function">str</span>(v, <span class="code-number">10</span>); <span class="code-keyword">return</span> <span class="code-function">isDate</span>(s) ? s : <span class="code-keyword">null</span>; };</span>
+<span class="code-line"><span class="code-keyword">export const</span> intId = (v) =&gt; (<span class="code-string">/^\d{1,9}$/</span>.<span class="code-function">test</span>(<span class="code-function">String</span>(v)) ? <span class="code-function">Number</span>(v) : <span class="code-keyword">null</span>);</span>
+<span class="code-line"><span class="code-keyword">export const</span> validEmail = (e) =&gt; <span class="code-string">/^[^\s@&lt;&gt;]+@[^\s@&lt;&gt;]+\.[^\s@&lt;&gt;]+$/</span>.<span class="code-function">test</span>(<span class="code-function">String</span>(e || <span class="code-string">''</span>).<span class="code-function">trim</span>());</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">The public address of the site, with any trailing slash removed, so links in emails are built the same way everywhere. Falls back to <span class="term" data-definition="localhost is the address a computer uses for itself. localhost:3000 means the server running on your own machine, on door number 3000.">localhost</span> on a laptop.</p>
+              <p class="tl">&nbsp;</p>
+              <p class="tl">str: turn anything into a clean <span class="term" data-definition="A string is a piece of text inside a program, such as a name or an email address. String(v) converts any value into text.">string</span>. Nothing becomes empty text, hidden zero characters are removed, spaces are trimmed, length is capped at 5,000.</p>
+              <p class="tl">oneLine: like str but capped at 200, and every line break, including unusual Unicode ones, becomes a single space. Names and subjects go through this.</p>
+              <p class="tl">isDate: accept only YYYY-MM-DD text, checked with a <span class="term" data-definition="A regex (regular expression) is a compact pattern for matching text, written between slashes. /^\d{4}-\d{2}-\d{2}$/ means four digits, dash, two digits, dash, two digits and nothing else.">regex</span>, that is also a real calendar date.</p>
+              <p class="tl">dateOrNull: clean the value, then return the date or <span class="term" data-definition="null is the programming word for no value at all. Returning null instead of a bad value lets the next step say: nothing valid was given, so skip it.">null</span>, never garbage.</p>
+              <p class="tl">intId: an id must be 1 to 9 digits and nothing else. Anything odd becomes null before it gets near a database query.</p>
+              <p class="tl">validEmail: a lightweight check that an address has something, an at sign, something, a dot, something, and no angle brackets.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────── Screen 5: Drag-and-drop + quiz ───────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Which department takes the call?</h2>
+        <p>You are the operator. Five calls come in; drag each file onto the call it should handle. Think about what the request is really asking for, not which word appears in the file name.</p>
+
+        <div class="dnd-container" id="dnd-module2">
+          <div class="dnd-chips">
+            <div class="dnd-chip" draggable="true" data-answer="orders">orders.js</div>
+            <div class="dnd-chip" draggable="true" data-answer="feedback">feedback.js</div>
+            <div class="dnd-chip" draggable="true" data-answer="meet">meet.js</div>
+            <div class="dnd-chip" draggable="true" data-answer="dashboard">dashboard.js</div>
+            <div class="dnd-chip" draggable="true" data-answer="auth">auth.js</div>
+          </div>
+          <div class="dnd-zones">
+            <div class="dnd-zone" data-correct="feedback">
+              <p class="dnd-zone-label">A parent scans a QR code and submits the form</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="orders">
+              <p class="dnd-zone-label">Staff click Mark shipped</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="meet">
+              <p class="dnd-zone-label">A partner ticks the times they are free and a Google Meet is booked</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="dashboard">
+              <p class="dnd-zone-label">The Insights tab asks for responses per day</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="auth">
+              <p class="dnd-zone-label">Decides whether a request needs a staff login</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="checkDnD('dnd-module2')">Check Matches</button>
+          <button class="btn" onclick="resetDnD('dnd-module2')">Reset</button>
+        </div>
+
+        <h2 class="screen-heading">Put it to work</h2>
+        <p>Three situations you could meet next week. Each one has a best answer that follows from how the switchboard is wired.</p>
+
+        <div class="quiz-container" id="quiz-module2">
+          <div class="quiz-question-block"
+               data-correct="q1-b"
+               data-explanation-right="Exactly. The project has one app, and server.js already mounts training.js, so a new endpoint there inherits the auth gate, the shared database connection and the test setup for free. A second app on another port would sit outside all of that."
+               data-explanation-wrong="Not quite. Think about what the switchboard gives every router for free: the JSON parser, the auth gate and the one shared database. A second express() app on port 3001 is a second switchboard with none of those checkpoints, so anyone could call it.">
+            <h3 class="quiz-question">You ask an AI tool to add a resend certificate button. It creates <code>src/certificates.js</code> with its own <code>express()</code> app and <code>listen(3001)</code>. What is wrong?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="q1-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Nothing. A separate file keeps the feature tidy; just remember to start it alongside <code>npm run dev</code>.</span>
+              </button>
+              <button class="quiz-option" data-value="q1-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The project has one app. The endpoint belongs in <code>src/routes/training.js</code>, which <code>server.js</code> already mounts; a second app on another port would skip the auth gate and the shared database.</span>
+              </button>
+              <button class="quiz-option" data-value="q1-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Only the port is wrong. Change 3001 to 3000 so it matches the main app and both will answer together.</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="q2-b"
+               data-explanation-right="Yes. A 500 means the server itself hit an error while answering GET /api/orders, and that handler lives in orders.js. The j helper is only the messenger: it printed exactly what the server returned."
+               data-explanation-wrong="Not quite. Remember where the Request failed text comes from: the j helper writes it when the server replies with an error and no message. The styling and the input helpers did not fail; the department that answers /api/orders did. Start in src/routes/orders.js.">
+            <h3 class="quiz-question">The dashboard shows Request failed (500) on the Orders tab. Which file do you open first?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="q2-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span><code>public/style.css</code>, because the red error box is a display problem on the page.</span>
+              </button>
+              <button class="quiz-option" data-value="q2-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span><code>src/routes/orders.js</code>, the handler for GET /api/orders. The <code>j</code> helper only displays what the server returned.</span>
+              </button>
+              <button class="quiz-option" data-value="q2-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span><code>src/util.js</code>, because every input passes through it, so a bug there would break every tab.</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="q3-b"
+               data-explanation-right="Exactly. oneLine from util.js turns every line break into a single space and caps the length at 200 before the value is saved, so the email template never sees a multi-line name. Clean once, at the door, and every department downstream is safe."
+               data-explanation-wrong="Not quite. The database would happily store a line break, and the email template does not inspect names. The protection happens earlier: oneLine in util.js strips line breaks and caps the length before the value is ever saved.">
+            <h3 class="quiz-question">A facilitator types a name with a line break inside it on the order form. Why does it not break the confirmation email?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="q3-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The email template in <code>mailer.js</code> spots the line break and removes it just before sending.</span>
+              </button>
+              <button class="quiz-option" data-value="q3-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span><code>oneLine</code> from <code>util.js</code> strips line breaks and caps the length before the value is saved.</span>
+              </button>
+              <button class="quiz-option" data-value="q3-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>PostgreSQL refuses to store line breaks in text columns, so the bad value never gets in.</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module2')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module2')">Try Again</button>
+        </div>
+
+        <p>You now know the cast and who answers which call. Next, Module 3 opens the two doors into the building: random links for parents and facilitators, Google sign-in for staff, and the gate in <code>auth.js</code> that keeps them apart.</p>
+      </section>
+
+    </div>
+  </div>
+</section>

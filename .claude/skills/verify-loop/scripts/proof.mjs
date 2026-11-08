@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Proof graph: every completion claim must trace to fresh, machine-checked evidence.
 // .verify/proof.json: { claims:[{id,text,evidence:[ids],dependsOn:[claimIds]}],
-//   evidence:[{id,kind:"command"|"file",cmd?,path?,expectExit?}] }
+//   evidence:[{id,kind:"command"|"file",cmd?,path?,expectExit?,canary?:{file,find,replace}, canaries?:[...]}] }
 // Usage: node proof.mjs [proof.json]    Writes .verify/proof-report.json and .verify/proof.md (Mermaid).
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -28,6 +28,22 @@ for (const e of evidence) {
       const r = spawnSync(e.cmd, { shell: true, encoding: 'utf8', timeout: 600000 });
       ok = r.status === (e.expectExit ?? 0);
       note = ok ? 'exit ok' : `exit ${r.status}, expected ${e.expectExit ?? 0}`;
+      // Canaries: deliberately break the code; a meaningful check must then FAIL every time.
+      const canaries = [].concat(e.canaries ?? e.canary ?? []);
+      for (let i = 0; ok && i < canaries.length; i++) {
+        const { file, find, replace } = canaries[i];
+        if (!existsSync(file)) { ok = false; note = `canary file missing: ${file}`; break; }
+        const orig = readFileSync(file, 'utf8');
+        if (!orig.includes(find)) { ok = false; note = `canary text not found in ${file}`; break; }
+        const restore = () => writeFileSync(file, orig);
+        process.once('exit', restore);
+        try {
+          writeFileSync(file, orig.replace(find, replace));
+          const b = spawnSync(e.cmd, { shell: true, encoding: 'utf8', timeout: 600000 });
+          if (b.status === (e.expectExit ?? 0)) { ok = false; note = `canary ${i + 1}/${canaries.length} survived: check still passes on broken code (vacuous)`; }
+        } finally { restore(); process.removeListener('exit', restore); }
+      }
+      if (ok && canaries.length) note = `exit ok, ${canaries.length} canar${canaries.length > 1 ? 'ies' : 'y'} killed (check detects breakage)`;
     }
   } else if (e.kind === 'file') {
     if (!e.path || !existsSync(e.path)) note = 'file missing';

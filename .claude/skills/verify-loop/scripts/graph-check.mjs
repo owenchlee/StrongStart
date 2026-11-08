@@ -4,7 +4,21 @@
 //               requireHuman:[exitId,...] }   // exits that must pass through a human node
 import { readFileSync } from 'node:fs';
 
-const g = JSON.parse(readFileSync(process.argv[2] ?? 'workflow.json', 'utf8'));
+// Also reads Mermaid flowcharts (e.g. LangGraph's draw_mermaid output) with --mermaid or a .mmd/.md file.
+// Mermaid options: --human a,b (human-approval nodes; names containing "human"/"approv" are auto-detected)
+//                  --require-human exitId (exit that must pass through a human node; default: none)
+const argv = process.argv.slice(2), opt = k => { const i = argv.indexOf(k); return i > -1 ? argv[i + 1] : null; };
+const file = argv.find(a => !a.startsWith('--') && a !== opt('--human') && a !== opt('--require-human')) ?? 'workflow.json';
+const text = readFileSync(file, 'utf8');
+function fromMermaid(t) {
+  const edge = /^\s*([A-Za-z0-9_]+)\s*(?:-->|==>|-\.->|--[^>\n]*?-->|-\.[^>\n]*?\.->)\s*(?:\|[^|]*\|\s*)?([A-Za-z0-9_]+)/;
+  const edges = [], ids = new Set(), human = new Set((opt('--human') ?? '').split(',').filter(Boolean));
+  for (const line of t.split('\n')) { const m = line.replace(/&nbsp;/g, ' ').match(edge); if (m) { edges.push({ from: m[1], to: m[2] }); ids.add(m[1]); ids.add(m[2]); } }
+  const nodes = [...ids].map(id => ({ id, type: /^_*start_*$/i.test(id) ? 'entry' : /^_*end_*$/i.test(id) ? 'exit'
+    : human.has(id) || /human|approv/i.test(id) ? 'human' : 'agent' }));
+  return { nodes, edges, requireHuman: (opt('--require-human') ?? '').split(',').filter(Boolean) };
+}
+const g = argv.includes('--mermaid') || /\.(mmd|md)$/.test(file) ? fromMermaid(text) : JSON.parse(text);
 const ids = new Set(g.nodes.map(n => n.id));
 const type = Object.fromEntries(g.nodes.map(n => [n.id, n.type]));
 const problems = [];

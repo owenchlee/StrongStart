@@ -1,0 +1,392 @@
+<section class="module" id="module-1" style="background: var(--color-bg-warm)">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">01</span>
+      <h1 class="module-title">The loop: from one email to a parent&rsquo;s feedback</h1>
+      <p class="module-subtitle">What StrongStart does, told as the journey of a single tracking number</p>
+    </header>
+
+    <div class="module-body">
+
+      <!-- ============================================================ -->
+      <!-- Screen 1: What StrongStart does                               -->
+      <!-- ============================================================ -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">What StrongStart does</h2>
+        <p>A facilitator at a library emails <strong>babyconnections@&hellip;</strong> saying &ldquo;we need 10 kits for our Fall Babies group&rdquo;. Nobody at Strong Start touches a keyboard, yet within a second the facilitator has a personal order-form link in their inbox.</p>
+        <p>Here is everything that happened. First, the four business steps the <span class="term" data-definition="A web application: a website that does work for you (saves things, sends emails, shows dashboards) rather than just displaying pages. StrongStart is a web app that runs on a server.">app</span> supports for the <strong>Baby Connections</strong> program.</p>
+
+        <div class="pattern-cards stagger-children">
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">&#128230;</div>
+            <h4 class="pattern-title">1. Kit request</h4>
+            <p class="pattern-desc">A <span class="term" data-definition="A person at a partner organisation, such as a library or community centre, who runs the Baby Connections program with local families. Facilitators are outside Strong Start and only ever use links sent to them.">facilitator</span> emails Strong Start asking for a <span class="term" data-definition="The physical box of program materials plus tutorial classes that Strong Start ships to a partner organisation.">kit</span>.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">&#127891;</div>
+            <h4 class="pattern-title">2. Training</h4>
+            <p class="pattern-desc">The facilitator registers for training, joins a scheduled Google Meet and earns a digital certificate.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">&#128118;</div>
+            <h4 class="pattern-title">3. Run the program</h4>
+            <p class="pattern-desc">The facilitator runs lessons with children and their parents, using the kit.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">&#128172;</div>
+            <h4 class="pattern-title">4. Parents report back</h4>
+            <p class="pattern-desc">Parents scan a <span class="term" data-definition="A square barcode a phone camera can read. Scanning it opens a web link, so a parent can reach the feedback form without typing anything.">QR code</span>, speak an answer, or hand in a paper form. Staff see it all on one <span class="term" data-definition="The single staff web page (public/index.html) that shows orders to ship, forms to review, and trends for funders. Only Strong Start staff can see it.">dashboard</span>.</p>
+          </div>
+        </div>
+
+        <p>The app <strong>closes the loop</strong>: parent-reported outcomes travel all the way back to Strong Start with almost no effort from anyone. The rest of this module follows how.</p>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Screen 2: Follow the tracking number (hero flow animation)    -->
+      <!-- ============================================================ -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Follow the tracking number</h2>
+        <p>Think of a <strong>parcel tracking number</strong>. One random code is minted the moment your parcel is booked, and every later step (packed, shipped, delivered) looks up that same code and moves it to the next status.</p>
+        <p>StrongStart does exactly this. When the facilitator&rsquo;s email arrives, the <span class="term" data-definition="The computer program that runs StrongStart around the clock, answering web requests. In this project it is written in JavaScript using Node.js and Express, and lives in src/server.js and src/routes.">server</span> mints a random <span class="term" data-definition="A long random string of letters and numbers that identifies one order, like a parcel tracking number. It is put inside the links emailed to the facilitator, so clicking the link tells the server exactly which order you mean.">token</span>, and every link that follows carries it. Click <strong>Next Step</strong> to watch one order go round.</p>
+
+        <div class="flow-animation" data-steps='[
+          {"highlight":"flow-actor-1","label":"Facilitator emails Strong Start asking for kits"},
+          {"highlight":"flow-actor-3","label":"The email provider forwards it to POST /api/inbound-email (a webhook)","packet":true,"from":"actor-2","to":"actor-3"},
+          {"highlight":"flow-actor-4","label":"Server creates a facilitator row and an order row with a random token, status form_sent","packet":true,"from":"actor-3","to":"actor-4"},
+          {"highlight":"flow-actor-2","label":"Server emails back a personal link: /order/TOKEN","packet":true,"from":"actor-3","to":"actor-2"},
+          {"highlight":"flow-actor-3","label":"Facilitator fills in the order form; program and kit lines are saved, status becomes ordered","packet":true,"from":"actor-1","to":"actor-3"},
+          {"highlight":"flow-actor-5","label":"Staff see the order on the dashboard and click Mark shipped; status becomes shipped"},
+          {"highlight":"flow-actor-2","label":"Facilitator gets a shipped email with a confirm link; staff get a packing slip with the QR sheet link","packet":true,"from":"actor-3","to":"actor-2"},
+          {"highlight":"flow-actor-3","label":"Facilitator presses Yes, the kits arrived (a POST); status becomes received","packet":true,"from":"actor-1","to":"actor-3"},
+          {"highlight":"flow-actor-2","label":"Server emails the parent feedback QR link, printable sheet, photo upload and completion report links","packet":true,"from":"actor-3","to":"actor-2"},
+          {"highlight":"flow-actor-5","label":"From here on, parent feedback flows into the Programs tab and Insights"}
+        ]'>
+          <div class="flow-actors">
+            <div class="flow-actor" id="flow-actor-1">
+              <div class="flow-actor-icon" style="background: var(--color-actor-1)">&#128218;</div>
+              <span>Facilitator</span>
+            </div>
+            <div class="flow-actor" id="flow-actor-2">
+              <div class="flow-actor-icon" style="background: var(--color-actor-4)">&#9993;&#65039;</div>
+              <span>Email</span>
+            </div>
+            <div class="flow-actor" id="flow-actor-3">
+              <div class="flow-actor-icon" style="background: var(--color-actor-2)">&#9881;&#65039;</div>
+              <span>Server</span>
+            </div>
+            <div class="flow-actor" id="flow-actor-4">
+              <div class="flow-actor-icon" style="background: var(--color-actor-3)">&#128451;&#65039;</div>
+              <span>Database</span>
+            </div>
+            <div class="flow-actor" id="flow-actor-5">
+              <div class="flow-actor-icon" style="background: var(--color-actor-5)">&#128202;</div>
+              <span>Staff dashboard</span>
+            </div>
+          </div>
+
+          <div class="flow-packet" id="flow-packet"></div>
+
+          <div class="flow-step-label" id="flow-label">Click &ldquo;Next Step&rdquo; to begin</div>
+
+          <div class="flow-controls">
+            <button class="btn flow-next-btn">Next Step</button>
+            <button class="btn flow-reset-btn">Restart</button>
+            <span class="flow-progress"></span>
+          </div>
+        </div>
+
+        <p>Step 2 is a <span class="term" data-definition="A web address that another service calls automatically when something happens, instead of a person clicking. Here the email provider calls POST /api/inbound-email every time a message lands in the inbox. You might tell an AI: add a webhook so Stripe can notify us about payments.">webhook</span>: the email provider calls the server for us. The <span class="term" data-definition="The organised store where the app keeps its facts permanently, arranged as tables of rows and columns. StrongStart uses Postgres, running as PGlite on a laptop or Tiger Data in production.">database</span> remembers everything in between, so neither the facilitator nor staff has to.</p>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Screen 3: The row that remembers everything                  -->
+      <!-- ============================================================ -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The row that remembers everything</h2>
+        <p>The tracking number points at one <span class="term" data-definition="One record in a database table, like one line in a spreadsheet. Each order is one row in the orders table.">row</span> in a <span class="term" data-definition="A named grid of data inside the database, like one sheet in a spreadsheet. Columns are the headings, rows are the entries. The orders table has one row per kit order.">table</span> called <code>orders</code>. Its <code>status</code> <span class="term" data-definition="One heading in a database table, like one column in a spreadsheet. Every row has a value for every column.">column</span> can only move forward along four stops.</p>
+
+        <div class="flow-steps">
+          <div class="flow-step">
+            <div class="flow-step-num">1</div>
+            <p><code>form_sent</code><br>Email arrived, link sent</p>
+          </div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-step">
+            <div class="flow-step-num">2</div>
+            <p><code>ordered</code><br>Order form submitted</p>
+          </div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-step">
+            <div class="flow-step-num">3</div>
+            <p><code>shipped</code><br>Staff clicked Mark shipped</p>
+          </div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-step">
+            <div class="flow-step-num">4</div>
+            <p><code>received</code><br>Facilitator confirmed delivery</p>
+          </div>
+        </div>
+
+        <p>Here is the <span class="term" data-definition="Structured Query Language: the standard language for telling a database what to store or fetch. CREATE TABLE, SELECT and UPDATE are SQL commands.">SQL</span> that creates the table. It runs when the server starts, and the comment on the first line is the whole product in one line.</p>
+        <small>src/db.js &middot; lines 95&ndash;101</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-comment">-- status: form_sent -&gt; ordered -&gt; shipped -&gt; received (or cancelled)</span></span>
+<span class="code-line"><span class="code-keyword">CREATE TABLE IF NOT EXISTS</span> orders (</span>
+<span class="code-line">  <span class="code-property">id</span> <span class="code-keyword">SERIAL PRIMARY KEY</span>, <span class="code-property">token</span> <span class="code-keyword">TEXT UNIQUE NOT NULL</span>,</span>
+<span class="code-line">  <span class="code-property">facilitator_id</span> <span class="code-keyword">INTEGER REFERENCES</span> facilitators(id), <span class="code-property">program_id</span> <span class="code-keyword">INTEGER REFERENCES</span> programs(id),</span>
+<span class="code-line">  <span class="code-property">status</span> <span class="code-keyword">TEXT DEFAULT</span> <span class="code-string">'form_sent'</span>, <span class="code-property">shipping_address</span> <span class="code-keyword">TEXT</span>, <span class="code-property">requested_date</span> <span class="code-keyword">TEXT</span>, <span class="code-property">notes</span> <span class="code-keyword">TEXT</span>,</span>
+<span class="code-line">  <span class="code-property">created_at</span> <span class="code-keyword">TIMESTAMPTZ DEFAULT</span> <span class="code-function">now</span>(), <span class="code-property">ordered_at</span> <span class="code-keyword">TIMESTAMPTZ</span>, <span class="code-property">shipped_at</span> <span class="code-keyword">TIMESTAMPTZ</span>, <span class="code-property">received_at</span> <span class="code-keyword">TIMESTAMPTZ</span></span>
+<span class="code-line">);</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">A note for humans: the four stops a kit order moves through, in order (plus a side exit for cancelled).</p>
+              <p class="tl">Make a table called orders, but only if it is not already there, so restarting the server is safe.</p>
+              <p class="tl">Every order gets an automatic <span class="term" data-definition="A column whose value uniquely identifies each row, usually an auto-counting number (1, 2, 3...). SERIAL means the database picks the next number for you.">id</span> number and a token that must be filled in and can never repeat. That token is the tracking number.</p>
+              <p class="tl">Each order points at one facilitator and one program in two other tables, like a cross-reference. Engineers call these <span class="term" data-definition="A column that holds the id of a row in another table, linking the two. REFERENCES facilitators(id) means this value must match a real facilitator.">foreign keys</span>.</p>
+              <p class="tl">The status starts life as form_sent. Then free-text boxes for where to ship, when it is wanted, and notes.</p>
+              <p class="tl">Four <span class="term" data-definition="A date and time recorded to the second, with the time zone (that is the TZ). TIMESTAMPTZ columns let you ask how long each step took.">timestamps</span>: created now, and three blanks that get filled in as the order reaches each stop.</p>
+              <p class="tl">End of the table definition.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">&#128161;</div>
+          <div class="callout-content">
+            <strong class="callout-title">Key Insight</strong>
+            <p>A status column plus timestamps is how almost every workflow app models &ldquo;where are we?&rdquo;. Engineers call it a <span class="term" data-definition="A design where something can be in exactly one named state at a time (form_sent, ordered, shipped, received) and only certain moves between states are allowed. The current state is stored, and each action checks it before moving on.">state machine</span>. When anything is stuck, the first question is always: what status is the row in?</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Screen 4: Every step mails a link with the token in it       -->
+      <!-- ============================================================ -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Every step mails a link with the token in it</h2>
+        <p>A tracking number is useless if nobody tells you what it is. So at every stop the server sends an email, and the link inside carries the token. This is the very first one, sent the moment the inbound email has been handled.</p>
+
+        <small>src/routes/orders.js &middot; lines 135&ndash;137 &middot; inside the inbound-email handler, where <code>t</code> is the freshly minted token and <code>fac</code> is the facilitator row</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line">  <span class="code-keyword">await</span> <span class="code-function">sendMail</span>(m.email, <span class="code-string">'Your Baby Connections kit order form'</span>,</span>
+<span class="code-line">    <span class="code-string">`Hi ${fac.name || 'there'},\n\nThanks for getting in touch. Please fill out your kit order form here:\n${BASE_URL}/order/${t}\n\nIt takes a couple of minutes: tell us about your program and which kits you need.\n\nBaby Connections team`</span>);</span>
+<span class="code-line">  res.<span class="code-function">json</span>({ <span class="code-property">ok</span>: <span class="code-keyword">true</span>, orderId, <span class="code-property">orderLink</span>: <span class="code-string">`${BASE_URL}/order/${t}`</span> });</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Send an email to whoever wrote in, with this subject line, and <span class="term" data-definition="A JavaScript keyword meaning pause here until this slow job (sending an email, asking the database) finishes, then carry on. It keeps code readable while the server waits on the outside world.">wait</span> for it to go.</p>
+              <p class="tl">The body of the email. The <span class="term" data-definition="In JavaScript, text wrapped in backticks where ${...} slots in a live value. Here ${t} drops the token into the link and \n means start a new line.">${...} slots</span> fill in the facilitator&rsquo;s name (or &ldquo;there&rdquo; if we do not know it) and build the link: the site address, then /order/, then the token.</p>
+              <p class="tl">Reply to the email provider in <span class="term" data-definition="JavaScript Object Notation: a plain-text format for structured data that looks like { name: value } pairs. It is how servers and web pages exchange information.">JSON</span> saying all went well, and include the same link so it shows up in the logs.</p>
+            </div>
+          </div>
+        </div>
+
+        <p>Five emails leave the building during the order half of the loop. Every one of them carries the same tracking number in its link.</p>
+
+        <div class="step-cards stagger-children">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <strong>Order form link</strong>
+              <p>To the facilitator: fill in your kit order at /order/TOKEN.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <strong>Order confirmation</strong>
+              <p>To the facilitator: we have your order. Staff get a packing-slip style copy at the same time.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>Kits have shipped, confirm here</strong>
+              <p>To the facilitator: a link to /received/TOKEN to press when the box arrives.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <strong>Thanks, kits received</strong>
+              <p>To the facilitator: the four parent-feedback links (QR form, printable sheet, photo upload, completion report).</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">5</div>
+            <div class="step-body">
+              <strong>Order received</strong>
+              <p>To staff: this order has completed its journey; parent feedback starts now.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Screen 5: Why clicking the link is not enough + quiz          -->
+      <!-- ============================================================ -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Why clicking the link is not enough</h2>
+        <p>Email 3 carries a confirm link. You might expect that clicking it marks the order <code>received</code>, but the server deliberately refuses to do that on a click. It shows a page with a button instead, and only the button press changes the status.</p>
+        <p>Why? Web browsers talk to servers in two main ways. A <span class="term" data-definition="One of the two main kinds of web request. GET means show me this page and should never change anything on the server. Typing an address or clicking a link is always a GET.">GET</span> is what a link click does (just show me the page). A <span class="term" data-definition="The other main kind of web request. POST means here is some data, do something with it. Pressing a form button sends a POST, and this is where servers are allowed to change things.">POST</span> is what a form button does (here, do something). Read the comment at the top of this snippet.</p>
+
+        <small>src/routes/orders.js &middot; lines 340&ndash;348 &middot; the GET half</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-comment">// Facilitator clicks the link in the shipped email. GET only shows a confirm button: email scanners</span></span>
+<span class="code-line"><span class="code-comment">// follow links, so the state change happens on POST.</span></span>
+<span class="code-line"><span class="code-keyword">const</span> thanks = (res) =&gt; res.<span class="code-function">send</span>(<span class="code-function">page</span>(<span class="code-string">'Thank you!'</span>, <span class="code-string">'Your kit delivery is confirmed. We just emailed you the parent feedback links for your program.'</span>));</span>
+<span class="code-line"><span class="code-keyword">const</span> notShipped = (res) =&gt; res.<span class="code-function">status</span>(<span class="code-number">404</span>).<span class="code-function">send</span>(<span class="code-function">page</span>(<span class="code-string">'Not found'</span>, <span class="code-string">'We could not find a shipped order for this link.'</span>));</span>
+<span class="code-line"></span>
+<span class="code-line">orders.<span class="code-function">get</span>(<span class="code-string">'/received/:token'</span>, <span class="code-keyword">async</span> (req, res) =&gt; {</span>
+<span class="code-line">  <span class="code-keyword">const</span> o = <span class="code-keyword">await</span> <span class="code-function">one</span>(<span class="code-string">'SELECT o.*, p.name AS program FROM orders o LEFT JOIN programs p ON p.id=o.program_id WHERE o.token=$1'</span>, [req.params.token]);</span>
+<span class="code-line">  <span class="code-keyword">if</span> (!o || ![<span class="code-string">'shipped'</span>, <span class="code-string">'received'</span>].<span class="code-function">includes</span>(o.status)) <span class="code-keyword">return</span> <span class="code-function">notShipped</span>(res);</span>
+<span class="code-line">  <span class="code-keyword">if</span> (o.status === <span class="code-string">'received'</span>) <span class="code-keyword">return</span> <span class="code-function">thanks</span>(res);</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">The developer explains the trick right here: a link click only shows a button, because email scanners click links.</p>
+              <p class="tl">The actual change waits for a button press, which is a POST.</p>
+              <p class="tl">A reusable thank-you page for when delivery is already confirmed.</p>
+              <p class="tl">A reusable not-found page, sent with code <span class="term" data-definition="The famous web status code meaning not found. Servers attach a number to every reply: 200 is fine, 404 is missing, 409 is a conflict with the current state, 500 is a crash.">404</span>, for links that do not match a shipped order.</p>
+              <p class="tl">&nbsp;</p>
+              <p class="tl">When someone visits /received/ followed by any token, run the following. This is a <span class="term" data-definition="One address the server knows how to answer, paired with the code that answers it. Express matches the address (/received/:token) and the method (GET or POST) to pick the route. Engineers also say endpoint.">route</span>. The <span class="term" data-definition="A JavaScript keyword marking a function that may pause with await while it waits for slow things like the database. Nearly every route in this app is async.">async</span> word lets it wait on the database.</p>
+              <p class="tl">Look up the order whose token matches the link, pulling in the program name from the programs table too.</p>
+              <p class="tl">No such order, or it has not shipped yet? Show the not-found page. The status check is the state machine saying: not your turn.</p>
+              <p class="tl">Already received? Just say thanks again, nothing changes.</p>
+            </div>
+          </div>
+        </div>
+
+        <p>Now the POST, which the button press triggers. Notice the extra <code>AND status='shipped'</code> at the end of the <span class="term" data-definition="The SQL command that changes values in existing rows. UPDATE orders SET status=received means change this order to received.">UPDATE</span>.</p>
+
+        <small>src/routes/orders.js &middot; lines 355&ndash;360 &middot; the POST half</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line">orders.<span class="code-function">post</span>(<span class="code-string">'/received/:token'</span>, <span class="code-keyword">async</span> (req, res) =&gt; {</span>
+<span class="code-line">  <span class="code-keyword">const</span> o = <span class="code-keyword">await</span> <span class="code-function">one</span>(<span class="code-string">'SELECT * FROM orders WHERE token=$1'</span>, [req.params.token]);</span>
+<span class="code-line">  <span class="code-keyword">if</span> (!o || ![<span class="code-string">'shipped'</span>, <span class="code-string">'received'</span>].<span class="code-function">includes</span>(o.status)) <span class="code-keyword">return</span> <span class="code-function">notShipped</span>(res);</span>
+<span class="code-line">  <span class="code-keyword">if</span> (o.status === <span class="code-string">'shipped'</span>) {</span>
+<span class="code-line">    <span class="code-keyword">const</span> claim = <span class="code-keyword">await</span> <span class="code-function">run</span>(<span class="code-string">"UPDATE orders SET status='received', received_at=now() WHERE id=$1 AND status='shipped' RETURNING id"</span>, [o.id]);</span>
+<span class="code-line">    <span class="code-keyword">if</span> (claim.rows.length) {</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Same address, but for the button press (POST), so this is the one allowed to change things.</p>
+              <p class="tl">Find the order for this token.</p>
+              <p class="tl">Same guard as before: not found or not shipped means not-found page.</p>
+              <p class="tl">Only if it is currently shipped do we try to move it on.</p>
+              <p class="tl">Move the row to received and stamp the time, but only if it is still shipped at that exact instant. Two people pressing the button at once cannot both win; the second finds nothing to update. Engineers call this an <span class="term" data-definition="A change that either fully happens or does not happen at all, with no half-way state and no way for two people to both succeed. The AND status=shipped condition makes the database itself decide who got there first.">atomic claim</span>.</p>
+              <p class="tl">If our update actually changed a row, we won the claim and can send the feedback emails (that code follows).</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-warning">
+          <div class="callout-icon">&#9888;&#65039;</div>
+          <div class="callout-content">
+            <strong class="callout-title">Why GET must never change anything</strong>
+            <p>Email security scanners at schools and councils open every link in every email before the human sees it. If a GET to /received/TOKEN marked kits received, the scanner would confirm delivery before the box left the warehouse. That is why the state change hides behind a button press.</p>
+          </div>
+        </div>
+
+        <h2 class="screen-heading">Check your understanding</h2>
+        <p>Three situations you might actually face. Pick the answer that fits what you have just learned about the tracking number and its four stops.</p>
+
+        <div class="quiz-container" id="quiz-module1">
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="Exactly. Tokens never expire, and the row did not vanish. The form had already moved the row to ordered, so the server sees a second submit, refuses it with a 409 conflict, and the state machine quietly prevents a double order. Check the dashboard: the order is probably already there."
+               data-explanation-wrong="Not quite. Nothing here points to a lost row or an expired token: tokens in this app never expire. Think about the four stops. If the row is already past form_sent, what does the server do when the form is submitted again?">
+            <h3 class="quiz-question">A facilitator says: &ldquo;I filled in the order form but nothing happened, and now the link says This order was already submitted.&rdquo; What most likely happened?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The database lost the row, so the server cannot find the order any more.</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The form was already submitted once (maybe the first click did work), so the row is in status <code>ordered</code> and the server refuses a second submit with a 409.</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The token expired because the facilitator waited too long.</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-a"
+               data-explanation-right="Yes. A new stop on the tracking page is a new status value, a route that moves received to returned (checking the row is in received first), and an email with the token link. The dashboard then just shows the new status. That is the state-machine recipe for every workflow change."
+               data-explanation-wrong="Not quite. The orders row already remembers everything about an order, so a new table is overkill, and changing only the dashboard HTML would show a button that does nothing. Start where the state lives: the status column and a route that moves it.">
+            <h3 class="quiz-question">Strong Start wants to add a &ldquo;kits returned&rdquo; step after received. Where does the change start?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Add a new status value, a route that moves <code>received &rarr; returned</code>, then an email with the token link.</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Create a new table called returns to hold the returned kits.</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Only change the dashboard HTML to add a Returned column.</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="Right. Every link is a GET, and every GET in this app only shows a page. The one action that moves the row (confirming delivery) needs a button press, which is a POST, so a scanner clicking everything changes nothing. That is exactly why the confirm page exists."
+               data-explanation-wrong="Not quite. The order form link is safe, but so is every other link, including the confirm-delivery one. Remember the comment in the code: GET only shows a confirm button, and the state change happens on POST. A scanner can only GET.">
+            <h3 class="quiz-question">An email security scanner at a school district opens every link in every email. Which link in this app is safe for it to open, and why?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>None of them: any link with a token in it changes the order.</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>All of them: links only show pages, and the one that changes state needs a button press (a POST).</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Only the order form link, because the form is empty until someone types in it.</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module1')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module1')">Try Again</button>
+        </div>
+
+        <p><strong>Next:</strong> who are the characters that did all this work? Module 2 meets the cast: one Express server, ten routers, one database module, and a handful of plain HTML pages.</p>
+      </section>
+
+    </div>
+  </div>
+</section>

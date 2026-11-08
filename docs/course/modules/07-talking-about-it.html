@@ -1,0 +1,570 @@
+<section class="module" id="module-7" style="background: var(--color-bg-warm)">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">07</span>
+      <h1 class="module-title">Talking About It</h1>
+      <p class="module-subtitle">The big picture, the trade-offs, and the judge drill</p>
+    </header>
+
+    <div class="module-body">
+
+      <!-- ============================================================ -->
+      <!-- Screen 1: The whole system on one diagram                     -->
+      <!-- ============================================================ -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The whole system on one diagram</h2>
+
+        <p>You have followed an order, a photo and a voice note through the system. Now compress all of it into what you can say in a hallway.</p>
+
+        <p>Think of a tour guide's answer sheet. A good guide does not memorise the building; they know the five rooms, the three stories visitors always ask about, and the two things under repair. This module is that sheet.</p>
+
+        <div class="pattern-cards">
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">🔗</div>
+            <h4 class="pattern-title">Layer 1: People and links</h4>
+            <p class="pattern-desc">Facilitators, parents, partners and trainees never log in. Each one gets a link with a <span class="term" data-definition="A token is a long random string in a link or request that stands in for identity. Whoever holds the token can use the thing it unlocks, so tokens are kept secret and hard to guess.">token</span> and that link is their whole experience.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">🖥️</div>
+            <h4 class="pattern-title">Layer 2: One server, one database</h4>
+            <p class="pattern-desc">One plain <span class="term" data-definition="Node.js lets JavaScript run on a server computer instead of only inside a browser. StrongStart uses Node.js version 22.">Node.js</span> <span class="term" data-definition="A server is the always-on program that receives requests from browsers and sends back pages or data. In StrongStart it is src/server.js and everything it loads.">server</span> built with <span class="term" data-definition="Express is a small web framework for Node.js. It gives you a tidy way to say: when a request arrives at this address, run this function.">Express</span>, talking to one <span class="term" data-definition="A database is the organised store where the app keeps its records: orders, programs, feedback, emails. StrongStart uses Postgres, either PGlite locally or Tiger Data in production.">database</span>. No React, no <span class="term" data-definition="A build step is a compile stage that turns source files into the files the browser actually loads. StrongStart has none: the HTML files in public/ are served exactly as written.">build step</span>.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">☁️</div>
+            <h4 class="pattern-title">Layer 3: Four outside services</h4>
+            <p class="pattern-desc">Gemini reads and writes text, ElevenLabs hears and speaks, Cloudinary holds images, Google signs staff in and books Meets. Exactly one job each.</p>
+          </div>
+        </div>
+
+        <p>Here is the whole building on one sheet. Click any box for its one-line job.</p>
+
+        <div class="arch-diagram">
+          <div class="arch-zone" style="border-color: var(--color-actor-1)">
+            <h4 class="arch-zone-label" style="color: var(--color-actor-1)">People, by link</h4>
+            <div class="arch-component" data-desc="The facilitator uses emailed links to place a kit order, press the kits-received button, upload paper-form photos and send the completion report.">
+              <div class="arch-icon">🧑‍🏫</div>
+              <span>Facilitator</span>
+            </div>
+            <div class="arch-component" data-desc="The parent scans a QR code to open a short feedback form, or records a spoken answer instead of typing.">
+              <div class="arch-icon">👪</div>
+              <span>Parent</span>
+            </div>
+            <div class="arch-component" data-desc="A partner organisation sends an expression of interest and later receives a Google Meet link, all without an account.">
+              <div class="arch-icon">🏛️</div>
+              <span>Partner</span>
+            </div>
+            <div class="arch-component" data-desc="A trainee registers for a training session by link and later downloads a digital certificate from another link.">
+              <div class="arch-icon">🎓</div>
+              <span>Trainee</span>
+            </div>
+          </div>
+
+          <div class="arch-zone" style="border-color: var(--color-actor-2)">
+            <h4 class="arch-zone-label" style="color: var(--color-actor-2)">The server</h4>
+            <div class="arch-component" data-desc="Express is the front door: it receives every request, serves the HTML pages and hands each request to the right router.">
+              <div class="arch-icon">🚪</div>
+              <span>Express</span>
+            </div>
+            <div class="arch-component" data-desc="Ten routers in src/routes, one per area such as orders, feedback, training and voice, each owning its own set of addresses.">
+              <div class="arch-icon">🗂️</div>
+              <span>10 routers</span>
+            </div>
+            <div class="arch-component" data-desc="The auth gate checks for a staff session on dashboard routes and denies by default, but only when REQUIRE_AUTH is set to 1.">
+              <div class="arch-icon">🛡️</div>
+              <span>Auth gate</span>
+            </div>
+            <div class="arch-component" data-desc="The mailer writes every outgoing email to the outbox table and sends it through SMTP when an SMTP host is configured.">
+              <div class="arch-icon">📮</div>
+              <span>Mailer</span>
+            </div>
+            <div class="arch-component" data-desc="util.js holds the shared helpers: input cleaning, length caps, HTML escaping and the rate limiter used by many routers.">
+              <div class="arch-icon">🧰</div>
+              <span>util</span>
+            </div>
+          </div>
+
+          <div class="arch-zone" style="border-color: var(--color-actor-5)">
+            <h4 class="arch-zone-label" style="color: var(--color-actor-5)">Staff, by badge</h4>
+            <div class="arch-component" data-desc="The Partners tab tracks each partner organisation through its stages from first contact to running programs.">
+              <div class="arch-icon">🤝</div>
+              <span>Partners</span>
+            </div>
+            <div class="arch-component" data-desc="The Orders tab lists kit requests to ship and lets staff mark them shipped, which triggers the next emails.">
+              <div class="arch-icon">📦</div>
+              <span>Orders</span>
+            </div>
+            <div class="arch-component" data-desc="The Programs and feedback tab shows each program, its parent responses and the Review queue for uncertain AI readings.">
+              <div class="arch-icon">📝</div>
+              <span>Programs &amp; feedback</span>
+            </div>
+            <div class="arch-component" data-desc="The Insights tab turns feedback into trends and rollup reports that staff can hand to funders.">
+              <div class="arch-icon">📈</div>
+              <span>Insights</span>
+            </div>
+            <div class="arch-component" data-desc="The Emails tab is the outbox view: every message the system has sent or queued, so nothing is invisible.">
+              <div class="arch-icon">✉️</div>
+              <span>Emails</span>
+            </div>
+            <div class="arch-component" data-desc="The Staff tab manages who may sign in with a Google account when staff login is required.">
+              <div class="arch-icon">🪪</div>
+              <span>Staff</span>
+            </div>
+          </div>
+
+          <div class="arch-zone" style="border-color: var(--color-actor-3)">
+            <h4 class="arch-zone-label" style="color: var(--color-actor-3)">Data</h4>
+            <div class="arch-component" data-desc="One Postgres database: PGlite running inside the server process on a laptop, or hosted Tiger Data in production, with the same tables either way.">
+              <div class="arch-icon">🗄️</div>
+              <span>PGlite or Tiger Data</span>
+            </div>
+            <div class="arch-component" data-desc="The outbox table logs every email the app ever composed, so the demo works and is auditable even with no mail server connected.">
+              <div class="arch-icon">📬</div>
+              <span>Outbox table</span>
+            </div>
+          </div>
+
+          <div class="arch-zone" style="border-color: var(--color-actor-4)">
+            <h4 class="arch-zone-label" style="color: var(--color-actor-4)">Outside services, one job each</h4>
+            <div class="arch-component" data-desc="Gemini is the only AI: it reads handwriting from photos, translates, summarises feedback and tidies dictated text.">
+              <div class="arch-icon">🧠</div>
+              <span>Gemini</span>
+            </div>
+            <div class="arch-component" data-desc="ElevenLabs is the only audio service: it turns spoken parent answers into text and reads text aloud.">
+              <div class="arch-icon">🎙️</div>
+              <span>ElevenLabs</span>
+            </div>
+            <div class="arch-component" data-desc="Cloudinary is the only image store: uploaded photos and generated QR sheets live there.">
+              <div class="arch-icon">🖼️</div>
+              <span>Cloudinary</span>
+            </div>
+            <div class="arch-component" data-desc="Google handles staff sign-in and creates the Calendar event and Meet link for each training session.">
+              <div class="arch-icon">📅</div>
+              <span>Google</span>
+            </div>
+            <div class="arch-component" data-desc="The email provider delivers inbound kit requests to the webhook and carries outgoing mail over SMTP once configured.">
+              <div class="arch-icon">📡</div>
+              <span>Email provider</span>
+            </div>
+          </div>
+
+          <div class="arch-description">Click any box to hear its one-line job</div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Screen 2: Four defensive habits you can name                  -->
+      <!-- ============================================================ -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Four defensive habits you can name</h2>
+
+        <p>Engineers will ask how the site protects itself when strangers can post forms with no login. These four habits are the answer, and each one lives in a place you can point to.</p>
+
+        <div class="pattern-cards">
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">🧼</div>
+            <h4 class="pattern-title">Input cleaning + length caps</h4>
+            <p class="pattern-desc">Helpers in <code>util.js</code> trim every field and cut it at a maximum length, so a ten-megabyte name cannot fill the database.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">⏱️</div>
+            <h4 class="pattern-title">Rate limits per IP and token</h4>
+            <p class="pattern-desc">A <span class="term" data-definition="A rate limit caps how many requests one caller may make in a time window. Go over it and the server politely refuses for a while instead of doing the work.">rate limit</span> counts requests per <span class="term" data-definition="An IP address is the numeric address of the device or network a request comes from. It is not perfect identity, but it is a cheap way to tell callers apart.">IP address</span> and per link token, and answers slow down to a 429 after the cap.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">🔒</div>
+            <h4 class="pattern-title">Atomic claims in SQL</h4>
+            <p class="pattern-desc">State changes use one <span class="term" data-definition="SQL is the language used to ask a database questions and make changes, such as SELECT to read rows and UPDATE to change them.">SQL</span> statement like <code>UPDATE … WHERE status='shipped' RETURNING</code>, so two clicks at once cannot both succeed. That is what <span class="term" data-definition="An atomic operation happens completely or not at all, and nobody can slip in halfway. In a database, a single UPDATE with a WHERE condition is atomic: only one caller can win the race.">atomic</span> means.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">🧯</div>
+            <h4 class="pattern-title">HTML escaping everywhere</h4>
+            <p class="pattern-desc">Anything a user typed passes through <code>escapeHtml</code> before it is shown, so a form answer containing code is displayed as text, never run. This is <span class="term" data-definition="HTML escaping replaces special characters such as the less-than sign with harmless codes before text is placed in a web page, so user input can never be mistaken for page code.">HTML escaping</span>.</p>
+          </div>
+        </div>
+
+        <p>Here is habit two in full. One small function makes a reusable <span class="term" data-definition="Middleware is a function that runs on a request before the main handler does. It can let the request through by calling next(), or stop it with a response. Rate limiting and login checks are classic middleware.">middleware</span> that any route can put in front of itself.</p>
+
+        <small style="display:block; font-family: var(--font-mono); color: var(--color-text-muted); margin-bottom: var(--space-2)">src/util.js · lines 20–33</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-keyword">export</span> <span class="code-keyword">function</span> <span class="code-function">rateLimit</span>(a, b, c) {</span>
+<span class="code-line">  <span class="code-keyword">const</span> { <span class="code-property">name</span> = <span class="code-string">'rl'</span>, <span class="code-property">max</span> = <span class="code-number">30</span>, <span class="code-property">windowMs</span> = <span class="code-number">10</span> * <span class="code-number">60</span> * <span class="code-number">1000</span> } =</span>
+<span class="code-line">    a &amp;&amp; <span class="code-keyword">typeof</span> a === <span class="code-string">'object'</span> ? a : { <span class="code-property">name</span>: a, <span class="code-property">max</span>: b, <span class="code-property">windowMs</span>: c ?? <span class="code-number">60_000</span> };</span>
+<span class="code-line">  <span class="code-keyword">return</span> (req, res, next) =&gt; {</span>
+<span class="code-line">    <span class="code-keyword">const</span> key = <span class="code-string">`${name}|${req.ip}|${req.params?.token || ''}`</span>;</span>
+<span class="code-line">    <span class="code-keyword">const</span> now = Date.<span class="code-function">now</span>();</span>
+<span class="code-line">    <span class="code-keyword">let</span> h = hits.<span class="code-function">get</span>(key);</span>
+<span class="code-line">    <span class="code-keyword">if</span> (!h || h.reset &lt; now) { h = { <span class="code-property">n</span>: <span class="code-number">0</span>, <span class="code-property">reset</span>: now + windowMs }; hits.<span class="code-function">set</span>(key, h); }</span>
+<span class="code-line">    <span class="code-keyword">if</span> (++h.n &gt; max) {</span>
+<span class="code-line">      res.<span class="code-function">set</span>(<span class="code-string">'Retry-After'</span>, <span class="code-function">String</span>(Math.<span class="code-function">ceil</span>((h.reset - now) / <span class="code-number">1000</span>)));</span>
+<span class="code-line">      <span class="code-keyword">return</span> res.<span class="code-function">status</span>(<span class="code-number">429</span>).<span class="code-function">json</span>({ <span class="code-property">error</span>: <span class="code-string">'Too many requests. Please wait a few minutes and try again.'</span> });</span>
+<span class="code-line">    }</span>
+<span class="code-line">    <span class="code-function">next</span>();</span>
+<span class="code-line">  };</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Define a <span class="term" data-definition="A function is a named, reusable block of code that takes inputs and gives back a result. Calling rateLimit() builds a new limiter each time.">function</span> called rateLimit that other files can import. It accepts up to three inputs.</p>
+              <p class="tl">Set the defaults: a label of rl, a cap of 30 requests, and a window of ten minutes written as milliseconds.</p>
+              <p class="tl">If the caller passed a settings object, use it; if they passed three plain values, rebuild them into the same shape with a one-minute fallback window.</p>
+              <p class="tl">Hand back a middleware: a function that will run for each incoming request before the real work.</p>
+              <p class="tl">Build a key that combines the label, the caller's IP address and the link token in the address, so each person and each link is counted separately.</p>
+              <p class="tl">Note the current time.</p>
+              <p class="tl">Look up this key in the in-memory tally called hits.</p>
+              <p class="tl">If there is no tally yet, or the old window has expired, start a fresh one: zero hits, resetting one window from now.</p>
+              <p class="tl">Add one to the count. If that pushes it over the cap...</p>
+              <p class="tl">...tell the caller how many seconds to wait using the standard Retry-After <span class="term" data-definition="An HTTP header is a label and value sent alongside a request or response, such as who the sender is or how long to wait. Browsers and servers read headers; people rarely see them.">header</span>...</p>
+              <p class="tl">...and stop here with <span class="term" data-definition="HTTP status codes are three-digit results on every web response. 200 means fine, 404 means not found, and 429 means Too Many Requests: slow down.">status 429</span> and a friendly <span class="term" data-definition="JSON is the plain-text format that programs use to pass structured data around, with curly braces and quoted names, such as { error: ... }.">JSON</span> message.</p>
+              <p class="tl">End of the over-the-cap branch.</p>
+              <p class="tl">Otherwise, let the request through to the real handler.</p>
+              <p class="tl">End of the middleware the function hands back.</p>
+            </div>
+          </div>
+        </div>
+
+        <p>And here is how a <span class="term" data-definition="A route is one address the server answers, such as POST /api/feedback. A router is a file that groups related routes.">route</span> file uses it: two limiters with different caps, because photo uploads legitimately come in bursts.</p>
+
+        <small style="display:block; font-family: var(--font-mono); color: var(--color-text-muted); margin-bottom: var(--space-2)">src/routes/feedback.js · lines 25–26</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-keyword">const</span> limitOnline = <span class="code-function">rateLimit</span>({ <span class="code-property">name</span>: <span class="code-string">'online'</span>, <span class="code-property">max</span>: <span class="code-number">20</span>, <span class="code-property">windowMs</span>: <span class="code-number">10</span> * <span class="code-number">60</span> * <span class="code-number">1000</span> });</span>
+<span class="code-line"><span class="code-keyword">const</span> limitPhotos = <span class="code-function">rateLimit</span>({ <span class="code-property">name</span>: <span class="code-string">'photos'</span>, <span class="code-property">max</span>: <span class="code-number">60</span>, <span class="code-property">windowMs</span>: <span class="code-number">10</span> * <span class="code-number">60</span> * <span class="code-number">1000</span> });</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">The online QR form allows 20 submissions per person per ten minutes.</p>
+              <p class="tl">Photo uploads allow 60 in the same window, because a facilitator may photograph a whole stack of paper forms at once.</p>
+            </div>
+          </div>
+        </div>
+
+        <p>One more guard worth naming out loud. The inbound email <span class="term" data-definition="A webhook is an address on your server that another company calls automatically when something happens, such as an email arriving. It is the outside world pushing data to you instead of you asking for it.">webhook</span> checks a shared secret using a <span class="term" data-definition="A constant-time comparison takes the same amount of time whether the first character or the last one is wrong. A normal comparison stops early, and that tiny timing difference lets an attacker learn the secret one character at a time.">constant-time comparison</span> so an attacker cannot measure how many characters matched.</p>
+
+        <small style="display:block; font-family: var(--font-mono); color: var(--color-text-muted); margin-bottom: var(--space-2)">src/routes/orders.js · lines 90–98</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-keyword">function</span> <span class="code-function">inboundAllowed</span>(req) {</span>
+<span class="code-line">  <span class="code-keyword">const</span> secret = process.env.INBOUND_EMAIL_SECRET;</span>
+<span class="code-line">  <span class="code-keyword">if</span> (!secret) {</span>
+<span class="code-line">    <span class="code-keyword">if</span> (!warnedNoSecret) { warnedNoSecret = <span class="code-keyword">true</span>; console.<span class="code-function">warn</span>(<span class="code-string">'[inbound-email] INBOUND_EMAIL_SECRET is not set: the webhook accepts anyone. Set it in production.'</span>); }</span>
+<span class="code-line">    <span class="code-keyword">return</span> <span class="code-keyword">true</span>;</span>
+<span class="code-line">  }</span>
+<span class="code-line">  <span class="code-keyword">const</span> given = req.<span class="code-function">get</span>(<span class="code-string">'x-inbound-secret'</span>) ?? (<span class="code-keyword">typeof</span> req.query.secret === <span class="code-string">'string'</span> ? req.query.secret : <span class="code-string">''</span>);</span>
+<span class="code-line">  <span class="code-keyword">return</span> <span class="code-function">timingSafeEqual</span>(<span class="code-function">sha</span>(given), <span class="code-function">sha</span>(secret));</span>
+<span class="code-line">}</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">A yes-or-no function: is this inbound email request allowed in?</p>
+              <p class="tl">Read the expected secret from the <span class="term" data-definition="An environment variable is a named setting handed to the program by the machine it runs on, outside the code. Secrets and on/off switches live here so they never get committed to the codebase.">environment variable</span> INBOUND_EMAIL_SECRET.</p>
+              <p class="tl">If no secret has been set at all...</p>
+              <p class="tl">...print a warning once, and only once, that the webhook is wide open and should be locked before production...</p>
+              <p class="tl">...then let the request through anyway, so the demo still works.</p>
+              <p class="tl">End of the no-secret branch.</p>
+              <p class="tl">Otherwise, take the secret the caller offered: first from the x-inbound-secret header, or failing that from a secret value in the <span class="term" data-definition="The query string is the part of a web address after the question mark, such as ?secret=abc. It is a simple way to pass small values in a link.">query string</span>, or an empty string if neither is present.</p>
+              <p class="tl">Compare a <span class="term" data-definition="A hash is a fixed-length fingerprint of some text. The same text always gives the same hash, and you cannot reverse it. Hashing both values first makes them the same length so the constant-time check works.">hash</span> of each side in constant time, so a wrong guess takes exactly as long as a right one.</p>
+              <p class="tl">End of the function.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Screen 3: What is on and what is off                          -->
+      <!-- ============================================================ -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">What is on and what is off</h2>
+
+        <p>Every outside service, and every safety switch, is controlled by an environment variable. Leave one blank and the feature turns itself off gracefully instead of crashing; set it and the feature wakes up.</p>
+
+        <div class="badge-list">
+          <div class="badge-item">
+            <code class="badge-code">TIGER_DATABASE_URL</code>
+            <span class="badge-desc">Points the server at hosted <span class="term" data-definition="Tiger Data is a hosted Postgres database service with the TimescaleDB extension built in. It is where StrongStart data lives in production.">Tiger Data</span>. Blank means <span class="term" data-definition="PGlite is a full Postgres database that runs inside the Node.js process itself, with no separate database server to install. It is what the laptop demo uses.">PGlite</span> runs inside the process, in memory unless PGLITE_DIR is set.</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">GEMINI_API_KEY</code>
+            <span class="badge-desc">Turns on all AI: handwriting reading, translation, summaries and tidying dictated text. Blank means the dashboard shows AI as off and those steps are skipped. An <span class="term" data-definition="An API key is a long secret string that proves to an outside service that requests come from your account, so they can bill and rate-limit you correctly.">API key</span> is the password for a service.</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">ELEVENLABS_API_KEY</code>
+            <span class="badge-desc">Turns on audio: spoken parent answers become text, and text can be read aloud.</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">CLOUDINARY_URL</code>
+            <span class="badge-desc">Turns on cloud image storage for uploaded photos and generated QR sheets.</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">GOOGLE_CLIENT_ID / SECRET</code>
+            <span class="badge-desc">Enables staff sign-in with Google through <span class="term" data-definition="OAuth is the standard way to sign in with Google or similar without handing your password to the app. Google confirms who you are and sends the app a token.">OAuth</span>, and lets the server create Calendar events and Meet links for training.</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">REQUIRE_AUTH</code>
+            <span class="badge-desc">Set to 1 and the dashboard demands a staff login on every protected route. Off by default so the demo opens straight away.</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">INBOUND_EMAIL_SECRET</code>
+            <span class="badge-desc">Locks the inbound email webhook. Until it is set, anyone who finds the address can post a fake kit request.</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">ENABLE_JOBS</code>
+            <span class="badge-desc">Turns on scheduled background work such as reminders and follow-ups that run on a timer rather than on a click.</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">SMTP_HOST</code>
+            <span class="badge-desc">Points the mailer at a real mail server over <span class="term" data-definition="SMTP is the decades-old protocol mail servers use to hand email to each other. An SMTP host is the address of the server that will carry your outgoing mail.">SMTP</span>. Blank means every email is still written to the outbox table, just not delivered.</span>
+          </div>
+        </div>
+
+        <p>At demo time the server tells you which switches are on the moment it starts. Learn to read these three lines of the <span class="term" data-definition="The console is the text window where the server prints messages while it runs, such as the terminal you started it from.">console</span>.</p>
+
+        <small style="display:block; font-family: var(--font-mono); color: var(--color-text-muted); margin-bottom: var(--space-2)">src/server.js · lines 34–41</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-keyword">if</span> (<span class="code-keyword">import</span>.meta.url === <span class="code-string">`file://${process.argv[1]}`</span>) {</span>
+<span class="code-line">  <span class="code-keyword">const</span> port = process.env.PORT || <span class="code-number">3000</span>;</span>
+<span class="code-line">  app.<span class="code-function">listen</span>(port, () =&gt; {</span>
+<span class="code-line">    <span class="code-keyword">const</span> persisted = process.env.PGLITE_DIR ? <span class="code-string">' (persisted)'</span> : <span class="code-string">' (in-memory, resets on restart)'</span>;</span>
+<span class="code-line">    console.<span class="code-function">log</span>(<span class="code-string">`StrongStart running at http://localhost:${port}`</span>);</span>
+<span class="code-line">    console.<span class="code-function">log</span>(<span class="code-string">`  AI (Gemini): ${aiEnabled ? 'on' : 'OFF (set GEMINI_API_KEY)'}`</span>);</span>
+<span class="code-line">    console.<span class="code-function">log</span>(<span class="code-string">`  Database: ${dbBackend === 'tiger' ? 'Tiger Data / Postgres' : 'local PGlite' + persisted}${isTimescale ? ' + TimescaleDB' : ''}`</span>);</span>
+<span class="code-line">  });</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Only start listening if this file was run directly, not when the tests import it.</p>
+              <p class="tl">Use the <span class="term" data-definition="A port is a numbered door on a computer that a server listens on. Port 3000 is a common choice for local development; the address becomes localhost:3000.">port</span> the host gave us, or 3000 on a laptop.</p>
+              <p class="tl">Start the server and, once it is up, run the lines below.</p>
+              <p class="tl">Work out whether the local database will survive a restart: it does only if PGLITE_DIR points at a folder on disk.</p>
+              <p class="tl">Print the address to open in a browser.</p>
+              <p class="tl">Print whether AI is on, and if not, exactly which variable to set.</p>
+              <p class="tl">Print which database is in use, whether it persists, and whether the <span class="term" data-definition="TimescaleDB is a Postgres extension for time-stamped data. It adds hypertables and continuous aggregates that make trend reports fast.">TimescaleDB</span> extension was found.</p>
+              <p class="tl">End of the startup message.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Screen 4: Known gaps, said plainly                            -->
+      <!-- ============================================================ -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Known gaps, said plainly</h2>
+
+        <p>The two things under repair are on the answer sheet too. Judges respect a builder who names the gaps before being asked.</p>
+
+        <div class="callout callout-warning">
+          <div class="callout-icon">⚠️</div>
+          <div class="callout-content">
+            <strong class="callout-title">Not finished yet</strong>
+            <p>Staff login is off unless <code>REQUIRE_AUTH=1</code>, so the demo dashboard is open to anyone with the address.</p>
+            <p>The Timescale paths (<span class="term" data-definition="A hypertable is a TimescaleDB table that is automatically split by time so queries over a date range stay fast.">hypertables</span> and <span class="term" data-definition="A continuous aggregate is a TimescaleDB summary table that keeps itself up to date, such as feedback counts per week.">continuous aggregates</span>) have not run on a live Tiger Data server yet.</p>
+            <p>The inbound email webhook accepts anyone until <code>INBOUND_EMAIL_SECRET</code> is set.</p>
+            <p>The Knowledge Centre has placeholder content.</p>
+            <p>The paper form questions are placeholders until matched to the real form.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Screen 5: The judge drill                                     -->
+      <!-- ============================================================ -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">The judge drill</h2>
+
+        <p>Five questions a judge or engineer will actually ask. Pick the answer you would say out loud; the feedback gives you a version you can repeat word for word.</p>
+
+        <div class="quiz-container" id="quiz-module7">
+
+          <div class="scenario-block">
+            <div class="scenario-context">
+              <span class="scenario-label">Scenario</span>
+              <p>A judge asks: Why would a charity use this instead of a Google Form?</p>
+            </div>
+            <div class="quiz-question-block"
+                 data-correct="q1-b"
+                 data-explanation-right="Exactly. Say it like this: a form covers one step. This closes the whole loop: the kit order, the training, the QR, voice and paper feedback with handwriting reading and translation, and the staff Today list and funder reports are one system, so the outcome data comes back to Strong Start with almost no effort from anyone."
+                 data-explanation-wrong="Not quite. The honest answer is not that forms are bad; it is that a form covers one step and this covers the whole loop: order, training, three kinds of feedback with AI reading and translation, and staff reporting, all in one system.">
+              <h3 class="quiz-question">Which answer would you give?</h3>
+              <div class="quiz-options">
+                <button class="quiz-option" data-value="q1-a" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>Google Forms cannot collect ratings or free text reliably.</span>
+                </button>
+                <button class="quiz-option" data-value="q1-b" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>A form covers one step. This closes the whole loop: kit order, training, QR, voice and paper feedback with handwriting reading and translation, and the staff Today list and funder reports, in one system.</span>
+                </button>
+                <button class="quiz-option" data-value="q1-c" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>Because it was built with Node.js and Express, which are faster than Google.</span>
+                </button>
+                <button class="quiz-option" data-value="q1-d" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>Because staff prefer a dashboard they can log into.</span>
+                </button>
+              </div>
+              <div class="quiz-feedback"></div>
+            </div>
+          </div>
+
+          <div class="scenario-block">
+            <div class="scenario-context">
+              <span class="scenario-label">Scenario</span>
+              <p>A judge asks: What happens if Gemini misreads a form?</p>
+            </div>
+            <div class="quiz-question-block"
+                 data-correct="q2-c"
+                 data-explanation-right="Exactly. Say it like this: low confidence, a missing rating or illegible text sends the form to the Review queue. Staff see the photo next to the extracted fields and correct it by hand. Nothing is published unreviewed."
+                 data-explanation-wrong="Not quite. The AI is never trusted blindly. Low confidence, a missing rating or illegible text sends the form to the Review queue, where staff see the photo beside the fields and fix it. Nothing is published unreviewed.">
+              <h3 class="quiz-question">Which answer would you give?</h3>
+              <div class="quiz-options">
+                <button class="quiz-option" data-value="q2-a" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>Gemini is accurate enough that misreads are not a concern.</span>
+                </button>
+                <button class="quiz-option" data-value="q2-b" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>The form is rejected and the facilitator is emailed to photograph it again.</span>
+                </button>
+                <button class="quiz-option" data-value="q2-c" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>Low confidence, a missing rating or illegible text sends it to the Review queue. Staff see the photo next to the fields and correct it. Nothing is published unreviewed.</span>
+                </button>
+                <button class="quiz-option" data-value="q2-d" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>A second AI model double-checks every reading automatically.</span>
+                </button>
+              </div>
+              <div class="quiz-feedback"></div>
+            </div>
+          </div>
+
+          <div class="scenario-block">
+            <div class="scenario-context">
+              <span class="scenario-label">Scenario</span>
+              <p>An engineer asks: How do you deploy a <span class="term" data-definition="A schema is the shape of the database: which tables exist and which columns each one has. A schema change means adding or altering a table or column.">schema</span> change?</p>
+            </div>
+            <div class="quiz-question-block"
+                 data-correct="q3-a"
+                 data-explanation-right="Exactly. Say it like this: I add an idempotent statement to db.js, such as CREATE TABLE IF NOT EXISTS or ADD COLUMN IF NOT EXISTS. The app upgrades the database on start, on PGlite and Tiger Data alike, so there is no separate migration tool to run."
+                 data-explanation-wrong="Not quite. There is no migration tool and nobody edits the live database by hand. Every statement in db.js is idempotent, meaning safe to run again and again, so a schema change is one new statement there and the app upgrades the database on start, on PGlite and Tiger Data alike.">
+              <h3 class="quiz-question">Which answer would you give?</h3>
+              <div class="quiz-options">
+                <button class="quiz-option" data-value="q3-a" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>Add an <span class="term" data-definition="Idempotent means running it twice has the same effect as running it once. CREATE TABLE IF NOT EXISTS is idempotent; plain CREATE TABLE is not, because the second run fails.">idempotent</span> statement to db.js. The app upgrades the database on start, on PGlite and Tiger Data alike.</span>
+                </button>
+                <button class="quiz-option" data-value="q3-b" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>Run a <span class="term" data-definition="A migration is a versioned script that changes a database schema from one shape to the next. Many projects need a separate tool to track which migrations have run; StrongStart avoids that.">migration</span> tool against production, then deploy the code.</span>
+                </button>
+                <button class="quiz-option" data-value="q3-c" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>Log into Tiger Data and alter the table by hand, then update db.js to match.</span>
+                </button>
+                <button class="quiz-option" data-value="q3-d" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>Delete the database and let the app recreate it from scratch.</span>
+                </button>
+              </div>
+              <div class="quiz-feedback"></div>
+            </div>
+          </div>
+
+          <div class="scenario-block">
+            <div class="scenario-context">
+              <span class="scenario-label">Scenario</span>
+              <p>An engineer asks: Who can call <code>POST /api/inbound-email</code>?</p>
+            </div>
+            <div class="quiz-question-block"
+                 data-correct="q4-d"
+                 data-explanation-right="Exactly. Say it like this: anyone, until INBOUND_EMAIL_SECRET is set. Once it is, the email provider must send a matching x-inbound-secret header, and we compare it in constant time so the length of a partial match cannot be measured."
+                 data-explanation-wrong="Not quite. Be honest here: anyone can call it until INBOUND_EMAIL_SECRET is set. With the secret set, the provider must send a matching x-inbound-secret header, compared in constant time. The server even prints a warning at startup when the secret is missing.">
+              <h3 class="quiz-question">Which answer would you give?</h3>
+              <div class="quiz-options">
+                <button class="quiz-option" data-value="q4-a" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>Only signed-in staff, because every <code>/api</code> route sits behind the auth gate.</span>
+                </button>
+                <button class="quiz-option" data-value="q4-b" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>Only requests from Google IP addresses, which the server checks against a list.</span>
+                </button>
+                <button class="quiz-option" data-value="q4-c" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>Nobody yet; the route is disabled until a real email provider is connected.</span>
+                </button>
+                <button class="quiz-option" data-value="q4-d" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>Anyone, until INBOUND_EMAIL_SECRET is set. With it, the provider must send a matching x-inbound-secret header, compared in constant time.</span>
+                </button>
+              </div>
+              <div class="quiz-feedback"></div>
+            </div>
+          </div>
+
+          <div class="scenario-block">
+            <div class="scenario-context">
+              <span class="scenario-label">Scenario</span>
+              <p>A judge asks: What is not finished?</p>
+            </div>
+            <div class="quiz-question-block"
+                 data-correct="q5-b"
+                 data-explanation-right="Exactly. Say it like this: staff login is off by default for the demo, the Timescale paths have not run on a live server, the Knowledge Centre and the paper-form questions are placeholders, and a real inbound email provider and SMTP are not yet connected. Everything else you saw today is real."
+                 data-explanation-wrong="Not quite. Neither hiding gaps nor overstating them helps. The real list: staff login is off by default for the demo, the Timescale paths have not run on a live server, the Knowledge Centre and the paper-form questions are placeholders, and a real inbound email provider and SMTP are not yet connected.">
+              <h3 class="quiz-question">Which answer would you give?</h3>
+              <div class="quiz-options">
+                <button class="quiz-option" data-value="q5-a" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>Everything is production-ready; we just need a domain name.</span>
+                </button>
+                <button class="quiz-option" data-value="q5-b" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>Staff login is off by default for the demo, the Timescale paths have not run on a live server, the Knowledge Centre and paper-form questions are placeholders, and a real inbound email provider and SMTP are not yet connected.</span>
+                </button>
+                <button class="quiz-option" data-value="q5-c" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>The AI handwriting reading and the voice feedback are still mock-ups.</span>
+                </button>
+                <button class="quiz-option" data-value="q5-d" onclick="selectOption(this)">
+                  <div class="quiz-option-radio"></div>
+                  <span>The database does not work yet, so the demo runs on sample data in the page.</span>
+                </button>
+              </div>
+              <div class="quiz-feedback"></div>
+            </div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module7')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module7')">Try Again</button>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">🎤</div>
+          <div class="callout-content">
+            <strong class="callout-title">That is technical fluency</strong>
+            <p>You can now say what it does, where each thing lives, who can see what, what happens when a service is missing, and what is not finished. That is technical fluency.</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</section>

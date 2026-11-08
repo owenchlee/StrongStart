@@ -1,0 +1,541 @@
+<section class="module" id="module-6" style="background: var(--color-bg)">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">06</span>
+      <h1 class="module-title">The database and insights</h1>
+      <p class="module-subtitle">PGlite on your laptop, Tiger Data in the cloud: the same seeds, two kinds of soil.</p>
+    </header>
+
+    <div class="module-body">
+
+      <!-- ───────────── Screen 1: Two soils, one seed ───────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Two soils, one seed</h2>
+        <p>Module 5 ended with every source becoming the same feedback <span class="term" data-definition="A row is one record in a table, like one line in a spreadsheet: one order, one feedback response.">row</span>. This module shows where that row actually lives: in a <span class="term" data-definition="A database is the organised store where the app keeps its records permanently, so they survive a restart and can be searched.">database</span>, and there are two of them to choose from.</p>
+        <p>Run <code>npm install &amp;&amp; npm run dev</code> and the app is up with a real <span class="term" data-definition="PostgreSQL, usually shortened to Postgres, is a free, widely used database engine. Both of our backends speak it, so the same SQL works on either.">Postgres</span> inside the <span class="term" data-definition="Node.js is the program that runs JavaScript on a server instead of in a browser. Our whole backend runs on Node.js 22.">Node.js</span> process: no <span class="term" data-definition="Docker packages software into containers so it runs the same everywhere. Many projects need it just to start a database locally; this one does not.">Docker</span>, no account. Set one <span class="term" data-definition="An environment variable is a named setting the operating system hands to a program when it starts, such as a database address or an API key. It lives outside the code.">environment variable</span> and the identical code runs on Tiger Data.</p>
+        <p>Think of the <span class="term" data-definition="SQL (Structured Query Language) is the language you use to ask a database questions and give it instructions, such as CREATE TABLE or SELECT.">SQL</span> as the seed. PGlite is a pot on the windowsill; Tiger Data is a field. Same seeds, same growth, two soils.</p>
+
+        <div class="pattern-cards">
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">🪴</div>
+            <h4 class="pattern-title">The windowsill pot: <span class="term" data-definition="PGlite is Postgres compiled to run inside a Node.js program itself, with no separate database server to install or start.">PGlite</span></h4>
+            <p class="pattern-desc"><span class="term" data-definition="In-process means the database runs inside the same program as the server, not as a separate service you connect to over the network.">In-process</span> Postgres that grows the instant you start the app. It is <span class="term" data-definition="In-memory means the data lives in RAM only. It is fast and needs no files, but it disappears when the process stops.">in-memory</span> by default (reset on restart) unless you set <code>PGLITE_DIR</code> to keep it on disk.</p>
+            <div class="badge-list" style="margin: var(--space-4) 0 0">
+              <div class="badge-item"><span class="badge-code">npm run dev</span><span class="badge-desc">zero setup</span></div>
+              <div class="badge-item"><span class="badge-code">PGLITE_DIR</span><span class="badge-desc">optional: keep the pot between restarts</span></div>
+              <div class="badge-item"><span class="badge-code">npm test</span><span class="badge-desc">every test runs on a fresh pot</span></div>
+            </div>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">🌾</div>
+            <h4 class="pattern-title">The field: <span class="term" data-definition="Tiger Data is a hosted Postgres service that comes with the TimescaleDB extension for time-based data.">Tiger Data</span></h4>
+            <p class="pattern-desc">Hosted Postgres reached over the network with <span class="term" data-definition="SSL/TLS encrypts the connection between our server and the hosted database so nobody on the network can read the data in transit.">SSL</span>. When the <span class="term" data-definition="TimescaleDB is an add-on for Postgres that specialises in time-series data: anything with a timestamp you want to chart over days or weeks.">TimescaleDB</span> <span class="term" data-definition="A Postgres extension is an optional plug-in that adds features to the database engine. If it is not installed, the plain engine still works.">extension</span> is available, the same seeds also grow faster trend charts.</p>
+            <div class="badge-list" style="margin: var(--space-4) 0 0">
+              <div class="badge-item"><span class="badge-code">TIGER_DATABASE_URL</span><span class="badge-desc">the one variable that picks the field</span></div>
+              <div class="badge-item"><span class="badge-code">ssl</span><span class="badge-desc">encrypted connection</span></div>
+              <div class="badge-item"><span class="badge-code">timescaledb</span><span class="badge-desc">used when present, ignored when not</span></div>
+            </div>
+          </div>
+        </div>
+
+        <p style="margin-top: var(--space-8)">In our code, the choice happens once, at the top of <code>src/db.js</code>. Everything after that line is the same for both soils.</p>
+
+        <small style="display:block; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: calc(-1 * var(--space-6))">src/db.js · lines 9–10, 17–18 and 45–48 (three fragments, blank line marks each gap)</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-keyword">const</span> url = process.env.<span class="code-property">TIGER_DATABASE_URL</span>;</span>
+<span class="code-line"><span class="code-keyword">export const</span> dbBackend = url ? <span class="code-string">'tiger'</span> : <span class="code-string">'pglite'</span>;</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">if</span> (url) {</span>
+<span class="code-line">  <span class="code-keyword">const</span> pg = (<span class="code-keyword">await</span> <span class="code-function">import</span>(<span class="code-string">'pg'</span>)).default;</span>
+<span class="code-line"></span>
+<span class="code-line">} <span class="code-keyword">else</span> {</span>
+<span class="code-line">  <span class="code-keyword">const</span> { PGlite } = <span class="code-keyword">await</span> <span class="code-function">import</span>(<span class="code-string">'@electric-sql/pglite'</span>);</span>
+<span class="code-line">  <span class="code-keyword">const</span> pgl = <span class="code-keyword">new</span> <span class="code-function">PGlite</span>(process.env.<span class="code-property">PGLITE_DIR</span> || <span class="code-keyword">undefined</span>);</span>
+<span class="code-line">  <span class="code-keyword">await</span> pgl.waitReady;</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Read the Tiger Data address from the <span class="term" data-definition="The environment is the set of named settings (environment variables) handed to the program at start-up, such as TIGER_DATABASE_URL.">environment</span>. If it is not set, this is empty.</p>
+              <p class="tl">Name the <span class="term" data-definition="The backend is the part of the system that runs on the server and talks to the database, as opposed to the pages shown in the browser.">backend</span> we are using: tiger if an address exists, pglite if not. Other files can read this label.</p>
+              <p class="tl">(skip to line 17)</p>
+              <p class="tl">If we have an address, we are in the field.</p>
+              <p class="tl"><span class="term" data-definition="import loads another piece of code (a library or one of our own files) so this file can use it. Here it is done lazily, only for the backend actually chosen.">Load</span> the standard Postgres network driver, and <span class="term" data-definition="await pauses this line until a slow job (like opening a database) finishes, without freezing the rest of the server.">wait</span> for it.</p>
+              <p class="tl">(skip to line 45)</p>
+              <p class="tl">Otherwise, we are on the windowsill.</p>
+              <p class="tl">Load PGlite, the Postgres that lives inside Node.</p>
+              <p class="tl">Plant it in a folder if <code>PGLITE_DIR</code> is set, or in memory if not.</p>
+              <p class="tl">Wait until the pot is ready before anyone asks it a question.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────── Screen 2: One interface for both ───────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">One interface for both</h2>
+        <p>Both drivers get wrapped so every <span class="term" data-definition="A route is the function on the server that handles one URL, such as POST /api/feedback. All routes live in src/routes.">route</span> in the app talks to the database through the same four <span class="term" data-definition="A function is a named, reusable block of code that takes inputs and returns a result.">functions</span>. No route ever knows which soil it is standing in.</p>
+
+        <div class="icon-rows">
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-3)">📋</div>
+            <div>
+              <strong><code>query(sql, params)</code></strong>
+              <p>Ask a question, get back many rows: every order, every feedback response for a chart.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-3)">🎯</div>
+            <div>
+              <strong><code>one(sql, params)</code></strong>
+              <p>Ask a question, get back just the first row: the one program behind this <span class="term" data-definition="A token here is a random, hard-to-guess string that stands in for a program in links and QR codes, so nobody can guess another program URL.">token</span>.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-3)">✍️</div>
+            <div>
+              <strong><code>run(sql, params)</code></strong>
+              <p>Change something and get back the rows plus a <code>rowCount</code> of how many were touched.</p>
+            </div>
+          </div>
+          <div class="icon-row">
+            <div class="icon-circle" style="background: var(--color-actor-3)">🔒</div>
+            <div>
+              <strong><code>tx(async fn)</code></strong>
+              <p>A <span class="term" data-definition="A transaction groups several database changes so they all succeed or all roll back together. Nothing half-done is ever saved.">transaction</span>: several changes that all succeed or all roll back. Nothing half-done is ever saved.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────── Screen 3: A schema that upgrades itself ───────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">A schema that upgrades itself</h2>
+        <p>The <span class="term" data-definition="The schema is the blueprint of the database: which tables exist, which columns they have, and how they link. In this app it is a block of SQL in db.js.">schema</span> is one block of SQL that runs every time the app starts. Every statement is written so that running it against a database that already has the <span class="term" data-definition="A table is a named grid of rows and columns inside the database, such as programs or feedback.">table</span> or <span class="term" data-definition="A column is one field that every row in a table has, such as rating or created_at.">column</span> does nothing.</p>
+        <p>Here is how the <code>token</code> column was added to <code>programs</code> after the first version shipped. A brand-new pot and a six-month-old field both end up identical.</p>
+
+        <small style="display:block; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: calc(-1 * var(--space-6))">src/db.js · lines 223–229 (SQL inside the schema block)</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-comment">-- New columns (also applied to databases created before this version)</span></span>
+<span class="code-line"><span class="code-keyword">ALTER TABLE</span> inbound_emails <span class="code-keyword">ADD COLUMN IF NOT EXISTS</span> partner_id <span class="code-keyword">INTEGER REFERENCES</span> partners(id) <span class="code-keyword">ON DELETE SET NULL</span>;</span>
+<span class="code-line"><span class="code-keyword">ALTER TABLE</span> programs <span class="code-keyword">ADD COLUMN IF NOT EXISTS</span> token <span class="code-keyword">TEXT</span>;</span>
+<span class="code-line"><span class="code-keyword">UPDATE</span> programs <span class="code-keyword">SET</span> token = <span class="code-function">replace</span>(<span class="code-function">gen_random_uuid</span>()::text,<span class="code-string">'-'</span>,<span class="code-string">''</span>) <span class="code-keyword">WHERE</span> token <span class="code-keyword">IS NULL</span>;</span>
+<span class="code-line"><span class="code-keyword">ALTER TABLE</span> programs <span class="code-keyword">ALTER COLUMN</span> token <span class="code-keyword">SET DEFAULT</span> <span class="code-function">replace</span>(<span class="code-function">gen_random_uuid</span>()::text,<span class="code-string">'-'</span>,<span class="code-string">''</span>);</span>
+<span class="code-line"><span class="code-keyword">ALTER TABLE</span> programs <span class="code-keyword">ALTER COLUMN</span> token <span class="code-keyword">SET NOT NULL</span>;</span>
+<span class="code-line"><span class="code-keyword">CREATE UNIQUE INDEX IF NOT EXISTS</span> programs_token_key <span class="code-keyword">ON</span> programs(token);</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">A note to humans: these lines exist for databases that were created before this column did.</p>
+              <p class="tl">Give inbound emails a link to a partner, if they do not have one yet. If the partner is deleted, blank the link rather than failing.</p>
+              <p class="tl">Give programs a <code>token</code> column, if it is not there yet. Right now it is empty for old rows.</p>
+              <p class="tl"><span class="term" data-definition="A backfill fills a newly added column with values for rows that already existed before the column did.">Backfill</span>: every program without a token gets a fresh random <span class="term" data-definition="A UUID is a randomly generated 32-character identifier so unlikely to repeat that you can treat it as unique without checking.">UUID</span> with the dashes removed.</p>
+              <p class="tl">From now on, new programs get a random token automatically.</p>
+              <p class="tl">And no program may ever have an empty token (safe now, because we just filled them all).</p>
+              <p class="tl">Build a <span class="term" data-definition="A unique index is a fast lookup structure that also forbids two rows from sharing the same value in that column.">unique index</span> so token lookups are fast and no two programs can share one, if the index is not there yet.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title"><span class="term" data-definition="Idempotent means running something twice has the same effect as running it once. IF NOT EXISTS is what makes a CREATE statement idempotent.">Idempotent</span></strong>
+            <p>Idempotent means: running it twice is the same as running it once. That is what lets the app create or upgrade the database on every start with no <span class="term" data-definition="A migration is a numbered script that changes a database from one version to the next. Many projects keep a folder of them; this app does not need one.">migration</span> tool. Sow the same seeds in the same bed twice and you still get one plant per spot.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────── Screen 4: Time-series when you have it ───────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Time-series when you have it, plain SQL when you do not</h2>
+        <p>Feedback is the one table that grows every day, so it is the one that benefits from the field. On Timescale it becomes a <span class="term" data-definition="A hypertable is a TimescaleDB table that is automatically split into time chunks behind the scenes, so queries over a date range only touch the chunks they need.">hypertable</span>, and that changes one detail of its <span class="term" data-definition="The primary key is the column (or columns) that uniquely identify each row in a table, like a membership number.">primary key</span>.</p>
+
+        <small style="display:block; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: calc(-1 * var(--space-6))">src/db.js · lines 271–280</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-comment">// feedback: a TimescaleDB hypertable needs the time column in every unique index, so on Timescale the</span></span>
+<span class="code-line"><span class="code-comment">// primary key is (id, created_at). `id` is still generated and unique in practice, so lookups by id work.</span></span>
+<span class="code-line"><span class="code-keyword">await</span> <span class="code-function">exec</span>(`</span>
+<span class="code-line"><span class="code-keyword">CREATE TABLE IF NOT EXISTS</span> feedback (</span>
+<span class="code-line">  id <span class="code-keyword">SERIAL</span>, program_id <span class="code-keyword">INTEGER REFERENCES</span> programs(id), source <span class="code-keyword">TEXT</span>,</span>
+<span class="code-line">  rating <span class="code-keyword">INTEGER</span>, would_recommend <span class="code-keyword">BOOLEAN</span>, most_valued <span class="code-keyword">TEXT</span>, suggestions <span class="code-keyword">TEXT</span>,</span>
+<span class="code-line">  raw_text <span class="code-keyword">TEXT</span>, image_path <span class="code-keyword">TEXT</span>, needs_review <span class="code-keyword">BOOLEAN DEFAULT</span> <span class="code-keyword">false</span>,</span>
+<span class="code-line">  created_at <span class="code-keyword">TIMESTAMPTZ NOT NULL DEFAULT</span> <span class="code-function">now</span>(),</span>
+<span class="code-line">  <span class="code-keyword">PRIMARY KEY</span> (${timescaleAvailable ? <span class="code-string">'id, created_at'</span> : <span class="code-string">'id'</span>})</span>
+<span class="code-line">);</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Why the next trick is needed: Timescale insists the time column be part of every unique rule on a hypertable.</p>
+              <p class="tl">So on Timescale the key is (id, created_at). The id is still auto-numbered and unique in practice, so finding a row by id still works.</p>
+              <p class="tl">Send this SQL to whichever database we have.</p>
+              <p class="tl">Create the feedback table, unless it already exists.</p>
+              <p class="tl">An auto-numbered id (<span class="term" data-definition="SERIAL is a Postgres column type that auto-numbers each new row 1, 2, 3 and so on.">SERIAL</span>), a link to the program, and where the response came from (QR form, voice, photo).</p>
+              <p class="tl">The star rating, a yes/no on recommending (<span class="term" data-definition="A BOOLEAN column holds true or false, such as needs_review.">boolean</span>), and the two free-text answers.</p>
+              <p class="tl">The raw transcript or handwriting text, the photo path, and a flag staff use to review uncertain readings.</p>
+              <p class="tl">When it arrived, as a <span class="term" data-definition="TIMESTAMPTZ is a Postgres column type for a date and time with a time zone, so created_at means the same instant everywhere.">timestamp with time zone</span>, filled in automatically.</p>
+              <p class="tl">Here is the switch: if Timescale is available the key is two columns, otherwise just id. Same seed, slightly different furrow.</p>
+              <p class="tl">End of the table definition.</p>
+            </div>
+          </div>
+        </div>
+
+        <p style="margin-top: var(--space-8)">Then the field earns its keep. A <span class="term" data-definition="A continuous aggregate is a TimescaleDB view that keeps pre-computed totals (for example per day) up to date in the background, so charts read a few summary rows instead of every raw row.">continuous aggregate</span> called <code>feedback_daily</code> pre-computes responses and average rating per day, and the Trends <span class="term" data-definition="An endpoint is one URL the server answers, such as /api/trends. The dashboard calls it to get chart data.">endpoint</span> tries it first.</p>
+
+        <small style="display:block; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: calc(-1 * var(--space-6))">src/routes/dashboard.js · lines 109–121 (inside GET /api/trends)</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line">  <span class="code-keyword">let</span> perDay;</span>
+<span class="code-line">  <span class="code-keyword">let</span> source = <span class="code-string">'sql'</span>;</span>
+<span class="code-line">  <span class="code-keyword">if</span> (isTimescale &amp;&amp; hasDailyAggregate) {</span>
+<span class="code-line">    <span class="code-keyword">try</span> {</span>
+<span class="code-line">      perDay = <span class="code-keyword">await</span> <span class="code-function">query</span>(`<span class="code-keyword">SELECT</span> (day <span class="code-keyword">AT TIME ZONE</span> <span class="code-string">'UTC'</span>)::date::text <span class="code-keyword">AS</span> day, <span class="code-function">SUM</span>(responses)::int <span class="code-keyword">AS</span> responses,</span>
+<span class="code-line">          (<span class="code-function">SUM</span>(avg_rating*rated)/<span class="code-function">NULLIF</span>(<span class="code-function">SUM</span>(rated),<span class="code-number">0</span>))::float8 <span class="code-keyword">AS</span> avg_rating</span>
+<span class="code-line">        <span class="code-keyword">FROM</span> feedback_daily <span class="code-keyword">WHERE</span> day &gt;= <span class="code-function">now</span>() - <span class="code-function">make_interval</span>(days =&gt; $1) <span class="code-keyword">GROUP BY</span> <span class="code-number">1</span> <span class="code-keyword">ORDER BY</span> <span class="code-number">1</span>`, [days]);</span>
+<span class="code-line">      source = <span class="code-string">'continuous_aggregate'</span>;</span>
+<span class="code-line">    } <span class="code-keyword">catch</span> (e) { console.<span class="code-function">warn</span>(<span class="code-string">'[trends] aggregate query failed, using plain SQL:'</span>, e.message); }</span>
+<span class="code-line">  }</span>
+<span class="code-line">  perDay ??= <span class="code-keyword">await</span> <span class="code-function">query</span>(`<span class="code-keyword">SELECT</span> (created_at <span class="code-keyword">AT TIME ZONE</span> <span class="code-string">'UTC'</span>)::date::text <span class="code-keyword">AS</span> day, <span class="code-function">COUNT</span>(*)::int <span class="code-keyword">AS</span> responses,</span>
+<span class="code-line">      <span class="code-function">AVG</span>(rating)::float8 <span class="code-keyword">AS</span> avg_rating</span>
+<span class="code-line">    <span class="code-keyword">FROM</span> feedback <span class="code-keyword">WHERE</span> created_at &gt;= <span class="code-function">now</span>() - <span class="code-function">make_interval</span>(days =&gt; $1) <span class="code-keyword">GROUP BY</span> <span class="code-number">1</span> <span class="code-keyword">ORDER BY</span> <span class="code-number">1</span>`, [days]);</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Make an empty box for the per-day numbers.</p>
+              <p class="tl">Assume we will answer with plain SQL; we label the response so staff can see which path ran.</p>
+              <p class="tl">Only if we are on Timescale and the daily <span class="term" data-definition="A view is a saved query that you can read like a table. feedback_daily is one.">view</span> exists...</p>
+              <p class="tl">...<span class="term" data-definition="try/catch runs some code and, if it throws an error, jumps to the catch block instead of crashing. Here it lets the aggregate fail gracefully.">try</span> the fast path, ready to catch any failure.</p>
+              <p class="tl">Read the pre-computed daily rows, turning each day into plain text and adding up the response counts. The <span class="term" data-definition="A cast (the :: syntax) converts a value from one type to another, such as a timestamp into a plain date.">::</span> parts convert types.</p>
+              <p class="tl">Combine each day of averages into one weighted average; NULLIF stops a divide-by-zero on days with no ratings.</p>
+              <p class="tl">Only the last N days, one row per day (<span class="term" data-definition="GROUP BY collapses many rows into one per group, here one row per day, so COUNT and AVG work per day.">grouped</span>), oldest first.</p>
+              <p class="tl">If that worked, relabel the response: this came from the continuous aggregate.</p>
+              <p class="tl">If it failed, log a warning and carry on; the box is still empty.</p>
+              <p class="tl">End of the Timescale attempt.</p>
+              <p class="tl">The <span class="term" data-definition="A fallback is the plan B the code uses automatically when the preferred path is unavailable. The ??= operator means: only fill this if it is still empty.">fallback</span>: if the box is still empty, count the raw feedback rows per day directly...</p>
+              <p class="tl">...with a straight average of the ratings...</p>
+              <p class="tl">...over the same window, grouped and ordered the same way. Identical shape, so the chart cannot tell the difference.</p>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="font-family: var(--font-display); font-size: var(--text-xl); margin: var(--space-10) 0 var(--space-3)">Responses per day, three ways</h3>
+        <div class="layer-demo">
+          <div class="layer-tabs">
+            <button class="layer-tab active" onclick="showLayer('layer-m6-a', this)">PGlite (laptop)</button>
+            <button class="layer-tab" onclick="showLayer('layer-m6-b', this)">Tiger Data, plain Postgres</button>
+            <button class="layer-tab" onclick="showLayer('layer-m6-c', this)">Tiger Data + TimescaleDB</button>
+          </div>
+          <div class="layer-viewport">
+            <div class="layer" id="layer-m6-a" style="display:block; padding: var(--space-5); background: var(--color-surface)">
+              <div class="badge-list" style="margin: 0">
+                <div class="badge-item"><span class="badge-code">FROM feedback GROUP BY day</span><span class="badge-desc">Plain SQL counts every feedback row, one group per day</span></div>
+                <div class="badge-item"><span class="badge-code">source: "sql"</span><span class="badge-desc">The response is labelled so you know which path ran</span></div>
+                <div class="badge-item"><span class="badge-code">🪴 in-process</span><span class="badge-desc">No network hop at all; fast enough for a laptop full of test rows</span></div>
+              </div>
+            </div>
+            <div class="layer" id="layer-m6-b" style="display:none; padding: var(--space-5); background: var(--color-surface)">
+              <div class="badge-list" style="margin: 0">
+                <div class="badge-item"><span class="badge-code">FROM feedback GROUP BY day</span><span class="badge-desc">The identical SQL, now sent over the network with SSL</span></div>
+                <div class="badge-item"><span class="badge-code">source: "sql"</span><span class="badge-desc">Same label, same numbers as the laptop</span></div>
+                <div class="badge-item"><span class="badge-code">🌾 hosted</span><span class="badge-desc">Data survives restarts and redeploys; the extension is simply not used</span></div>
+              </div>
+            </div>
+            <div class="layer" id="layer-m6-c" style="display:none; padding: var(--space-5); background: var(--color-surface)">
+              <div class="badge-list" style="margin: 0">
+                <div class="badge-item"><span class="badge-code">FROM feedback_daily</span><span class="badge-desc">Reads one summary row per day from a view a <span class="term" data-definition="A refresh policy is a schedule stored in the database that tells TimescaleDB how often to recompute the aggregate, for example every hour.">policy</span> refreshes hourly</span></div>
+                <div class="badge-item"><span class="badge-code">source: "continuous_aggregate"</span><span class="badge-desc">The label changes; the chart does not</span></div>
+                <div class="badge-item"><span class="badge-code">🌾 + timescaledb</span><span class="badge-desc">Stays fast as feedback grows to millions of rows; falls back to plain SQL if the view is missing</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="layer-description">Same question (how many responses per day, and how happy were they?), same chart on the Insights tab; only the soil changes.</p>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">🧪</div>
+          <div class="callout-content">
+            <strong class="callout-title">Honesty note: not yet proven in the field</strong>
+            <p>The hypertable and continuous-aggregate code paths have not yet run against a live Timescale server (WORKLOAD.md says so). Every test runs on PGlite, so what is proven today is the plain SQL path and the fallback; say that out loud before a judge asks.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────── Screen 5: Reports that are safe to open in Excel ───────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Reports that are safe to open in Excel</h2>
+        <p>For funders, <code>programReport</code> in <code>src/report.js</code> turns the feedback rows into four numbers and asks <span class="term" data-definition="Gemini is the Google AI model the app uses for all its AI work: reading handwriting, translating, and summarising reports.">Gemini</span> for a 3–4 sentence summary. The same rows can also be exported as <span class="term" data-definition="CSV (comma-separated values) is the simplest spreadsheet file: plain text with one row per line and commas between cells. Excel and Google Sheets open it directly.">CSV</span>.</p>
+
+        <div class="badge-list">
+          <div class="badge-item"><span class="badge-code">rating distribution</span><span class="badge-desc">how many 1s, 2s, 3s, 4s and 5s</span></div>
+          <div class="badge-item"><span class="badge-code">recommend %</span><span class="badge-desc">share of parents who would recommend the program</span></div>
+          <div class="badge-item"><span class="badge-code">response rate</span><span class="badge-desc">responses received versus children enrolled</span></div>
+          <div class="badge-item"><span class="badge-code">AI summary</span><span class="badge-desc">Gemini writes 3–4 sentences; skipped cleanly when no key is set</span></div>
+        </div>
+
+        <p>A CSV cell is just text, but a parent comment is text we did not write. One small function makes every cell safe before it reaches a spreadsheet.</p>
+
+        <small style="display:block; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: calc(-1 * var(--space-6))">src/report.js · lines 41–47</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-comment">/** One CSV cell: neutralises spreadsheet formulas (=, +, -, @, tab, CR prefixes) and quotes safely. */</span></span>
+<span class="code-line"><span class="code-keyword">export function</span> <span class="code-function">csvCell</span>(v) {</span>
+<span class="code-line">  <span class="code-keyword">if</span> (v == <span class="code-keyword">null</span>) <span class="code-keyword">return</span> <span class="code-string">''</span>;</span>
+<span class="code-line">  <span class="code-keyword">if</span> (v <span class="code-keyword">instanceof</span> Date) v = v.<span class="code-function">toISOString</span>();</span>
+<span class="code-line">  <span class="code-keyword">let</span> s = <span class="code-function">String</span>(v);</span>
+<span class="code-line">  <span class="code-keyword">if</span> (<span class="code-string">/^[=+\-@\t\r]/</span>.<span class="code-function">test</span>(s)) s = <span class="code-string">"'"</span> + s;</span>
+<span class="code-line">  <span class="code-keyword">return</span> <span class="code-string">/[",\r\n]/</span>.<span class="code-function">test</span>(s) ? `"${s.<span class="code-function">replace</span>(<span class="code-string">/"/g</span>, <span class="code-string">'""'</span>)}"` : s;</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">The promise this function makes: one safe cell, formulas disarmed, quotes handled.</p>
+              <p class="tl">Take any value (a number, a date, a parent comment) and return the text to put in the file.</p>
+              <p class="tl">Missing values (<span class="term" data-definition="NULL is the database value for missing or not yet known. In JavaScript it arrives as null or undefined.">null</span>) become an empty cell.</p>
+              <p class="tl">Dates become the standard 2026-11-07T... text form so every spreadsheet reads them the same way.</p>
+              <p class="tl">Everything else becomes plain text.</p>
+              <p class="tl">If the text starts with =, +, -, @, a tab or a carriage return (a <span class="term" data-definition="A regular expression (regex) is a compact pattern for matching text, such as: starts with one of these characters.">regex</span> check), put a single quote in front so a spreadsheet treats it as words, not a formula.</p>
+              <p class="tl">If it contains a comma, quote mark or line break, wrap it in quotes and double any inner quotes, the standard CSV rule. Otherwise return it as is.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-warning">
+          <div class="callout-icon">⚠️</div>
+          <div class="callout-content">
+            <strong class="callout-title">CSV injection</strong>
+            <p><span class="term" data-definition="CSV or formula injection is when a cell that begins with = or + is treated as a formula by the spreadsheet that opens it, which can run commands or leak data.">CSV injection</span>: a cell starting with = or + runs as a formula when opened in a spreadsheet. Prefixing a quote neutralises it, so a mischievous parent comment can never execute on a funder laptop.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────── Screen 6: Tests that boot the real thing ───────────── -->
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Tests that boot the real thing</h2>
+        <p>Because the pot is in-process, <code><span class="term" data-definition="npm test runs the automated checks in the test folder. Here they boot the real server on an in-memory database.">npm test</span></code> does not need a test database, a mock, or an account. It starts the actual server on in-memory PGlite and walks the whole order → feedback → report loop in seconds.</p>
+        <p>The first thing the <span class="term" data-definition="A smoke test boots the whole app and walks through its main journeys end to end, checking nothing catches fire.">smoke test</span> does is remove every outside <span class="term" data-definition="An API key is a secret string that proves to an outside service like Gemini that the request comes from us and bills our account.">API key</span>, so the app has to prove it works with no AI, no image host and no email.</p>
+
+        <small style="display:block; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: calc(-1 * var(--space-6))">test/smoke.js · lines 4–11</small>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code>
+<span class="code-line"><span class="code-keyword">delete</span> process.env.<span class="code-property">TIGER_DATABASE_URL</span>; <span class="code-comment">// in-memory PGlite</span></span>
+<span class="code-line"><span class="code-keyword">delete</span> process.env.<span class="code-property">PGLITE_DIR</span>;</span>
+<span class="code-line"><span class="code-keyword">delete</span> process.env.<span class="code-property">GEMINI_API_KEY</span>; <span class="code-comment">// exercise the no-AI path</span></span>
+<span class="code-line"><span class="code-keyword">delete</span> process.env.<span class="code-property">CLOUDINARY_URL</span>;</span>
+<span class="code-line"><span class="code-keyword">delete</span> process.env.<span class="code-property">SMTP_HOST</span>;</span>
+<span class="code-line">process.env.<span class="code-property">REQUIRE_AUTH</span> = <span class="code-string">'1'</span>; <span class="code-comment">// these tests exercise the login-protected mode</span></span>
+<span class="code-line">process.env.<span class="code-property">AUTH_DEV_LOGIN</span> = <span class="code-string">'1'</span>;</span>
+<span class="code-line">process.env.<span class="code-property">STAFF_ADMIN_EMAILS</span> = <span class="code-string">'staff@example.org'</span>;</span>
+            </code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">Forget any Tiger Data address, so the app plants itself in an in-memory pot.</p>
+              <p class="tl">And no folder either: the pot is thrown away when the test ends.</p>
+              <p class="tl">Remove the Gemini key on purpose, so the no-AI path is what gets tested.</p>
+              <p class="tl">No <span class="term" data-definition="Cloudinary is the outside service that stores uploaded photos. With no CLOUDINARY_URL the app keeps images on local disk instead.">Cloudinary</span>: photos stay on local disk.</p>
+              <p class="tl">No <span class="term" data-definition="SMTP is the protocol used to send email. SMTP_HOST is the address of the mail server; without it, no mail is sent and the app logs instead.">mail server</span>: nothing is actually emailed.</p>
+              <p class="tl">Turn login protection on, so the test proves the staff-only routes really are staff-only.</p>
+              <p class="tl">Allow the developer login shortcut so the test can sign in without Google.</p>
+              <p class="tl">Name one address as staff admin, so the test has someone to sign in as.</p>
+            </div>
+          </div>
+        </div>
+
+        <p style="margin-top: var(--space-8)">With that in place, one test walks the whole pipeline a facilitator and parent would experience:</p>
+
+        <div class="step-cards">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <strong>Inbound email arrives</strong>
+              <p>A facilitator email asking for a kit is posted in; a partner and an order appear in the pot.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <strong>Order form is filled</strong>
+              <p>The facilitator link is opened and the shipping details are submitted.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>Staff mark it shipped</strong>
+              <p>The dashboard route moves the order to shipped; the test checks the status changed.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <strong>Facilitator confirms received</strong>
+              <p>The kit is marked received and a program with its random token exists.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">5</div>
+            <div class="step-body">
+              <strong>Parent submits <span class="term" data-definition="A QR code is the square barcode parents scan with a phone camera to open the feedback form link for their program.">QR</span> feedback</strong>
+              <p>A form response is posted with the program token; a feedback row is saved with its rating.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">6</div>
+            <div class="step-body">
+              <strong>Photo flagged for review</strong>
+              <p>With no Gemini key, the paper-form photo is saved and flagged <code>needs_review</code>; a staff <span class="term" data-definition="PATCH is the HTTP request type for partially updating an existing record, here a staff member correcting one feedback row.">PATCH</span> then fixes the rating.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">7</div>
+            <div class="step-body">
+              <strong>Report is generated</strong>
+              <p>The program report comes back with the right counts and a CSV that opens safely.</p>
+            </div>
+          </div>
+        </div>
+
+        <p style="margin-top: var(--space-8)">In other tests, Gemini itself is <span class="term" data-definition="Injecting a fake means handing the code a stand-in object in place of the real Gemini client, so tests can check what the code does with an answer without calling the paid service.">injected as a fake</span>, so the code that handles an AI answer is tested too, with zero spend. Three questions you will be asked, and the short answer to each:</p>
+
+        <div class="pattern-cards">
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">🌾</div>
+            <h4 class="pattern-title">Why Tiger Data?</h4>
+            <p class="pattern-desc">Hosted Postgres we never administer, with TimescaleDB so trend charts stay fast as feedback grows. The same SQL runs on a laptop with no account, so there is no second codebase.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">🧪</div>
+            <h4 class="pattern-title">How do you test?</h4>
+            <p class="pattern-desc">npm test boots the real server on in-memory PGlite with every API key deleted. One smoke test walks email to report in seconds.</p>
+          </div>
+          <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">🔁</div>
+            <h4 class="pattern-title">How do you migrate?</h4>
+            <p class="pattern-desc">We do not keep migration files. The schema is idempotent SQL that runs on every start, creating what is missing and adding columns to old databases in place.</p>
+          </div>
+        </div>
+
+        <h3 style="font-family: var(--font-display); font-size: var(--text-xl); margin: var(--space-12) 0 var(--space-4)">Check your understanding</h3>
+        <div class="quiz-container" id="quiz-module6">
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="Exactly. IF NOT EXISTS makes the line idempotent, so a fresh database and a six-month-old one both end up with the column the next time the app starts. No tool, no ordering, no downtime."
+               data-explanation-wrong="Not quite. There is no migration tool in this app, and editing CREATE TABLE alone only helps brand-new databases, because IF NOT EXISTS skips tables that already exist. Look again at how the token column was added to programs.">
+            <h3 class="quiz-question">You add a <code>phone</code> column to <code>partners</code>. What do you write, and where?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Create a numbered migration file such as <code>014_add_phone.sql</code> and run it before each deploy.</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Add one line, <code>ALTER TABLE partners ADD COLUMN IF NOT EXISTS phone TEXT;</code>, inside the schema block in <code>src/db.js</code>; it runs safely on every start.</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Add <code>phone TEXT</code> to the <code>CREATE TABLE partners</code> statement only.</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="Exactly. The source field is a diagnostic label, not an error. The numbers are correct either way, and the plain SQL path is the one the tests exercise on every run."
+               data-explanation-wrong="Not quite. Remember the trends route tries the aggregate first and falls back to plain SQL whenever the TimescaleDB extension is missing or the view was never created. Same answer, different soil.">
+            <h3 class="quiz-question">The Insights tab shows the same numbers on Tiger Data as on your laptop, but the response says <code>source: "sql"</code>. Is something wrong?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Yes: the deploy failed and the server is secretly still using PGlite.</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Not necessarily: the aggregate is only used when the TimescaleDB extension is available and the <code>feedback_daily</code> view exists; otherwise the identical plain SQL answers.</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Yes: the numbers must be stale because the hourly refresh policy has not run yet.</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="Exactly. That is CSV injection protection: a parent comment should never be able to run a formula on a funder laptop, so the quote is added on purpose."
+               data-explanation-wrong="Not quite. Look back at csvCell in src/report.js: the regex checks whether the cell starts with =, +, -, @, tab or carriage return and adds a single quote in front. The spreadsheet then shows words, not a live formula.">
+            <h3 class="quiz-question">A funder opens <code>feedback.csv</code> in Excel and a comment that began with <code>=HYPERLINK(...)</code> shows as text, not a link. Why?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Excel blocked it because the file was downloaded from the internet.</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span><code>csvCell</code> prefixes a quote to any cell starting with =, +, -, @ (or tab, CR), so spreadsheets treat it as text instead of running it as a formula.</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>Gemini rewrote the comment while writing the report summary.</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="Exactly. The smoke test proves the app degrades gracefully with no AI at all, and the fake client proves the code handles a Gemini answer correctly. Both run on every npm test with zero spend."
+               data-explanation-wrong="Not quite. Look at the smoke test header: every key is deleted on purpose so the app must prove it works without AI, and in other tests a fake Gemini stands in for the real one. No photos by hand, no cheaper model.">
+            <h3 class="quiz-question">A judge asks how you tested the handwriting pipeline without spending on Gemini. Your answer?</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>We tested by hand with a few real photos and watched the server logs.</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>The tests delete every key and assert the no-AI path: the photo row is saved and flagged <code>needs_review</code>, then a staff PATCH fixes it; in other tests Gemini itself is injected as a fake.</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>We pointed the tests at a cheaper AI model to keep the bill down.</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module6')">Check Answers</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module6')">Try Again</button>
+        </div>
+
+        <p style="margin-top: var(--space-10)">You can now say where every row lives, why the same SQL grows in two soils, and what is not yet proven. Module 7 puts the whole architecture on one diagram and drills the judge questions.</p>
+      </section>
+
+    </div>
+  </div>
+</section>
