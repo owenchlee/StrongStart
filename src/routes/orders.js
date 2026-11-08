@@ -280,21 +280,60 @@ orders.post('/api/orders/:id/cancel', async (req, res) => {
 });
 
 // Staff marks an order shipped -> facilitator gets a "confirm you received it" link; staff get a packing slip.
+
+// Staff: Update order status via dropdown (staff only)
+orders.patch('/api/orders/:id/status', async (req, res) => {
+  const id = intId(req.params.id);
+  if (!id) return res.status(404).json({ error: 'Order not found' });
+  const { status } = req.body ?? {};
+  const allowed = ['form_sent', 'ordered', 'shipped', 'received']; // map to our UI labels
+  if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+
+  // Build UPDATE with optional timestamps
+  let sql = `UPDATE orders SET status=$1`;
+  const params = [status, id];
+  if (status === 'shipped') {
+    sql += `, shipped_at=now()`;
+  } else if (status === 'received') {
+    sql += `, received_at=now()`;
+  }
+  sql += ` WHERE id=$2 AND status <> 'cancelled' RETURNING id`;
+
+  const { rows } = await run(sql, params);
+  if (!rows.length) return res.status(409).json({ error: 'Order could not be updated' });
+  res.json({ ok: true });
+});
+ 
+// Staff marks an order shipped – sends email and packing‑slip
 orders.post('/api/orders/:id/ship', async (req, res) => {
   const id = intId(req.params.id);
-  const claim = id && (await run("UPDATE orders SET status='shipped', shipped_at=now() WHERE id=$1 AND status='ordered' RETURNING *", [id]));
-  if (!claim?.rows.length) return res.status(409).json({ error: 'Order not found or not in "ordered" status' });
+  const claim = id && (await run(
+    "UPDATE orders SET status='shipped', shipped_at=now() WHERE id=$1 AND status='ordered' RETURNING *",
+    [id]
+  ));
+  if (!claim?.rows.length) {
+    return res.status(409).json({ error: 'Order not found or not in "ordered" status' });
+  }
   const o = claim.rows[0];
   const fac = await one('SELECT * FROM facilitators WHERE id=$1', [o.facilitator_id]);
   const prog = o.program_id ? await one('SELECT * FROM programs WHERE id=$1', [o.program_id]) : null;
+  // Email facilitator about shipment
   await sendMail(fac.email, 'Your Baby Connections kits have shipped',
+<<<<<<< HEAD
     `Hi ${fac.name || 'there'},\n\nYour order is on its way to ${o.shipping_address}.\n\nWhen the kits arrive, please open this link and press the button to confirm:\n${BASE_URL}/received/${o.token}\n\nBaby Connections team`);
   const lines = (await itemsFor(o.id)).map((l) => `  [ ] ${l.item}: ${l.qty}`).join('\n');
   await sendMail(STAFF_EMAIL, `Packing slip: order #${o.id}${prog ? ` (${prog.name})` : ''}`,
     `PACKING SLIP, order #${o.id}\n\nFacilitator: ${fac.name || ''} <${fac.email}>\n${prog ? `Program: ${prog.name}${prog.location ? ` (${prog.location})` : ''}\n` : ''}\nShip to:\n${o.shipping_address}\n\nItems:\n${lines}\n\n${o.requested_date ? `Requested by: ${o.requested_date}\n` : ''}${o.shipping_cost != null ? `Shipping cost: $${Number(o.shipping_cost).toFixed(2)}\n` : ''}${o.notes ? `Notes: ${o.notes}\n` : ''}${prog ? `\nProgram QR sheet to include: ${BASE_URL}/sheet/${prog.token}\n` : ''}`);
+=======
+    `Hi ${fac.name || 'there'},\n\nYour order is on its way to ${o.shipping_address}.\n\nWhen the kits arrive, please confirm with one click:\n${BASE_URL}/received/${o.token}\n\nBaby Connections team`);
+  // Packing‑slip email to staff
+  const lines = (await itemsFor(o.id)).map(l => `  [ ] ${l.item}: ${l.qty}`).join('\n');
+  await sendMail(STAFF_EMAIL,
+    `Packing slip: order #${o.id}${prog ? ` (${prog.name})` : ''}`,
+    `PACKING SLIP, order #${o.id}\n\nFacilitator: ${fac.name || ''} <${fac.email}>\n${prog ? `Program: ${prog.name}${prog.location ? ` (${prog.location})` : ''}\n` : ''}Ship to:\n${o.shipping_address}\n\nItems:\n${lines}\n\n${o.requested_date ? `Requested by: ${o.requested_date}\n` : ''}${o.shipping_cost != null ? `Shipping cost: $${Number(o.shipping_cost).toFixed(2)}\n` : ''}${o.notes ? `Notes: ${o.notes}\n` : ''}${prog ? `\nProgram QR sheet to include: ${BASE_URL}/sheet/${prog.token}\n` : ''}`);
+>>>>>>> frontend
   res.json({ ok: true });
 });
-
 // ---------- reminders ----------
 async function remind(token, facilitatorId, n) {
   const fac = await one('SELECT * FROM facilitators WHERE id=$1', [facilitatorId]);
