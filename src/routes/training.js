@@ -175,9 +175,6 @@ trainingRouter.get('/api/certificates/:code', async (req, res) => {
   res.json(cert);
 });
 
-<<<<<<< HEAD
-// Staff: Create training session
-=======
 // Public: List available meeting slots for a training session
 trainingRouter.get('/api/training/:sessionId/slots', async (req, res) => {
   const sessionId = intId(req.params.sessionId);
@@ -278,7 +275,6 @@ trainingRouter.post('/api/training/:sessionId/book-slot', async (req, res) => {
 });
 
 // Staff: Create training session (now also generate meeting slots)
->>>>>>> frontend
 trainingRouter.post('/api/training/sessions', async (req, res) => {
   const b = req.body ?? {};
   const title = oneLine(b.title, 200);
