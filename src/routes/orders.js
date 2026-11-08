@@ -319,19 +319,11 @@ orders.post('/api/orders/:id/ship', async (req, res) => {
   const prog = o.program_id ? await one('SELECT * FROM programs WHERE id=$1', [o.program_id]) : null;
   // Email facilitator about shipment
   await sendMail(fac.email, 'Your Baby Connections kits have shipped',
-<<<<<<< HEAD
     `Hi ${fac.name || 'there'},\n\nYour order is on its way to ${o.shipping_address}.\n\nWhen the kits arrive, please open this link and press the button to confirm:\n${BASE_URL}/received/${o.token}\n\nBaby Connections team`);
+  // Packing‑slip email to staff
   const lines = (await itemsFor(o.id)).map((l) => `  [ ] ${l.item}: ${l.qty}`).join('\n');
   await sendMail(STAFF_EMAIL, `Packing slip: order #${o.id}${prog ? ` (${prog.name})` : ''}`,
-    `PACKING SLIP, order #${o.id}\n\nFacilitator: ${fac.name || ''} <${fac.email}>\n${prog ? `Program: ${prog.name}${prog.location ? ` (${prog.location})` : ''}\n` : ''}\nShip to:\n${o.shipping_address}\n\nItems:\n${lines}\n\n${o.requested_date ? `Requested by: ${o.requested_date}\n` : ''}${o.shipping_cost != null ? `Shipping cost: $${Number(o.shipping_cost).toFixed(2)}\n` : ''}${o.notes ? `Notes: ${o.notes}\n` : ''}${prog ? `\nProgram QR sheet to include: ${BASE_URL}/sheet/${prog.token}\n` : ''}`);
-=======
-    `Hi ${fac.name || 'there'},\n\nYour order is on its way to ${o.shipping_address}.\n\nWhen the kits arrive, please confirm with one click:\n${BASE_URL}/received/${o.token}\n\nBaby Connections team`);
-  // Packing‑slip email to staff
-  const lines = (await itemsFor(o.id)).map(l => `  [ ] ${l.item}: ${l.qty}`).join('\n');
-  await sendMail(STAFF_EMAIL,
-    `Packing slip: order #${o.id}${prog ? ` (${prog.name})` : ''}`,
     `PACKING SLIP, order #${o.id}\n\nFacilitator: ${fac.name || ''} <${fac.email}>\n${prog ? `Program: ${prog.name}${prog.location ? ` (${prog.location})` : ''}\n` : ''}Ship to:\n${o.shipping_address}\n\nItems:\n${lines}\n\n${o.requested_date ? `Requested by: ${o.requested_date}\n` : ''}${o.shipping_cost != null ? `Shipping cost: $${Number(o.shipping_cost).toFixed(2)}\n` : ''}${o.notes ? `Notes: ${o.notes}\n` : ''}${prog ? `\nProgram QR sheet to include: ${BASE_URL}/sheet/${prog.token}\n` : ''}`);
->>>>>>> frontend
   res.json({ ok: true });
 });
 // ---------- reminders ----------

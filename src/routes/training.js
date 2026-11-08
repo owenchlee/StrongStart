@@ -4,10 +4,6 @@ import { sendMail, STAFF_EMAIL, BASE_URL } from '../mailer.js';
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
 import { query, one, run, tx } from '../db.js';
-<<<<<<< HEAD
-import { sendMail } from '../mailer.js';
-import { BASE_URL, str, oneLine, dateOrNull, intId, validEmail } from '../util.js';
-=======
 
 // Import Outlook helper
 import { createOutlookEvent } from '../msgraph.js';
@@ -35,7 +31,6 @@ async function generateSlotsForSession(sessionId, { sessionDate, daysBefore = 2,
   }
 }
 
->>>>>>> frontend
 
 export const trainingRouter = Router();
 
